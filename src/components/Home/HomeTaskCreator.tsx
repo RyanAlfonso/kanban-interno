@@ -9,13 +9,15 @@ import { Button } from "../ui/button";
 
 type HomeTaskCreatorProps = {
   state: Todo["state"];
+  projectId?: string; // Added projectId as an optional prop
 };
 
-const HomeTaskCreator: FC<HomeTaskCreatorProps> = ({ state }) => {
+const HomeTaskCreator: FC<HomeTaskCreatorProps> = ({ state, projectId }) => {
   const dispatch = useDispatch();
 
   const handleOpenDialog = () => {
-    dispatch(openTodoEditor({ state }, "/", "create"));
+    // Pass projectId if available
+    dispatch(openTodoEditor({ state, projectId }, "/", "create"));
   };
 
   return (

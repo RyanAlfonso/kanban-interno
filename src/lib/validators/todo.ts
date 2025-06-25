@@ -7,7 +7,7 @@ export const TodoCreateValidator = z.object({
   state: z.nativeEnum(State, { errorMap: () => ({ message: "Invalid state selected." }) }),
   deadline: z.number().int().positive().optional().nullable(), // Allow null
   label: z.array(z.string().max(100, { message: "Label cannot exceed 100 characters." })).optional(),
-  projectId: z.string().optional().nullable(), // Add projectId
+  projectId: z.string().min(1, { message: "Project selection is required." }), // Changed to required
 });
 
 export const TodoEditValidator = z.object({

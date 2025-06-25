@@ -76,7 +76,7 @@ const TodoColumn: FC<TodoColumnProp> = ({ title, todos, state, projectId }) => {
             return <TodoCard todo={todo} key={todo.id.toString()} />;
           })}
       </div>
-      <HomeTaskCreator state={state} />
+      <HomeTaskCreator state={state} projectId={projectId} />
     </div>
   );
 };

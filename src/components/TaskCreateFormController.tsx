@@ -35,44 +35,46 @@ const TaskCreateFormController: FC<TaskCreateFormProps> = ({
   const form = useForm<TodoCreateRequest>({
     resolver: zodResolver(TodoCreateValidator),
     defaultValues: {
-      title: "", // Default to empty string
-      description: "", // Default to empty string
-      state: task.state || TASK_STATE_OPTIONS[0].value, // task.state comes from HomeTaskCreator
-      deadline: task.deadline || null, // task.deadline comes from HomeTaskCreator
-      label: [], // Default to empty array
-      // projectId is NOT set here
+      title: "",
+      description: "",
+      state: task.state || TASK_STATE_OPTIONS[0].value,
+      deadline: task.deadline || null,
+      label: [],
+      // Set projectId from task (passed via Redux), or from URL if specific, else empty for user selection
+      projectId: task.projectId || (searchParams.get("projectId") && searchParams.get("projectId") !== "all" ? searchParams.get("projectId")! : ""),
     },
   });
 
   // Ensure useMutation uses v4+ syntax
   const createMutation = useMutation<Todo, AxiosError, TodoCreateRequest>({
-    mutationFn: async (data: TodoCreateRequest) => { // Modified mutationFn
-      const currentProjectId = searchParams.get("projectId");
-      const dataWithProjectId = {
-        ...data,
-        projectId: (currentProjectId && currentProjectId !== "all") ? currentProjectId : null,
-      };
-      return todoCreateRequest(dataWithProjectId);
+    mutationFn: async (data: TodoCreateRequest) => {
+      // projectId now comes directly from the form data (data.projectId)
+      // Validation will be handled by Zod resolver based on TodoCreateValidator
+      return todoCreateRequest(data);
     },
     onSuccess: (newTodo) => {
       console.log("onSuccess createMutation:", newTodo);
       
-      const effectiveProjectId = newTodo.projectId; // Can be null
+      // newTodo.projectId should now always be a valid ID due to upcoming validator changes.
+      const effectiveProjectId = newTodo.projectId;
 
-      // Update cache: Add the new todo to the list associated with its project
-      const queryKey = ["todos", { projectId: effectiveProjectId }];
-
-      queryClient.setQueryData<Todo[]>(queryKey, (oldTodos = []) => [ // oldTodos defaults to []
+      // Update cache for the specific project
+      const projectQueryKey = ["todos", { projectId: effectiveProjectId }];
+      queryClient.setQueryData<Todo[]>(projectQueryKey, (oldTodos = []) => [
         ...oldTodos,
         newTodo,
       ]);
       
-      // Comprehensive query invalidations
-      queryClient.invalidateQueries({ queryKey: ["todos"] });
+      // Invalidate general todos list and the "all" projects view as well
+      queryClient.invalidateQueries({ queryKey: ["todos"] }); // General key often used for "all" or broader contexts
+      queryClient.invalidateQueries({ queryKey: ["todos", { projectId: "all" }] });
+
+
+      // Also invalidate the specific project query key directly if not already covered by general ["todos"]
       if (effectiveProjectId) {
-        queryClient.invalidateQueries({ queryKey: ["todos", { projectId: effectiveProjectId }] });
+         queryClient.invalidateQueries({ queryKey: ["todos", { projectId: effectiveProjectId }] });
       }
-      queryClient.invalidateQueries({ queryKey: ["todos", { projectId: null }] });
+      // No longer need to invalidate for projectId: null, as it won't be allowed.
 
       handleOnSuccess(); // Close dialog on success
     },

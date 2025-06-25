@@ -145,18 +145,19 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
               defaultValue={task.projectId?.toString() || ""} // Use defaultValue from task prop, ensure string
               render={({ field }) => (
                 <CustomizedSelect
-                  options={[
-                    { value: "", title: "Sem projeto" }, // Standardized "no project" option
-                    ...projectOptions
-                  ]}
-                  placeholder="Selecione o projeto"
+                  options={projectOptions} // Remove "Sem projeto" option
+                  placeholder="Selecione um projeto" // Changed placeholder
                   onChange={field.onChange}
-                  value={field.value?.toString() || ""} // Ensure value passed to select is string
+                  value={field.value?.toString() || ""}
                   isLoading={projectsLoading}
+                  // Disable if loading and no projects, or if there's an error,
+                  // but allow interaction if there are projects or it's not loading.
+                  // The validator will handle if it's empty on submission.
+                  disabled={projectsLoading && !projects?.length || !!projectsError && !projects?.length}
                 />
               )}
             />
-            {projectsError && <ErrorMessage msg="Erro ao carregar projetos."/>}
+            {projectsError && !projects?.length && <ErrorMessage msg="Erro ao carregar projetos. Não é possível criar tarefas."/>}
             <ErrorMessage msg={errors.projectId?.message?.toString()} />
           </div>
 
