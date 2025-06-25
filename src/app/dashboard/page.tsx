@@ -16,7 +16,7 @@ export default function DashboardPage() {
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
             <p className="text-muted-foreground">
-              Visão geral do progresso e métricas do projeto.
+              Visão geral do progresso e métricas da área.
             </p>
           </div>
           <div className="w-64">

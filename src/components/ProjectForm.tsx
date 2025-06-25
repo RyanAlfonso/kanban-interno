@@ -51,7 +51,7 @@ const ProjectForm: FC<ProjectFormProps> = ({ onSuccess, trigger }) => {
       });
       
       if (!response.ok) {
-        throw new Error("Falha ao criar projeto");
+        throw new Error("Falha ao criar área");
       }
       
       toast({

@@ -66,12 +66,12 @@ const ProjectEditForm: FC<ProjectEditFormProps> = ({ project, onSuccess, trigger
       });
       
       if (!response.ok) {
-        throw new Error("Falha ao atualizar projeto");
+        throw new Error("Falha ao atualizar área");
       }
       
       toast({
         title: "Sucesso",
-        description: "Projeto atualizado com sucesso",
+        description: "Área atualizado com sucesso",
       });
       
       // Fechar diálogo
@@ -153,7 +153,7 @@ const ProjectEditForm: FC<ProjectEditFormProps> = ({ project, onSuccess, trigger
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle className="flex justify-between">
-            <span>Editar Projeto</span>
+            <span>Editar área</span>
             <DialogClose asChild>
               <Button variant="ghost" className="p-0 h-auto">
                 <X />

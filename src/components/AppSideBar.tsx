@@ -29,7 +29,7 @@ const fetchProjects = async (): Promise<Project[]> => {
     const response = await fetch("/api/projects");
     if (!response.ok) {
       console.error("Failed to fetch projects, status:", response.status);
-      throw new Error("Falha ao buscar projetos");
+      throw new Error("Falha ao buscar áreas");
     }
     const data = await response.json();
     console.log("Projects fetched successfully:", data);
@@ -95,7 +95,7 @@ const AppSideBar = () => {
       console.error("React Query onError fetching projects:", err);
       toast({
         title: "Erro",
-        description: "Não foi possível carregar os projetos na barra lateral",
+        description: "Não foi possível carregar as áreas na barra lateral",
         variant: "destructive",
       });
     },
@@ -248,7 +248,7 @@ const AppSideBar = () => {
                   <ProjectForm 
                     onSuccess={handleProjectCreated} 
                     trigger={
-                      <Button variant="ghost" size="icon" className="h-6 w-6" title="Criar novo projeto">
+                      <Button variant="ghost" size="icon" className="h-6 w-6" title="Criar nova área">
                         <Plus className="h-4 w-4" />
                       </Button>
                     }
@@ -302,7 +302,7 @@ const AppSideBar = () => {
                 {/* Error Message */} 
                 {/* Display error message using the 'error' object from useQuery */}
                 {error && isSidebarOpen && (
-                  <p className="text-xs text-red-500">Erro ao carregar projetos: {error.message}</p>
+                  <p className="text-xs text-red-500">Erro ao carregar áreas: {error.message}</p>
                 )}
               </div>
             </div>

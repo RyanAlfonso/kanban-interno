@@ -15,7 +15,7 @@ import { Plus } from "lucide-react";
 const fetchProjects = async (): Promise<Project[]> => {
   const response = await fetch("/api/projects");
   if (!response.ok) {
-    throw new Error("Falha ao buscar projetos");
+    throw new Error("Falha ao buscar áreas");
   }
   return response.json();
 };
@@ -38,8 +38,8 @@ const ProjectList: FC<ProjectListProps> = ({ className }) => {
     queryFn: fetchProjects,
     onError: (err) => {
       toast({
-        title: "Erro ao Carregar Projetos",
-        description: err.message || "Não foi possível carregar a lista de projetos.",
+        title: "Erro ao Carregar áreas",
+        description: err.message || "Não foi possível carregar a lista de áreas.",
         variant: "destructive",
       });
     },

@@ -117,7 +117,7 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
         <>
           <div className="relative grid gap-1 pb-4">
             <Label className="text-sm font-medium" htmlFor="state">
-              Estado
+              Status
             </Label>
             <Controller
               control={control}
@@ -204,7 +204,7 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
           </div>
           <div className="relative grid gap-1 pb-4">
             <Label className="text-sm font-medium" htmlFor="label">
-              Etiquetas
+              Tags
             </Label>
             <Controller
               control={control}
@@ -214,13 +214,13 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
                 <CustomizedMultSelect
                   value={field.value || []} // Ensure value is always an array
                   onChange={field.onChange}
-                  placeholder="Selecione etiquetas"
+                  placeholder="Selecione tags"
                   options={labels || []} // Pass fetched labels, ensure it's an array
                   isLoading={labelsLoading} // Pass loading state
                 />
               )}
             />
-            {labelsError && <ErrorMessage msg="Erro ao carregar etiquetas."/>}
+            {labelsError && <ErrorMessage msg="Erro ao carregar tags."/>}
             <ErrorMessage msg={errors.label?.message?.toString()} />
           </div>
         </>
