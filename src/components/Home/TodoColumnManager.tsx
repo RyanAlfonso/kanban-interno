@@ -264,16 +264,6 @@ const TodoColumnManager = () => {
           });
         }
         projectsMap.get(todo.project.id)!.tasks.push(todo);
-      } else {
-        // Handle tasks without a project (optional, depends on requirements)
-        if (!projectsMap.has("unassigned")) {
-          projectsMap.set("unassigned", {
-            id: "unassigned",
-            name: "Tarefas Sem Projeto",
-            tasks: [],
-          });
-        }
-        projectsMap.get("unassigned")!.tasks.push(todo);
       }
     });
     groupedProjects.push(...Array.from(projectsMap.values()));
