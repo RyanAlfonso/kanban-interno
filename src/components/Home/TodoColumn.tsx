@@ -17,12 +17,15 @@ type TodoColumnProp = {
   title: string;
   todos: Todo[];
   state: Todo["state"];
+  projectId?: string; // Added projectId as an optional prop
 };
 
-const TodoColumn: FC<TodoColumnProp> = ({ title, todos, state }) => {
+const TodoColumn: FC<TodoColumnProp> = ({ title, todos, state, projectId }) => {
   const dispatch = useDispatch();
 
-  const { setNodeRef } = useDroppable({ id: state });
+  // Use composite ID if projectId is provided, otherwise just state
+  const droppableId = projectId ? `${projectId}-${state}` : state;
+  const { setNodeRef } = useDroppable({ id: droppableId });
 
   const getColumnColor = (columnId: Todo["state"]) => {
     return COLUMN_COLORS[columnId]?.bg || "bg-gray-50 dark:bg-gray-900";

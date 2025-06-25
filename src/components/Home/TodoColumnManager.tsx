@@ -62,31 +62,59 @@ const TodoColumnManager = () => {
 
       const originalState = originalTodo.state;
       const originalOrder = originalTodo.order;
-      const newState = payload.state!;
-      const newOrder = payload.order!;
+      // payload.projectId might be undefined if not changing project; fall back to originalTodo.projectId
+      const newProjectId = payload.projectId || originalTodo.projectId;
+      const newState = payload.state!; // Should always be present
+      const newOrder = payload.order!; // Should always be present
 
-      const newTodos = previousTodos.map((todo) => {
+      console.log(`Optimistic Update: Todo ${originalTodo.id} from P:${originalTodo.projectId} S:${originalState} O:${originalOrder} to P:${newProjectId} S:${newState} O:${newOrder}`);
+
+      const isProjectChanging = newProjectId !== originalTodo.projectId;
+
+      const updatedTodos = previousTodos.map(todo => {
+        // Default: return todo as is
+        let updatedTodo = todo;
+
+        // 1. Update the dragged item itself
         if (todo.id === payload.id) {
-          return { ...todo, state: newState, order: newOrder };
-        }
-        if (todo.project?.id === originalTodo.project?.id) { // Ensure order changes only within the same project context
-          if (todo.state === originalState && todo.order > originalOrder) {
-            return { ...todo, order: todo.order - 1 };
+          updatedTodo = { ...todo, state: newState, order: newOrder, projectId: newProjectId };
+          // If project is changing, we also need to update the project object if it's embedded
+          // This depends on whether the `todo.project` field is deeply fetched or just an ID.
+          // Assuming `todo.project` might be stale if we just change `projectId`.
+          // For now, we only update projectId. The query invalidation will fetch the correct project object.
+          // If `todo.project` was an object: `updatedTodo.project = findProjectById(newProjectId);` (pseudo-code)
+          console.log(`  - Dragged item ${updatedTodo.id} updated to P:${updatedTodo.projectId} S:${updatedTodo.state} O:${updatedTodo.order}`);
+        } else {
+          // 2. Adjust order in the source column (original project, original state)
+          //    If item moved out of this column (either state or project changed)
+          if (todo.projectId === originalTodo.projectId && todo.state === originalState && todo.order > originalOrder) {
+            updatedTodo = { ...todo, order: todo.order - 1 };
+            console.log(`  - Source column adjustment (decrement): ${todo.id} O:${todo.order} -> ${updatedTodo.order} (in P:${todo.projectId} S:${todo.state})`);
           }
-          if (todo.state === newState && todo.order >= newOrder) {
-            if (todo.id !== payload.id) {
-              return { ...todo, order: todo.order + 1 };
-            }
+
+          // 3. Adjust order in the destination column (new project, new state)
+          //    If item moved into this column (either state or project changed)
+          //    And this 'todo' is not the item being dragged
+          if (todo.projectId === newProjectId && todo.state === newState && todo.order >= newOrder) {
+            updatedTodo = { ...todo, order: todo.order + 1 };
+            console.log(`  - Dest column adjustment (increment): ${todo.id} O:${todo.order} -> ${updatedTodo.order} (in P:${todo.projectId} S:${todo.state})`);
           }
         }
-        return todo;
+        return updatedTodo;
       });
 
-      // When "all" projects are shown, sorting needs to be done per project group, then by state for optimistic update
-      // For simplicity, the optimistic update will update the flat list,
-      // and the rendering logic will group and sort again.
-      // More complex optimistic updates would require updating the grouped structure.
-      queryClient.setQueryData<Todo[]>(queryKey, newTodos.sort((a,b) => a.order - b.order));
+      // queryClient.setQueryData<Todo[]>(queryKey, updatedTodos.sort((a,b) => a.order - b.order));
+      // Sorting by global order might not be sufficient if projects are changing.
+      // The rendering logic groups by project then sorts by order.
+      // For optimistic updates, it's better to ensure the list fed to setQueryData
+      // is structured or sorted in a way that the view will interpret correctly.
+      // A simple sort by projectId, then state, then order might be a good general approach here.
+      queryClient.setQueryData<Todo[]>(queryKey, updatedTodos.sort((a, b) => {
+        if (a.projectId !== b.projectId) return (a.projectId || "").localeCompare(b.projectId || "");
+        if (a.state !== b.state) return a.state.localeCompare(b.state);
+        return a.order - b.order;
+      }));
+
 
       return { previousTodos };
     },
@@ -98,31 +126,71 @@ const TodoColumnManager = () => {
       axiosToast(error);
     },
     onSuccess: () => {
-      // Invalidate to refetch and ensure consistency, especially with ordering across multiple projects
+      // Invalidate to refetch and ensure consistency, especially with ordering and project data across multiple projects
       queryClient.invalidateQueries({ queryKey: ["todos", { projectId: currentProjectId, viewMode }] });
+      if (currentProjectId === "all") { // If viewing all projects, also invalidate individual project queries
+        const uniqueProjectIds = new Set(queryClient.getQueryData<Todo[]>(["todos", { projectId: currentProjectId, viewMode }])?.map(t => t.projectId));
+        uniqueProjectIds.forEach(pid => {
+          if (pid) queryClient.invalidateQueries({ queryKey: ["todos", { projectId: pid, viewMode }] });
+        });
+      } else { // If viewing a single project, and a task might have moved out, invalidate "all"
+         queryClient.invalidateQueries({ queryKey: ["todos", { projectId: "all", viewMode }] });
+      }
+
     },
   });
 
   const handleDragEnd = (dragEndEvent: OnDragEndEvent) => {
     console.log("handleDragEnd event:", dragEndEvent);
-    const { over, item, order } = dragEndEvent;
+    const { over, item, order } = dragEndEvent; // 'over' is the droppableId, 'item' is the draggableId (todo.id)
+
     if (!over || !item || order === undefined || order === null) {
       console.warn("Invalid drag end event data:", dragEndEvent);
       return;
     }
 
-    // Find the dragged todo to access its projectId for optimistic updates if needed, though not directly changing it here.
-    // const draggedTodo = todos?.find(t => t.id === item);
+    const draggedTodo = todos?.find(t => t.id === item);
+    if (!draggedTodo) {
+      console.error("Dragged todo not found:", item);
+      return;
+    }
+    const originalProjectId = draggedTodo.projectId;
+
+    let targetState: Todo["state"];
+    let targetProjectId: string | null | undefined = currentProjectId === "all" ? undefined : currentProjectId; // Default for single project view or if parsing fails
+
+    const parts = over.toString().split('-');
+    if (parts.length > 1 && currentProjectId === "all") { // Composite ID like "projectId-STATE"
+      // Expecting the last part to be the state, and the rest to be project ID
+      // This handles project IDs that might themselves contain hyphens, though less ideal.
+      // A more robust separator or format would be better if project IDs can have hyphens.
+      targetState = parts.pop() as Todo["state"];
+      targetProjectId = parts.join('-');
+      if (!TASK_STATE_OPTIONS.some(opt => opt.value === targetState)) {
+        console.warn("Parsed state from composite ID is invalid:", targetState, "Original over.id:", over);
+        // Fallback or error handling if state is not valid
+        return;
+      }
+    } else { // Simple ID, just state, or not in "all" projects view
+      targetState = over as Todo["state"];
+      // If not in "all" projects view, targetProjectId is currentProjectId (which could be a specific project ID)
+      // If in "all" projects view but not a composite ID (e.g. dropped on a non-project specific area, if any),
+      // then task should remain in its original project.
+      targetProjectId = currentProjectId !== "all" ? currentProjectId : originalProjectId;
+    }
+
+    console.log(`Drag End: Item ${item} (Proj: ${originalProjectId}) dropped on Col ${over}. Target Proj: ${targetProjectId}, Target State: ${targetState}, Order: ${order}`);
 
     const payload: TodoEditRequest = {
-      state: over as Todo["state"],
       id: item as string,
+      state: targetState,
       order,
-      // projectId: draggedTodo?.projectId, // Not changing project here, task stays in its project
-      title: undefined,
-      description: undefined,
-      deadline: undefined,
-      label: undefined,
+      projectId: targetProjectId === originalProjectId ? undefined : targetProjectId, // Only send projectId if it changed
+      // Ensure other fields are not unintentionally blanked if not changing
+      // title: undefined,
+      // description: undefined,
+      // deadline: undefined,
+      // label: undefined,
     };
 
     console.log("Calling handleUpdateState with payload:", payload);
@@ -260,10 +328,7 @@ const TodoColumnManager = () => {
                         title={taskStateTitle}
                         todos={projectColumnTodos}
                         state={taskStateValue}
-                        // Pass projectId here so new tasks created via column's plus button
-                        // can be associated with this project.
-                        // This requires TodoColumn and HomeTaskCreator to handle a projectId prop.
-                        // For now, this change is visual, task creation might need further adjustment.
+                        projectId={project.id} // Pass the project.id to TodoColumn
                       />
                     );
                   })}
