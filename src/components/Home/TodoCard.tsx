@@ -11,12 +11,22 @@ import { FC, useCallback } from "react";
 import { useDispatch } from "react-redux";
 import { useSearchParams } from "next/navigation";
 
-// Estendendo o tipo Todo para incluir a relação com o projeto
+// Define Label type to match assumed structure from backend
+interface Label {
+  id: string;
+  name: string;
+  color: string; // Assuming backend provides a color string (e.g., Tailwind class or hex)
+                 // For now, getLabelColor(name) will be used, but this field is available.
+}
+
+// Estendendo o tipo Todo para incluir a relação com o projeto e as novas etiquetas
 interface ExtendedTodo extends Todo {
   project?: {
     id: string;
     name: string;
   } | null;
+  labels?: Label[]; // Expecting an array of Label objects
+                   // This replaces or supersedes the old `label: string[]` from Prisma Todo
 }
 
 type TodoProps = {
@@ -46,11 +56,11 @@ const TodoCard: FC<TodoProps> = ({ todo }) => {
 
   return (
     <div
-      className="border-zinc-100 hover:shadow-md rounded-md mb-2 mx-auto p-3 flex flex-col cursor-pointer bg-white dark:bg-gray-800"
+      className="border-zinc-100 hover:shadow-md rounded-md mb-2 mx-auto p-3 flex flex-col cursor-pointer bg-white dark:bg-gray-800 relative" // Added relative for label positioning
       ref={setNodeRef}
       {...attributes}
     >
-      <div className="px-2 py-1 ">
+      <div className="px-2 py-1 flex-grow"> {/* Added flex-grow */}
         <div className="pb-2 font-bold overflow-hidden whitespace-nowrap text-ellipsis text-card-foreground">
           {todo.title}
         </div>
@@ -65,26 +75,37 @@ const TodoCard: FC<TodoProps> = ({ todo }) => {
           </div>
         )}
         
-        {/* Etiquetas */}
-        {todo.label && todo.label.length > 0 && (
-          <div className="flex gap-2 flex-wrap">
-            {todo.label.map((label) => (
+        {/* Prazo - Moved before labels for better layout with absolute positioned labels */}
+        {todo.deadline && (
+          <div className="mt-1 mb-2 text-xs text-gray-500 dark:text-gray-400 flex items-center">
+            <Clock className="h-3 w-3 mr-1" />
+            {dayjs(todo.deadline).format("DD/MM/YYYY")}
+          </div>
+        )}
+      </div>
+
+      {/* Etiquetas - Positioned at bottom right */}
+      {todo.labels && todo.labels.length > 0 && (
+        <div className="px-2 pt-1 pb-0 mt-auto"> {/* Ensures it's at the bottom of the flex column */}
+          <div className="flex gap-1 flex-wrap justify-end"> {/* justify-end for bottom-right feel */}
+            {todo.labels.map((labelObj) => (
               <div
-                key={label}
+                key={labelObj.id}
                 className={cn(
-                  "px-2 py-0.5 rounded-full leading-5 text-sm",
-                  getLabelColor(label).bg,
-                  getLabelColor(label).badge,
+                  "px-1.5 py-0.5 rounded-full text-xs leading-4", // Smaller padding and text
+                  getLabelColor(labelObj.name).badge // Use only the .badge style for a complete badge appearance
                 )}
+                title={labelObj.name} // Show full name on hover
               >
-                {label}
+                {labelObj.name}
               </div>
             ))}
           </div>
-        )}
-        
-        {/* Prazo */}
-        {todo.deadline && (
+        </div>
+      )}
+    </div>
+  );
+};
           <div className="mt-2 text-xs text-gray-500 dark:text-gray-400 flex items-center">
             <Clock className="h-3 w-3 mr-1" />
             {dayjs(todo.deadline).format("DD/MM/YYYY")}

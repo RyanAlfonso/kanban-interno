@@ -24,15 +24,15 @@ import { Button } from "./ui/button";
 import { Calendar } from "./ui/calendar";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Input } from "./ui/input";
-import { Label } from "./ui/label";
+import { Label as ShadcnLabel } from "./ui/label"; // Renamed to avoid conflict
 import { useToast } from "./ui/use-toast";
 
-// Define Label type if not already defined globally or imported
-type LabelType = {
+// Define Label type to match assumed structure
+interface Label {
   id: string;
   name: string;
   color: string;
-};
+}
 
 type TaskEditFormProps = {
   handleOnClose: () => void;
@@ -75,15 +75,18 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
   const { mutate: deleteFunc, isPending: isDeleteLoading } = 
     deleteMutationFunctionReturn ?? { mutate: () => {}, isPending: false };
 
-  // Ensure useQuery uses v4+ syntax
-  const { data: labels, isLoading: labelsLoading, error: labelsError } = useQuery<LabelType[], Error>({
-    queryKey: ["labels"], 
-    queryFn: todoLabelFetchRequest,
+  // Ensure useQuery uses v4+ syntax for fetching labels
+  // Assuming todoLabelFetchRequest will return Label[] { id, name, color }
+  const { data: fetchedLabels, isLoading: labelsLoading, error: labelsError } = useQuery<Label[], Error>({
+    queryKey: ["labels"],
+    queryFn: todoLabelFetchRequest as () => Promise<Label[]>, // Cast if request is string[]
     onError: (err) => {
         console.error("Error fetching labels in TaskModificationForm:", err);
-        // Optionally show a toast or message for label fetch error
     }
   });
+
+  // Transform fetchedLabels (Label[]) into string[] for CustomizedMultSelect options
+  const labelOptionsForSelect: string[] = fetchedLabels ? fetchedLabels.map(label => label.name) : [];
 
   // Buscar projetos para o seletor
   const { data: projects, isLoading: projectsLoading, error: projectsError } = useQuery<Project[], Error>({
@@ -116,9 +119,9 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
       return (
         <>
           <div className="relative grid gap-1 pb-4">
-            <Label className="text-sm font-medium" htmlFor="state">
+            <ShadcnLabel className="text-sm font-medium" htmlFor="state">
               Estado
-            </Label>
+            </ShadcnLabel>
             <Controller
               control={control}
               name="state"
@@ -136,9 +139,9 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
           </div>
 
           <div className="relative grid gap-1 pb-4">
-            <Label className="text-sm font-medium" htmlFor="projectId">
+            <ShadcnLabel className="text-sm font-medium" htmlFor="projectId">
               Projeto
-            </Label>
+            </ShadcnLabel>
             <Controller
               control={control}
               name="projectId"
@@ -162,9 +165,9 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
           </div>
 
           <div className="relative grid gap-1 pb-4">
-            <Label className="text-sm font-medium" htmlFor="deadline">
+            <ShadcnLabel className="text-sm font-medium" htmlFor="deadline">
               Prazo
-            </Label>
+            </ShadcnLabel>
             <Controller
               control={control}
               name="deadline"
@@ -204,20 +207,20 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
             <ErrorMessage msg={errors.deadline?.message?.toString()} />
           </div>
           <div className="relative grid gap-1 pb-4">
-            <Label className="text-sm font-medium" htmlFor="label">
+            <ShadcnLabel className="text-sm font-medium" htmlFor="label">
               Etiquetas
-            </Label>
+            </ShadcnLabel>
             <Controller
               control={control}
-              name="label"
-              defaultValue={task.label || []} // Use defaultValue from task prop
+              name="label" // This should be an array of strings (label names)
+              defaultValue={task.label || []} // task.label from Todo is string[]
               render={({ field }) => (
                 <CustomizedMultSelect
-                  value={field.value || []} // Ensure value is always an array
-                  onChange={field.onChange}
+                  value={field.value || []} // Expects string[]
+                  onChange={field.onChange} // Receives string[]
                   placeholder="Selecione etiquetas"
-                  options={labels || []} // Pass fetched labels, ensure it's an array
-                  isLoading={labelsLoading} // Pass loading state
+                  options={labelOptionsForSelect} // Pass string[] (label names) for options
+                  isLoading={labelsLoading}
                 />
               )}
             />
@@ -256,9 +259,9 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
               {/* Main content area */} 
               <div className="flex flex-col gap-4 flex-1">
                 <div className="relative grid gap-1">
-                  <Label className="text-sm font-medium" htmlFor="title">
+                  <ShadcnLabel className="text-sm font-medium" htmlFor="title">
                     Título
-                  </Label>
+                  </ShadcnLabel>
                   <Input
                     id="title"
                     className="w-full h-9 px-3 py-2 text-sm" // Standardized size/padding
@@ -271,9 +274,9 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
                 {!md && <ExtraInfoField />}
                 
                 <div className="relative grid gap-1 h-80"> {/* Reduced height slightly */} 
-                  <Label className="text-sm font-medium" htmlFor="description">
+                  <ShadcnLabel className="text-sm font-medium" htmlFor="description">
                     Descrição
-                  </Label>
+                  </ShadcnLabel>
                   <Controller
                     control={control}
                     name="description"
