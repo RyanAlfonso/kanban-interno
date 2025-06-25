@@ -85,13 +85,13 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
     }
   });
 
-  // Buscar projetos para o seletor
+  // Buscar áreas para o seletor
   const { data: projects, isLoading: projectsLoading, error: projectsError } = useQuery<Project[], Error>({
     queryKey: ["projects"],
     queryFn: async () => {
       const response = await fetch("/api/projects");
       if (!response.ok) {
-        throw new Error("Falha ao buscar projetos");
+        throw new Error("Falha ao buscar áreas");
       }
       return response.json();
     },
@@ -100,7 +100,7 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
     }
   });
 
-  // Converter projetos para o formato de opções do select
+  // Converter áreas para o formato de opções do select
   const projectOptions = projects?.map(project => ({
     value: project.id.toString(), // Ensure value is a string
     title: project.name,
@@ -137,7 +137,7 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
 
           <div className="relative grid gap-1 pb-4">
             <Label className="text-sm font-medium" htmlFor="projectId">
-              Projeto
+              Áreas
             </Label>
             <Controller
               control={control}
@@ -146,17 +146,17 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
               render={({ field }) => (
                 <CustomizedSelect
                   options={[
-                    { value: "", title: "Sem projeto" }, // Standardized "no project" option
+                    { value: "", title: "Sem área" }, // Standardized "no project" option
                     ...projectOptions
                   ]}
-                  placeholder="Selecione o projeto"
+                  placeholder="Selecione a área"
                   onChange={field.onChange}
                   value={field.value?.toString() || ""} // Ensure value passed to select is string
                   isLoading={projectsLoading}
                 />
               )}
             />
-            {projectsError && <ErrorMessage msg="Erro ao carregar projetos."/>}
+            {projectsError && <ErrorMessage msg="Erro ao carregar áreas."/>}
             <ErrorMessage msg={errors.projectId?.message?.toString()} />
           </div>
 
