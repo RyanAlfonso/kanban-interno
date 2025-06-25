@@ -73,7 +73,7 @@ const ProjectForm: FC<ProjectFormProps> = ({ onSuccess, trigger }) => {
     } catch (error) {
       toast({
         title: "Erro",
-        description: "Não foi possível criar o projeto",
+        description: "Não foi possível criar a área",
         variant: "destructive",
       });
     } finally {
@@ -84,12 +84,12 @@ const ProjectForm: FC<ProjectFormProps> = ({ onSuccess, trigger }) => {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        {trigger || <Button>Novo Projeto</Button>}
+        {trigger || <Button>Nova área</Button>}
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>
-            <span>Criar Novo Projeto</span>
+            <span>Criar nova área</span>
           </DialogTitle>
         </DialogHeader>
         
@@ -100,7 +100,7 @@ const ProjectForm: FC<ProjectFormProps> = ({ onSuccess, trigger }) => {
               id="project-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Digite o Nome da área"
+              placeholder="Digite o nome da área"
               disabled={isLoading}
               required
             />
@@ -112,7 +112,7 @@ const ProjectForm: FC<ProjectFormProps> = ({ onSuccess, trigger }) => {
               id="project-description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Digite uma descrição para o projeto"
+              placeholder="Digite uma descrição para a área"
               disabled={isLoading}
             />
           </div>
@@ -122,7 +122,7 @@ const ProjectForm: FC<ProjectFormProps> = ({ onSuccess, trigger }) => {
             className="w-full mt-2" 
             disabled={isLoading}
           >
-            {isLoading ? "Criando..." : "Criar Projeto"}
+            {isLoading ? "Criando..." : "Criar área"}
           </Button>
         </form>
       </DialogContent>

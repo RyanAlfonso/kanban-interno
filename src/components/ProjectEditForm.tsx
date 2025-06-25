@@ -169,7 +169,7 @@ const ProjectEditForm: FC<ProjectEditFormProps> = ({ project, onSuccess, trigger
               id="project-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Digite o Nome da área"
+              placeholder="Digite o nome da área"
               disabled={isLoading || isDeleting}
               required
             />
@@ -181,7 +181,7 @@ const ProjectEditForm: FC<ProjectEditFormProps> = ({ project, onSuccess, trigger
               id="project-description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Digite uma descrição para o projeto"
+              placeholder="Digite uma descrição para a área"
               disabled={isLoading || isDeleting}
             />
           </div>
