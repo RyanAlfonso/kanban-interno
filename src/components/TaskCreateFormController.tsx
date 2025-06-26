@@ -35,24 +35,31 @@ const TaskCreateFormController: FC<TaskCreateFormProps> = ({
   const form = useForm<TodoCreateRequest>({
     resolver: zodResolver(TodoCreateValidator),
     defaultValues: {
-      title: "", // Default to empty string
-      description: "", // Default to empty string
-      state: task.state || TASK_STATE_OPTIONS[0].value, // task.state comes from HomeTaskCreator
-      deadline: task.deadline || null, // task.deadline comes from HomeTaskCreator
-      label: [], // Default to empty array
-      // projectId is NOT set here
+      title: "",
+      description: "",
+      // state: task.state || TASK_STATE_OPTIONS[0].value, // Removed state
+      columnId: task.columnId || undefined, // Set columnId from task prop
+      deadline: task.deadline || null,
+      label: [],
+      // projectId from task prop (derived from column) should take precedence
+      projectId: task.projectId || (searchParams.get("projectId") !== "all" ? searchParams.get("projectId") : null) || undefined,
     },
   });
 
   // Ensure useMutation uses v4+ syntax
   const createMutation = useMutation<Todo, AxiosError, TodoCreateRequest>({
-    mutationFn: async (data: TodoCreateRequest) => { // Modified mutationFn
-      const currentProjectId = searchParams.get("projectId");
-      const dataWithProjectId = {
+    mutationFn: async (data: TodoCreateRequest) => {
+      // data should now include columnId from the form (defaultValues)
+      // projectId in data should also be correctly defaulted.
+      // The backend /api/todo/create will verify columnId and use its projectId.
+      // We can simplify here if the form data is trusted.
+      // Let's ensure the projectId passed to todoCreateRequest is explicitly the one from the column if available.
+      const payload = {
         ...data,
-        projectId: (currentProjectId && currentProjectId !== "all") ? currentProjectId : null,
+        // Ensure projectId from the task prop (which is from the column context) is used if available
+        projectId: task.projectId || data.projectId,
       };
-      return todoCreateRequest(dataWithProjectId);
+      return todoCreateRequest(payload);
     },
     onSuccess: (newTodo) => {
       console.log("onSuccess createMutation:", newTodo);
