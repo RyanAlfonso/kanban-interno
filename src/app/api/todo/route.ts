@@ -44,6 +44,9 @@ export async function GET(req: NextRequest) {
         },
         project: {
           select: { id: true, name: true } // Include project info
+        },
+        column: { // Include column information
+            select: { id: true, name: true, order: true }
         }
         // Add other relations like assignee, labels here when implemented
       }
@@ -66,20 +69,37 @@ export async function POST(req: NextRequest) {
     if (!session?.user) return new Response("Unauthorized", { status: 401 });
 
     const body = await req.json();
-    const { title, description, state, label, deadline, projectId, order } = body;
+    // Destructure columnId, remove state
+    const { title, description, columnId, label, deadline, projectId, order } = body;
 
-    if (!title || !state || order === undefined) {
-      return new Response("Missing required fields: title, state, order", { status: 400 });
+    if (!title || !columnId || order === undefined) {
+      return new Response("Missing required fields: title, columnId, order", { status: 400 });
     }
+
+    // Optional: Validate that the columnId belongs to the projectId if both are provided
+    if (columnId && projectId) {
+      const column = await prisma.projectColumn.findUnique({
+        where: { id: columnId },
+        select: { projectId: true }
+      });
+      if (!column || column.projectId !== projectId) {
+        return new Response("Column does not belong to the specified project", { status: 400 });
+      }
+    } else if (columnId && !projectId) {
+        // If only columnId is given, we might want to infer projectId from the column
+        // For now, this is not strictly enforced here but could be a future enhancement.
+        // The schema ensures a column always has a projectId.
+    }
+
 
     const newTodo = await prisma.todo.create({
       data: {
         title,
         description: description || null,
-        state,
+        columnId, // Use columnId
         label: label || [],
         deadline: deadline || null,
-        projectId: projectId || null,
+        projectId: projectId || null, // projectId can still be set directly if needed, or inferred later
         order,
         ownerId: session.user.id,
       },
@@ -103,10 +123,26 @@ export async function PUT(req: NextRequest) {
     if (!session?.user) return new Response("Unauthorized", { status: 401 });
 
     const body = await req.json();
-    const { id, title, description, state, label, deadline, projectId, order, isDeleted } = body;
+    // Destructure columnId, remove state
+    const { id, title, description, columnId, label, deadline, projectId, order, isDeleted } = body;
 
     if (!id) {
       return new Response("Todo ID is required", { status: 400 });
+    }
+
+    // Optional: Validate that the columnId belongs to the projectId if both are provided
+    // and columnId is being changed.
+    if (columnId && projectId) {
+        const currentTodo = await prisma.todo.findUnique({ where: {id}});
+        if (currentTodo && currentTodo.columnId !== columnId) { // if columnId is actually changing
+            const column = await prisma.projectColumn.findUnique({
+                where: { id: columnId },
+                select: { projectId: true }
+            });
+            if (!column || column.projectId !== projectId) {
+                return new Response("New column does not belong to the specified project", { status: 400 });
+            }
+        }
     }
 
     const updatedTodo = await prisma.todo.update({
@@ -114,11 +150,11 @@ export async function PUT(req: NextRequest) {
       data: {
         title: title || undefined,
         description: description || null,
-        state: state || undefined,
+        columnId: columnId || undefined, // Use columnId
         label: label || undefined,
         deadline: deadline || null,
-        projectId: projectId || null,
-        order: order || undefined,
+        projectId: projectId || undefined, // Allow projectId to be updated if necessary
+        order: order !== undefined ? order : undefined,
         isDeleted: isDeleted !== undefined ? isDeleted : undefined,
       },
     });
