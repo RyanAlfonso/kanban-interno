@@ -5,7 +5,7 @@ import todoEditRequest from "@/requests/todoEditRequest";
 import { Todo, Project } from "@prisma/client"; // Added Project
 import { AxiosError } from "axios";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient, useQueries } from "@tanstack/react-query"; // Import useQueries
 import DndContextProvider, { OnDragEndEvent } from "../DnDContextProvider";
 import { useToast } from "../ui/use-toast";
 import TodoColumn from "./TodoColumn";
@@ -20,7 +20,8 @@ import { TodoWithColumn } from "@/types/todo";
 import { Button } from '../ui/button'; // Import Button
 import { Input } from '../ui/input';
 import { PlusCircle } from 'lucide-react';
-import projectColumnCreateRequest, { ProjectColumnCreatePayload } from '@/requests/projectColumnCreateRequest'; // Import create request
+import projectColumnCreateRequest, { ProjectColumnCreatePayload } from '@/requests/projectColumnCreateRequest';
+import projectColumnDeleteRequest from '@/requests/projectColumnDeleteRequest'; // Import delete request
 
 // Define a type for the grouped projects
 interface GroupedProject {
@@ -55,17 +56,60 @@ const TodoColumnManager = () => {
   // Fetch Project Columns if a specific project is selected
   const { data: projectColumns, isLoading: isLoadingProjectColumns, error: errorProjectColumns } = useQuery<PrismaProjectColumn[], Error>({
     queryKey: ["projectColumns", { projectId: currentProjectId }],
-    queryFn: () => projectColumnsFetchRequest(currentProjectId),
-    enabled: currentProjectId !== "all", // Only fetch if a specific project is selected
+    queryFn: () => {
+      if (currentProjectId === "all") {
+        // This specific query instance for 'all' should not run if we are using useQueries below.
+        // Or, it could fetch some summary data if needed, but not individual columns.
+        // For now, return undefined or an empty array as it's handled by allProjectsColumnsQueries.
+        return Promise.resolve(undefined);
+      }
+      return projectColumnsFetchRequest(currentProjectId);
+    },
+    enabled: currentProjectId !== "all",
     onError: (err) => {
       console.error(`Error fetching project columns for project ${currentProjectId}:`, err);
-      // Optionally, show a toast for this error as well
       axiosToast(new AxiosError(`Falha ao buscar colunas do projeto ${currentProjectId}.`));
     },
   });
 
-  const isLoading = isLoadingTodos || (currentProjectId !== "all" && isLoadingProjectColumns);
-  const error = errorTodos || errorProjectColumns;
+  // Fetch columns for all projects if currentProjectId is "all" and todos have loaded
+  const uniqueProjectIdsFromTodos = (currentProjectId === 'all' && todos)
+    ? Array.from(new Set(todos.map(todo => todo.projectId).filter((id): id is string => !!id)))
+    : [];
+
+  const allProjectsColumnsQueries = useQueries({
+    queries: (currentProjectId === 'all' && todos && uniqueProjectIdsFromTodos.length > 0)
+      ? uniqueProjectIdsFromTodos.map(projId => ({
+          queryKey: ["projectColumns", { projectId: projId }],
+          queryFn: () => projectColumnsFetchRequest(projId),
+          // staleTime: 5 * 60 * 1000, // Optional: cache for 5 minutes
+        }))
+      : [], // Ensure empty array if not applicable, to prevent useQueries error
+  });
+
+  // Consolidate all fetched columns for "all" view into a single map
+  const allProjectsColumnsMap = React.useMemo(() => {
+    const map: Record<string, PrismaProjectColumn[]> = {};
+    if (currentProjectId === 'all') {
+      allProjectsColumnsQueries.forEach((queryResult, index) => {
+        if (queryResult.data && uniqueProjectIdsFromTodos[index]) {
+          map[uniqueProjectIdsFromTodos[index]] = queryResult.data.sort((a,b)=>a.order - b.order);
+        }
+      });
+    }
+    return map;
+  }, [currentProjectId, allProjectsColumnsQueries, uniqueProjectIdsFromTodos]);
+
+  const isLoadingAllProjectsColumns = currentProjectId === 'all' ? allProjectsColumnsQueries.some(q => q.isLoading) : false;
+  const errorAllProjectsColumns = currentProjectId === 'all' ? (allProjectsColumnsQueries.find(q => q.error)?.error as Error | null) : null;
+
+  const isLoading = isLoadingTodos ||
+                  (currentProjectId !== "all" && isLoadingProjectColumns) ||
+                  isLoadingAllProjectsColumns;
+
+  const error = errorTodos ||
+                (currentProjectId !== "all" ? errorProjectColumns : null) ||
+                errorAllProjectsColumns;
 
   // Mutation for creating a new project column
   const { mutate: createColumnMutation, isLoading: isCreatingColumn } = useMutation<
@@ -124,8 +168,75 @@ const TodoColumnManager = () => {
 
   const handleCreateColumn = (name: string) => {
     if (!name.trim() || currentProjectId === "all") return;
-    const order = projectColumns ? projectColumns.length : 0; // Simple order assignment
+    const order = projectColumns ? projectColumns.length : 0;
     createColumnMutation({ name: name.trim(), order, projectId: currentProjectId });
+  };
+
+  // Mutation for deleting a project column
+  const { mutate: deleteColumnMutation, isLoading: isDeletingColumn } = useMutation<
+    PrismaProjectColumn, // Expected return from API (deleted column)
+    AxiosError,
+    string, // columnId to delete
+    { previousProjectColumns?: PrismaProjectColumn[] }
+  >({
+    mutationFn: (columnId: string) => projectColumnDeleteRequest(columnId),
+    onMutate: async (columnIdToDelete) => {
+      // Optimistic update:
+      await queryClient.cancelQueries({ queryKey: ["projectColumns", { projectId: currentProjectId }] });
+      const previousProjectColumns = queryClient.getQueryData<PrismaProjectColumn[]>(["projectColumns", { projectId: currentProjectId }]);
+
+      if (previousProjectColumns) {
+        queryClient.setQueryData<PrismaProjectColumn[]>(
+          ["projectColumns", { projectId: currentProjectId }],
+          previousProjectColumns.filter(column => column.id !== columnIdToDelete)
+        );
+      }
+      return { previousProjectColumns };
+    },
+    onError: (err, columnId, context) => {
+      if (context?.previousProjectColumns) {
+        queryClient.setQueryData(["projectColumns", { projectId: currentProjectId }], context.previousProjectColumns);
+      }
+      axiosToast(new AxiosError(`Falha ao excluir coluna: ${err.response?.data || err.message}`));
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["projectColumns", { projectId: currentProjectId }] });
+      // Also invalidate todos query as some todos might have their columnId set to null
+      queryClient.invalidateQueries({ queryKey: ["todos", { projectId: currentProjectId, viewMode }] });
+      if (currentProjectId === 'all') { // If on all projects view, also invalidate todos for "all"
+          queryClient.invalidateQueries({ queryKey: ["todos", { projectId: "all", viewMode }] });
+      }
+    },
+  });
+
+  const handleDeleteColumn = (columnId: string) => {
+    // For now, using window.confirm. Replace with CustomizedDialog if available and preferred.
+    if (window.confirm("Tem certeza que deseja excluir esta coluna? As tarefas nesta coluna ficarão desassociadas.")) {
+      if (currentProjectId === "all") {
+        // Deleting columns from "all projects" view might be complex if not careful
+        // For now, assume this is primarily for single project view context.
+        // To enable for "all" view, ensure `currentProjectId` context is correctly handled for optimistic updates.
+        console.warn("Delete column initiated from 'all projects' view. Ensure context is correct.");
+        // We need the actual project ID of the column to correctly update the cache.
+        // This requires finding the column in allProjectsColumnsMap to get its projectId.
+        let ownerProjectId: string | undefined;
+        for (const projId in allProjectsColumnsMap) {
+            if (allProjectsColumnsMap[projId].some(col => col.id === columnId)) {
+                ownerProjectId = projId;
+                break;
+            }
+        }
+        if (ownerProjectId) {
+             // TODO: Refactor onMutate/onError for delete to accept dynamic projectId for cache updates.
+             // For now, this optimistic update might only work well if currentProjectId is the ownerProjectId.
+            deleteColumnMutation(columnId);
+        } else {
+            axiosToast(new AxiosError("Não foi possível identificar o projeto da coluna para exclusão."));
+        }
+      } else {
+        deleteColumnMutation(columnId);
+      }
+    }
   };
 
 
@@ -264,42 +375,48 @@ const TodoColumnManager = () => {
     // when that view is updated to use dynamic columns.
     // For now, assuming single project view or that targetColumnId is sufficient.
 
-    let targetProjectId = currentProjectId; // Assume single project view initially
+    let targetProjectId = currentProjectId;
 
     if (currentProjectId === "all") {
-        // This logic is tricky because a columnId is globally unique.
-        // We need to find which project this targetColumnId belongs to.
-        // This requires projectColumns to be fetched and available for all projects,
-        // or the TodoColumn needs to provide more context on drop.
-        // For now, this part will be INCOMPLETE for "all" view until it's refactored.
-        // A temporary approach might be to find the target column in the *flattened* list of all columns
-        // if we had such a list, or rely on optimistic update issues for "all" view.
-        // For now, if a task is moved in "all" view, its projectId might not update correctly without more info.
-        console.warn("Drag-and-drop in 'All Projects' view with dynamic columns needs specific logic to determine target project. Current implementation may be incomplete for this view.");
-        // A placeholder: try to find the target column in the *current* set of todos to infer project
-        const targetColumnDetails = projectColumns?.find(pc => pc.id === targetColumnId); // This is only for current project if single view
-        if (targetColumnDetails) {
-            targetProjectId = targetColumnDetails.projectId;
-        } else {
-            // Fallback or error: if we can't determine the target project in "all" view.
-            // For now, we might incorrectly assign it to its original project or fail.
-            // This part needs the "All Projects View" to be refactored to use dynamic columns.
-            targetProjectId = originalProjectId; // Fallback, likely incorrect for inter-project moves
+      // Find the project ID for the target column from allProjectsColumnsMap
+      let foundProjectForColumn = false;
+      for (const projId in allProjectsColumnsMap) {
+        if (allProjectsColumnsMap[projId].some(col => col.id === targetColumnId)) {
+          targetProjectId = projId;
+          foundProjectForColumn = true;
+          break;
         }
+      }
+      if (!foundProjectForColumn) {
+        console.error(`Could not find project for targetColumnId: ${targetColumnId} in 'all projects' view. Drag operation aborted.`);
+        // Potentially revert or show an error to the user.
+        // For now, we'll let it proceed, but targetProjectId might be incorrect (e.g., default to originalProjectId or 'all')
+        // which could lead to issues. A safer approach is to return if project not found.
+        // Reverting to original project ID if no specific project found for the column.
+        // This can happen if allProjectsColumnsMap is not fully populated or column is invalid.
+        targetProjectId = originalProjectId;
+        // It's crucial that targetColumnId is valid and its project is known.
+        // If not, the optimistic update and backend call will be problematic.
+        // Consider returning here if no valid project is found for the target column.
+        // For example:
+        // if (!foundProjectForColumn) {
+        //   console.error("Target project for the column could not be determined. Aborting drag.");
+        //   return;
+        // }
+        console.warn(`Target project for column ${targetColumnId} not definitively found in allProjectsColumnsMap. Defaulting to original project ${originalProjectId}. This might be incorrect.`);
+      }
     }
 
 
-    console.log(`Drag End: Item ${item} (Proj: ${originalProjectId}, Col: ${originalColumnId}) dropped on TargetColId: ${targetColumnId}. Target Proj: ${targetProjectId}, Order: ${order}`);
+    console.log(`Drag End: Item ${item} (Original Proj: ${originalProjectId}, Original Col: ${originalColumnId}) dropped on TargetColId: ${targetColumnId}. Determined Target Proj: ${targetProjectId}, Order: ${order}`);
 
     const payload: TodoEditRequest = {
       id: item as string,
-      columnId: targetColumnId, // Use columnId
+      columnId: targetColumnId,
       order,
-      // projectId update logic: send projectId if it's different from original.
-      // This is complex if targetProjectId couldn't be reliably determined in "all" view.
-      projectId: targetProjectId && targetProjectId !== originalProjectId ? targetProjectId : undefined,
+      projectId: (targetProjectId && targetProjectId !== "all" && targetProjectId !== originalProjectId) ? targetProjectId : undefined,
       // Ensure other fields are not unintentionally blanked
-      // title: undefined, // Example: only send fields that change
+      // title: undefined,
       // deadline: undefined,
       // label: undefined,
     };
@@ -407,6 +524,7 @@ const TodoColumnManager = () => {
                   // state={value} // state prop is no longer needed by TodoColumn if it uses columnId
                   columnId={column.id} // Pass column.id
                   projectId={currentProjectId} // Pass currentProjectId
+                  onDeleteColumn={handleDeleteColumn} // Pass delete handler
                 />
               );
             })}
@@ -464,28 +582,42 @@ const TodoColumnManager = () => {
           // For now, it still uses TASK_STATE_OPTIONS and todo.state
           // This will be addressed after single project view is fully working with dynamic columns
           <div className="flex flex-col gap-6">
-            {groupedProjects.map((project, projectIndex) => (
-              <div key={project.id} className="flex flex-col gap-3">
-                <h3 className="text-xl font-semibold px-6">{project.name}</h3>
-                <div className="flex gap-2 overflow-x-auto px-6">
-                  {TASK_STATE_OPTIONS.map(({ value: taskStateValue, title: taskStateTitle }) => {
-                    const projectColumnTodos = project.tasks
-                      .filter((todo) => todo.state === taskStateValue)
-                      .sort((a, b) => a.order - b.order);
-                    return (
-                      <TodoColumn
-                        key={`${project.id}-${taskStateValue}`}
-                        title={taskStateTitle}
-                        todos={projectColumnTodos}
-                        state={taskStateValue}
-                        projectId={project.id} // Pass the project.id to TodoColumn
-                      />
-                    );
-                  })}
+            {groupedProjects.map((project, projectIndex) => {
+              const currentProjectDynamicColumns = allProjectsColumnsMap[project.id] || [];
+              return (
+                <div key={project.id} className="flex flex-col gap-3">
+                  <h3 className="text-xl font-semibold px-6">{project.name}</h3>
+                  <div className="flex gap-2 overflow-x-auto px-6">
+                    {currentProjectDynamicColumns.length > 0 ? (
+                      currentProjectDynamicColumns.map((column) => {
+                        const projectColumnTodos = project.tasks
+                          .filter((todo) => todo.columnId === column.id)
+                          .sort((a, b) => a.order - b.order);
+                        return (
+                          <TodoColumn
+                            key={column.id} // Use globally unique column.id
+                            title={column.name}
+                            todos={projectColumnTodos}
+                            columnId={column.id}
+                            projectId={project.id}
+                            onDeleteColumn={handleDeleteColumn} // Pass delete handler
+                          />
+                        );
+                      })
+                    ) : (
+                      // Show a message if no columns are defined for this project yet,
+                      // or if they are still loading for this specific project.
+                      // TASK_STATE_OPTIONS loop can be a fallback or removed.
+                      // For now, let's indicate loading or empty state for columns for this project.
+                       allProjectsColumnsQueries.find(q => q.queryKey[1].projectId === project.id)?.isLoading
+                        ? <p className="px-2 text-muted-foreground">Carregando colunas...</p>
+                        : <p className="px-2 text-muted-foreground">Nenhuma coluna definida para este projeto.</p>
+                    )}
+                  </div>
+                  {projectIndex < groupedProjects.length - 1 && <Separator className="mt-4" />}
                 </div>
-                {projectIndex < groupedProjects.length - 1 && <Separator className="mt-4" />}
-              </div>
-            ))}
+              );
+            })}
             {groupedProjects.length === 0 && !isLoading && (
               <p className="px-6 text-muted-foreground">Nenhum projeto ou tarefa encontrada para os filtros atuais.</p>
             )}

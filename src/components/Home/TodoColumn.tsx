@@ -5,7 +5,7 @@ import { COLUMN_COLORS } from "@/lib/const";
 import { cn } from "@/lib/utils";
 import { openTodoEditor } from "@/redux/actions/todoEditorAction";
 import { Todo } from "@prisma/client";
-import { PlusCircle } from "lucide-react";
+import { PlusCircle, Trash2 } from "lucide-react"; // Added Trash2
 import { FC } from "react";
 import { useDispatch } from "react-redux";
 import { Badge } from "../ui/badge";
@@ -14,14 +14,14 @@ import HomeTaskCreator from "./HomeTaskCreator";
 import TodoCard from "./TodoCard";
 
 type TodoColumnProp = {
-  title: string; // Will be column.name
+  title: string;
   todos: Todo[];
-  // state: Todo["state"]; // Removed state
-  columnId: string; // Added columnId
+  columnId: string;
   projectId?: string;
+  onDeleteColumn?: (columnId: string) => void; // Callback for delete
 };
 
-const TodoColumn: FC<TodoColumnProp> = ({ title, todos, columnId, projectId }) => {
+const TodoColumn: FC<TodoColumnProp> = ({ title, todos, columnId, projectId, onDeleteColumn }) => {
   const dispatch = useDispatch();
 
   // Use columnId as the droppableId, it's globally unique
@@ -55,14 +55,26 @@ const TodoColumn: FC<TodoColumnProp> = ({ title, todos, columnId, projectId }) =
             {todos.length}
           </Badge>
         </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8"
-          onClick={() => handleOpenDialog()}
-        >
-          <PlusCircle className="h-4 w-4" />
-        </Button>
+        <div className="flex items-center space-x-1">
+          {onDeleteColumn && (
+             <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-muted-foreground hover:text-destructive"
+              onClick={() => onDeleteColumn(columnId)}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          )}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7" // Adjusted size
+            onClick={() => handleOpenDialog()}
+          >
+            <PlusCircle className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
       <div className="relative p-2 overflow-auto min-h-[50px]" ref={setNodeRef}>
         {todos
