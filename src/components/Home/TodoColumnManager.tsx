@@ -609,7 +609,9 @@ const TodoColumnManager = () => {
                       // or if they are still loading for this specific project.
                       // TASK_STATE_OPTIONS loop can be a fallback or removed.
                       // For now, let's indicate loading or empty state for columns for this project.
-                       allProjectsColumnsQueries.find(q => q.queryKey[1].projectId === project.id)?.isLoading
+                      allProjectsColumnsQueries.find(q => {
+                        return q && q.queryKey && q.queryKey[1] && (q.queryKey[1] as { projectId: string }).projectId === project.id;
+                      })?.isLoading
                         ? <p className="px-2 text-muted-foreground">Carregando colunas...</p>
                         : <p className="px-2 text-muted-foreground">Nenhuma coluna definida para este projeto.</p>
                     )}
