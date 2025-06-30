@@ -255,36 +255,50 @@ const TodoColumnManager = () => {
       return updatedTodo as TodoWithColumn; // Cast to TodoWithColumn
     },
     onMutate: async (payload: TodoEditRequest) => {
-      console.log("onMutate handleUpdateState:", payload);
+      console.log("[TodoColumnManager] onMutate: init", JSON.parse(JSON.stringify(payload)));
       const queryKey = ["todos", { projectId: currentProjectId, viewMode }];
       await queryClient.cancelQueries({ queryKey });
 
       const previousTodos = queryClient.getQueryData<TodoWithColumn[]>(queryKey);
-      console.log("Previous todos (update state):", previousTodos);
+      console.log("[TodoColumnManager] onMutate: previousTodos", JSON.parse(JSON.stringify(previousTodos)));
 
-      if (!previousTodos) return { previousTodos: undefined, queryKey };
+      if (!previousTodos) {
+        console.warn("[TodoColumnManager] onMutate: No previousTodos found in cache.");
+        return { previousTodos: undefined, queryKey };
+      }
 
       const todoToUpdate = previousTodos.find((todo) => todo.id === payload.id);
-      if (!todoToUpdate) return { previousTodos, queryKey };
+      if (!todoToUpdate) {
+        console.warn("[TodoColumnManager] onMutate: todoToUpdate not found in previousTodos. ID:", payload.id);
+        return { previousTodos, queryKey };
+      }
 
-      const originalTodoState = { ...todoToUpdate }; // Keep a copy of the original state of the item being moved
+      const originalTodoState = JSON.parse(JSON.stringify(todoToUpdate)); // Deep clone for logging and reference
+      console.log("[TodoColumnManager] onMutate: originalTodoState of the dragged item", originalTodoState);
 
       // Determine new properties for the dragged todo
       const newProjectId = payload.projectId || originalTodoState.projectId;
-      const newColumnId = payload.columnId!;
-      const newOrder = payload.order!;
+      const newColumnId = payload.columnId!; // columnId must be present in payload for a move
+      const newOrder = payload.order!;     // order must be present in payload
 
-      console.log(`Optimistic Update: Todo ${originalTodoState.id}
-        from P:${originalTodoState.projectId} Col:${originalTodoState.columnId} Order:${originalTodoState.order}
-        to   P:${newProjectId} Col:${newColumnId} Order:${newOrder}`);
+      console.log(`[TodoColumnManager] onMutate: Optimistic Update Params:
+        Todo ID: ${originalTodoState.id}
+        Original Project ID: ${originalTodoState.projectId}, Original Column ID: ${originalTodoState.columnId}, Original Order: ${originalTodoState.order}
+        New Project ID: ${newProjectId}, New Column ID: ${newColumnId}, New Order: ${newOrder}`);
 
-      let tempTodos = [...previousTodos];
+      let tempTodos = JSON.parse(JSON.stringify(previousTodos)) as TodoWithColumn[]; // Deep clone to avoid mutating cache directly
 
-      // 1. Remove the item from its original position
-      tempTodos = tempTodos.filter(todo => todo.id !== payload.id);
+      // --- Step 1: Remove the item from its original position in tempTodos ---
+      const itemIndex = tempTodos.findIndex(todo => todo.id === payload.id);
+      if (itemIndex > -1) {
+        tempTodos.splice(itemIndex, 1);
+      }
+      console.log("[TodoColumnManager] onMutate: tempTodos after removing item", JSON.parse(JSON.stringify(tempTodos)));
 
-      // 2. Adjust order in the source column (if it's different from destination)
-      //    Only if the item actually moved out of originalTodoState.columnId or originalTodoState.projectId
+
+      // --- Step 2: Adjust order in the source column (originalTodoState.columnId) ---
+      //    Only if the item actually moved out of this column or project.
+      //    Items that were after the dragged item in the source column get their order decremented.
       if (originalTodoState.columnId !== newColumnId || originalTodoState.projectId !== newProjectId) {
         tempTodos = tempTodos.map(todo => {
           if (todo.projectId === originalTodoState.projectId &&
@@ -294,64 +308,59 @@ const TodoColumnManager = () => {
           }
           return todo;
         });
+        console.log("[TodoColumnManager] onMutate: tempTodos after adjusting source column", JSON.parse(JSON.stringify(tempTodos)));
       }
 
-      // 3. Adjust order in the destination column
+      // --- Step 3: Adjust order in the destination column (newColumnId) ---
+      //    Items at or after the newOrder in the destination column get their order incremented.
+      //    This must happen *before* inserting the new item if we were inserting into the same array.
+      //    But since we removed it first, we adjust based on newOrder.
       tempTodos = tempTodos.map(todo => {
         if (todo.projectId === newProjectId &&
             todo.columnId === newColumnId &&
             todo.order >= newOrder) {
+          // Ensure we don't increment the order of the item being moved if it was already in this column
+          // (though it's removed, this is a safeguard for logic)
+          // if (todo.id === payload.id) return todo; // Item is already removed
           return { ...todo, order: todo.order + 1 };
         }
         return todo;
       });
+      console.log("[TodoColumnManager] onMutate: tempTodos after adjusting destination column", JSON.parse(JSON.stringify(tempTodos)));
 
-      // 4. Add the updated item to its new position
+      // --- Step 4: Construct and add the updated item to its new position ---
       const updatedTodoItem: TodoWithColumn = {
-        ...originalTodoState, // Base on original
-        ...payload, // Apply payload changes (id, columnId, order, potentially projectId)
-        projectId: newProjectId,
-        columnId: newColumnId,
-        order: newOrder,
-        // Attempt to update related data optimistically if available, otherwise rely on refetch
-        // This part is tricky without knowing if 'project' and 'column' objects are in payload
-        // or if we need to fetch them or find them in existing data.
-        // For now, keeping it simple and relying on refetch for full consistency of related objects.
-        // If `payload` could contain `project` and `column` objects, they could be spread here.
+        ...originalTodoState, // Base on a clone of the original item's full state
+        projectId: newProjectId, // Override with new projectId
+        columnId: newColumnId,   // Override with new columnId
+        order: newOrder,         // Override with new order
+        // Override other direct payload properties if they exist (e.g. title, if editable via D&D somehow)
+        ...(payload.title && { title: payload.title }),
+        ...(payload.description && { description: payload.description }),
+        ...(payload.deadline && { deadline: payload.deadline }),
+        ...(payload.label && { label: payload.label }),
+        ...(payload.state && { state: payload.state }), // Keep existing state if not changed by payload
       };
-       // If the project object for newProjectId is available in the current todos, use it.
-       // This helps keep the UI consistent for "All Projects" view during optimistic update.
-      const targetProjectForOptimisticUpdate = todos?.find(t => t.projectId === newProjectId)?.project;
-      if (targetProjectForOptimisticUpdate) {
-        updatedTodoItem.project = targetProjectForOptimisticUpdate;
-      } else if (newProjectId !== originalTodoState.projectId) {
-        // If project changed and we don't have the new project's data, nullify it to show it changed
-        // This might be okay if the backend returns the full project object on update.
-        updatedTodoItem.project = null;
-      }
 
-      // Find the column object for newColumnId if available (e.g., from projectColumns or allProjectsColumnsMap)
-      let targetColumnForOptimisticUpdate = null;
-      if (currentProjectId !== "all" && projectColumns) {
-        targetColumnForOptimisticUpdate = projectColumns.find(col => col.id === newColumnId);
-      } else if (currentProjectId === "all" && allProjectsColumnsMap[newProjectId]) {
-        targetColumnForOptimisticUpdate = allProjectsColumnsMap[newProjectId].find(col => col.id === newColumnId);
-      }
-      if (targetColumnForOptimisticUpdate) {
-        updatedTodoItem.column = targetColumnForOptimisticUpdate;
-      } else if (newColumnId !== originalTodoState.columnId) {
-        updatedTodoItem.column = null; // Similar to project, nullify if changed and not found
-      }
-
+      // Simplification: Removed optimistic update of .project and .column objects.
+      // We will rely on the server refetch to get the correct associated objects.
+      // The updatedTodoItem will have the correct IDs (projectId, columnId).
+      console.log("[TodoColumnManager] onMutate: updatedTodoItem to be inserted (project/column objects will be updated on refetch)", JSON.parse(JSON.stringify(updatedTodoItem)));
 
       tempTodos.push(updatedTodoItem);
+      console.log("[TodoColumnManager] onMutate: tempTodos after adding updated item", JSON.parse(JSON.stringify(tempTodos)));
 
-      // Sort the list to reflect new order
+      // Sort the final list to ensure correct order for rendering
       tempTodos.sort((a, b) => {
-        if (a.projectId !== b.projectId) return (a.projectId || "").localeCompare(b.projectId || "");
-        if (a.columnId !== b.columnId) return (a.columnId || "").localeCompare(b.columnId || "");
+        if (a.projectId && b.projectId && a.projectId !== b.projectId) {
+          return a.projectId.localeCompare(b.projectId);
+        }
+        if (a.columnId && b.columnId && a.columnId !== b.columnId) {
+          return a.columnId.localeCompare(b.columnId);
+        }
         return a.order - b.order;
       });
+      console.log("[TodoColumnManager] onMutate: tempTodos final before setQueryData", JSON.parse(JSON.stringify(tempTodos)));
 
       queryClient.setQueryData<TodoWithColumn[]>(queryKey, tempTodos);
 
@@ -503,6 +512,7 @@ const TodoColumnManager = () => {
     };
 
     console.log("Calling handleUpdateState with payload:", payload);
+    console.log("[TodoColumnManager] handleDragEnd: Payload for handleUpdateState", JSON.parse(JSON.stringify(payload)));
     handleUpdateState(payload);
   };
 
