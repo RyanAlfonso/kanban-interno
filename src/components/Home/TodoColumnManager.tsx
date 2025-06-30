@@ -434,6 +434,10 @@ const TodoColumnManager = () => {
           if (originalProjectId && originalProjectId !== currentProjectId && originalProjectId !== newProjectId){
              queryClient.invalidateQueries({ queryKey: ["todos", { projectId: originalProjectId, viewMode }] });
           }
+        } else {
+          // Case: Item moved column/order *within* the same project (currentProjectId).
+          // We still need to invalidate "all" projects view as this change affects it.
+          queryClient.invalidateQueries({ queryKey: ["todos", { projectId: "all", viewMode }] });
         }
       }
     },
