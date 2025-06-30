@@ -162,20 +162,33 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
               control={control}
               name="projectId"
               defaultValue={task.projectId?.toString() || ""} // Use defaultValue from task prop, ensure string
-              render={({ field }) => (
-                <CustomizedSelect
-                  options={[
-                    { value: "", title: "Sem área" }, // Standardized "no project" option
-                    ...projectOptions
-                  ]}
-                  placeholder="Selecione a área"
-                  onChange={field.onChange}
-                  value={field.value?.toString() || ""} // Ensure value passed to select is string
-                  isLoading={projectsLoading}
-                />
-              )}
+              render={({ field }) => {
+                // Determine the effective value for the select:
+                // 1. If field.value is already set (e.g., editing an existing task or user selected an option), use it.
+                // 2. If creating a new task (task.projectId is initially undefined) AND projectOptions are available,
+                //    default to the first available project.
+                // 3. Otherwise, default to empty string (though this case should ideally not show "Sem área" if it's removed).
+                let currentValue = field.value?.toString() || "";
+                if (!currentValue && !task.projectId && projectOptions.length > 0 && title === "Create Task") {
+                  currentValue = projectOptions[0].value;
+                  // Optionally, update the form state immediately if you want the first project to be pre-selected
+                  // field.onChange(currentValue); // This might be better done via `reset` or `setValue` in useEffect
+                }
+
+                return (
+                  <CustomizedSelect
+                    options={projectOptions} // Directly use projectOptions without "Sem área"
+                    placeholder="Selecione a área"
+                    onChange={field.onChange}
+                    value={currentValue}
+                    isLoading={projectsLoading}
+                  />
+                );
+              }}
             />
             {projectsError && <ErrorMessage msg="Erro ao carregar áreas."/>}
+            {/* Add a specific error message if no projects are available and selection is mandatory */}
+            {!projectsLoading && projectOptions.length === 0 && <ErrorMessage msg="Nenhuma área disponível. Crie uma área primeiro."/>}
             <ErrorMessage msg={errors.projectId?.message?.toString()} />
           </div>
 
