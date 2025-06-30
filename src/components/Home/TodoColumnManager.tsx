@@ -375,8 +375,10 @@ const TodoColumnManager = () => {
     },
     onSuccess: (updatedTodoFromServer, variables, context) => {
       // updatedTodoFromServer is the single TodoWithColumn returned by the mutationFn
-      console.log("onSuccess: updatedTodoFromServer", updatedTodoFromServer);
-      console.log("onSuccess: variables", variables); // These are the variables sent to the mutation: TodoEditRequest
+      console.log("[TodoColumnManager] onSuccess: Raw updatedTodoFromServer from API", JSON.parse(JSON.stringify(updatedTodoFromServer)));
+      console.log("[TodoColumnManager] onSuccess: Variables sent to mutation", JSON.parse(JSON.stringify(variables)));
+      console.log("[TodoColumnManager] onSuccess: Context", JSON.parse(JSON.stringify(context)));
+
 
       // Option 1: Smartly update the cache with the server response (more complex)
       // This can be beneficial if the server returns the fully populated object and
