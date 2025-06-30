@@ -231,10 +231,10 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
               defaultValue={task.label || []} // Use defaultValue from task prop
               render={({ field }) => (
                 <CustomizedMultSelect
-                  value={field.value || []} // Ensure value is always an array
+                  value={field.value || []}
                   onChange={field.onChange}
                   placeholder="Selecione tags"
-                  options={labels || []} // Pass fetched labels, ensure it's an array
+                  options={labels || []}
                   isLoading={labelsLoading} // Pass loading state
                 />
               )}
@@ -295,7 +295,7 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
                   <Controller
                     control={control}
                     name="description"
-                    defaultValue={task.description || ""} // Use defaultValue
+                    defaultValue={task.description || ""} // Use defaultValue 
                     render={({ field }) => (
                       <CustomizedReactQuill
                         theme="snow"
