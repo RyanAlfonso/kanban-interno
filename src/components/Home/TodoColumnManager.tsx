@@ -241,109 +241,190 @@ const TodoColumnManager = () => {
 
 
   const { mutate: handleUpdateState } = useMutation<
-    TodoWithColumn[], // Use TodoWithColumn[]
+    TodoWithColumn, // Expect a single updated TodoWithColumn from the mutation function
     AxiosError,
     TodoEditRequest,
-    { previousTodos?: TodoWithColumn[] } // Use TodoWithColumn[]
+    { previousTodos?: TodoWithColumn[]; queryKey: any[] }
   >({
     mutationFn: async (data: TodoEditRequest) => {
-      // The actual request function `todoEditRequest` returns a Promise<Todo> (from Prisma)
-      // We need to ensure the optimistic update and the actual data match TodoWithColumn.
-      // The API PUT /api/todo should return the updated Todo with its 'column' relation.
-      // For now, we cast the result. If todoEditRequest doesn't return the 'column' relation,
-      // this optimistic update might be missing it until refetch.
+      // todoEditRequest should return the updated todo, ideally with project/column relations (TodoWithColumn)
+      // If it doesn't, the backend API /api/todo (PUT) needs to be updated to return the full object.
+      // For now, we assume todoEditRequest returns at least Todo, and we'll cast to TodoWithColumn.
+      // This relies on the backend returning the necessary fields for TodoWithColumn.
       const updatedTodo = await todoEditRequest(data);
-      return updatedTodo as unknown as TodoWithColumn[]; // This is not ideal, mutationFn should align with query data type
-      // A better approach would be for todoEditRequest to return TodoWithColumn or for the mutation
-      // to handle the transformation or simply expect a single TodoWithColumn.
-      // For now, this allows the optimistic update logic to proceed with TodoWithColumn[].
+      return updatedTodo as TodoWithColumn; // Cast to TodoWithColumn
     },
     onMutate: async (payload: TodoEditRequest) => {
       console.log("onMutate handleUpdateState:", payload);
       const queryKey = ["todos", { projectId: currentProjectId, viewMode }];
       await queryClient.cancelQueries({ queryKey });
 
-      const previousTodos = queryClient.getQueryData<TodoWithColumn[]>(queryKey); // Use TodoWithColumn[]
+      const previousTodos = queryClient.getQueryData<TodoWithColumn[]>(queryKey);
       console.log("Previous todos (update state):", previousTodos);
 
-      if (!previousTodos) return { previousTodos: undefined };
+      if (!previousTodos) return { previousTodos: undefined, queryKey };
 
-      const originalTodo = previousTodos.find((todo) => todo.id === payload.id);
-      if (!originalTodo) return { previousTodos };
+      const todoToUpdate = previousTodos.find((todo) => todo.id === payload.id);
+      if (!todoToUpdate) return { previousTodos, queryKey };
 
-      // Use columnId from payload and originalTodo
-      const originalColumnId = originalTodo.columnId;
-      const originalOrder = originalTodo.order;
-      const newProjectId = payload.projectId || originalTodo.projectId; // projectId might change
-      const newColumnId = payload.columnId!; // Should always be present if this mutation is for column change
-      const newOrder = payload.order!; // Should always be present
+      const originalTodoState = { ...todoToUpdate }; // Keep a copy of the original state of the item being moved
 
-      console.log(`Optimistic Update: Todo ${originalTodo.id} from P:${originalTodo.projectId} Col:${originalColumnId} O:${originalOrder} to P:${newProjectId} Col:${newColumnId} O:${newOrder}`);
+      // Determine new properties for the dragged todo
+      const newProjectId = payload.projectId || originalTodoState.projectId;
+      const newColumnId = payload.columnId!;
+      const newOrder = payload.order!;
 
-      const updatedTodos = previousTodos.map(currentIteratedTodo => {
-        let updatedIteratedTodo = { ...currentIteratedTodo }; // Clone to avoid direct mutation
+      console.log(`Optimistic Update: Todo ${originalTodoState.id}
+        from P:${originalTodoState.projectId} Col:${originalTodoState.columnId} Order:${originalTodoState.order}
+        to   P:${newProjectId} Col:${newColumnId} Order:${newOrder}`);
 
-        // 1. Update the dragged item itself
-        if (updatedIteratedTodo.id === payload.id) {
-          updatedIteratedTodo.columnId = newColumnId;
-          updatedIteratedTodo.order = newOrder;
-          updatedIteratedTodo.projectId = newProjectId;
-          // If todo.column (the actual object) is part of the optimistic data, update it too.
-          // This depends on if `projectColumns` data is readily available here or if `todo.column` is fetched.
-          // For simplicity, we'll rely on query invalidation to get the correct `todo.column` object later.
-          console.log(`  - Dragged item ${updatedIteratedTodo.id} updated to P:${updatedIteratedTodo.projectId} Col:${updatedIteratedTodo.columnId} O:${updatedIteratedTodo.order}`);
-        } else {
-          // 2. Adjust order in the source column (original project, original columnId)
-          //    If item moved out of this column (either columnId or project changed)
-          if (updatedIteratedTodo.projectId === originalTodo.projectId &&
-              updatedIteratedTodo.columnId === originalColumnId &&
-              updatedIteratedTodo.order > originalOrder) {
-            updatedIteratedTodo.order -= 1;
-            console.log(`  - Source column adjustment (decrement): ${updatedIteratedTodo.id} O:${currentIteratedTodo.order} -> ${updatedIteratedTodo.order} (in P:${updatedIteratedTodo.projectId} Col:${updatedIteratedTodo.columnId})`);
+      let tempTodos = [...previousTodos];
+
+      // 1. Remove the item from its original position
+      tempTodos = tempTodos.filter(todo => todo.id !== payload.id);
+
+      // 2. Adjust order in the source column (if it's different from destination)
+      //    Only if the item actually moved out of originalTodoState.columnId or originalTodoState.projectId
+      if (originalTodoState.columnId !== newColumnId || originalTodoState.projectId !== newProjectId) {
+        tempTodos = tempTodos.map(todo => {
+          if (todo.projectId === originalTodoState.projectId &&
+              todo.columnId === originalTodoState.columnId &&
+              todo.order > originalTodoState.order) {
+            return { ...todo, order: todo.order - 1 };
           }
+          return todo;
+        });
+      }
 
-          // 3. Adjust order in the destination column (new project, new columnId)
-          //    If item moved into this column (either columnId or project changed)
-          //    And this 'currentIteratedTodo' is not the item being dragged
-          if (updatedIteratedTodo.projectId === newProjectId &&
-              updatedIteratedTodo.columnId === newColumnId &&
-              updatedIteratedTodo.order >= newOrder) {
-            updatedIteratedTodo.order += 1;
-            console.log(`  - Dest column adjustment (increment): ${updatedIteratedTodo.id} O:${currentIteratedTodo.order} -> ${updatedIteratedTodo.order} (in P:${updatedIteratedTodo.projectId} Col:${updatedIteratedTodo.columnId})`);
-          }
+      // 3. Adjust order in the destination column
+      tempTodos = tempTodos.map(todo => {
+        if (todo.projectId === newProjectId &&
+            todo.columnId === newColumnId &&
+            todo.order >= newOrder) {
+          return { ...todo, order: todo.order + 1 };
         }
-        return updatedIteratedTodo;
+        return todo;
       });
 
-      // Sort for consistent optimistic update rendering
-      // Sort by projectId, then columnId, then order
-      queryClient.setQueryData<Todo[]>(queryKey, updatedTodos.sort((a, b) => {
+      // 4. Add the updated item to its new position
+      const updatedTodoItem: TodoWithColumn = {
+        ...originalTodoState, // Base on original
+        ...payload, // Apply payload changes (id, columnId, order, potentially projectId)
+        projectId: newProjectId,
+        columnId: newColumnId,
+        order: newOrder,
+        // Attempt to update related data optimistically if available, otherwise rely on refetch
+        // This part is tricky without knowing if 'project' and 'column' objects are in payload
+        // or if we need to fetch them or find them in existing data.
+        // For now, keeping it simple and relying on refetch for full consistency of related objects.
+        // If `payload` could contain `project` and `column` objects, they could be spread here.
+      };
+       // If the project object for newProjectId is available in the current todos, use it.
+       // This helps keep the UI consistent for "All Projects" view during optimistic update.
+      const targetProjectForOptimisticUpdate = todos?.find(t => t.projectId === newProjectId)?.project;
+      if (targetProjectForOptimisticUpdate) {
+        updatedTodoItem.project = targetProjectForOptimisticUpdate;
+      } else if (newProjectId !== originalTodoState.projectId) {
+        // If project changed and we don't have the new project's data, nullify it to show it changed
+        // This might be okay if the backend returns the full project object on update.
+        updatedTodoItem.project = null;
+      }
+
+      // Find the column object for newColumnId if available (e.g., from projectColumns or allProjectsColumnsMap)
+      let targetColumnForOptimisticUpdate = null;
+      if (currentProjectId !== "all" && projectColumns) {
+        targetColumnForOptimisticUpdate = projectColumns.find(col => col.id === newColumnId);
+      } else if (currentProjectId === "all" && allProjectsColumnsMap[newProjectId]) {
+        targetColumnForOptimisticUpdate = allProjectsColumnsMap[newProjectId].find(col => col.id === newColumnId);
+      }
+      if (targetColumnForOptimisticUpdate) {
+        updatedTodoItem.column = targetColumnForOptimisticUpdate;
+      } else if (newColumnId !== originalTodoState.columnId) {
+        updatedTodoItem.column = null; // Similar to project, nullify if changed and not found
+      }
+
+
+      tempTodos.push(updatedTodoItem);
+
+      // Sort the list to reflect new order
+      tempTodos.sort((a, b) => {
         if (a.projectId !== b.projectId) return (a.projectId || "").localeCompare(b.projectId || "");
         if (a.columnId !== b.columnId) return (a.columnId || "").localeCompare(b.columnId || "");
         return a.order - b.order;
-      }));
+      });
 
-      return { previousTodos };
+      queryClient.setQueryData<TodoWithColumn[]>(queryKey, tempTodos);
+
+      return { previousTodos, queryKey };
     },
     onError: (error, variables, context) => {
       console.error("onError handleUpdateState:", error);
       if (context?.previousTodos) {
-        queryClient.setQueryData(["todos", { projectId: currentProjectId, viewMode }], context.previousTodos);
+        queryClient.setQueryData(context.queryKey, context.previousTodos);
       }
       axiosToast(error);
     },
-    onSuccess: () => {
-      // Invalidate to refetch and ensure consistency, especially with ordering and project data across multiple projects
-      queryClient.invalidateQueries({ queryKey: ["todos", { projectId: currentProjectId, viewMode }] });
-      if (currentProjectId === "all") { // If viewing all projects, also invalidate individual project queries
-        const uniqueProjectIds = new Set(queryClient.getQueryData<Todo[]>(["todos", { projectId: currentProjectId, viewMode }])?.map(t => t.projectId));
-        uniqueProjectIds.forEach(pid => {
+    onSuccess: (updatedTodoFromServer, variables, context) => {
+      // updatedTodoFromServer is the single TodoWithColumn returned by the mutationFn
+      console.log("onSuccess: updatedTodoFromServer", updatedTodoFromServer);
+      console.log("onSuccess: variables", variables); // These are the variables sent to the mutation: TodoEditRequest
+
+      // Option 1: Smartly update the cache with the server response (more complex)
+      // This can be beneficial if the server returns the fully populated object and
+      // we want to avoid a full refetch if the optimistic update was very close.
+      // queryClient.setQueryData<TodoWithColumn[]>(context.queryKey, (oldData) => {
+      //   if (!oldData) return [updatedTodoFromServer]; // Should not happen if onMutate ran
+      //   // Create a new array, replacing the optimistically updated item (or adding if it was new)
+      //   // and ensuring other items are still correctly ordered if the server did some reordering.
+      //   // This requires careful merging.
+      //   const newTodos = oldData.filter(todo => todo.id !== updatedTodoFromServer.id);
+      //   newTodos.push(updatedTodoFromServer);
+      //   newTodos.sort((a, b) => {
+      //       if (a.projectId !== b.projectId) return (a.projectId || "").localeCompare(b.projectId || "");
+      //       if (a.columnId !== b.columnId) return (a.columnId || "").localeCompare(b.columnId || "");
+      //       return a.order - b.order;
+      //   });
+      //   return newTodos;
+      // });
+
+      // Option 2: Invalidate and refetch (simpler, current approach, generally reliable)
+      // This ensures the client has the absolute latest state from the server.
+      // Given the complexity of ordering and potential cross-project moves,
+      // invalidation is often safer to ensure full consistency.
+      queryClient.invalidateQueries({ queryKey: context.queryKey });
+
+      // Additional invalidations if moving between projects or from/to "all" view context
+      const originalProjectId = context?.previousTodos?.find(t => t.id === variables.id)?.projectId;
+      const newProjectId = updatedTodoFromServer.projectId;
+
+      if (currentProjectId === "all") {
+        // If in "all" view, and the item's project changed, invalidate that specific project's cache too.
+        if (originalProjectId && newProjectId && originalProjectId !== newProjectId) {
+          queryClient.invalidateQueries({ queryKey: ["todos", { projectId: originalProjectId, viewMode }] });
+          queryClient.invalidateQueries({ queryKey: ["todos", { projectId: newProjectId, viewMode }] });
+        }
+        // Invalidate all individual project queries that might be affected or visible
+        const uniqueProjectIdsInCache = new Set(
+          queryClient.getQueryData<TodoWithColumn[]>(context.queryKey)?.map(t => t.projectId).filter(Boolean)
+        );
+        uniqueProjectIdsInCache.add(originalProjectId); // ensure original is included
+        uniqueProjectIdsInCache.add(newProjectId);      // ensure new is included
+        uniqueProjectIdsInCache.forEach(pid => {
           if (pid) queryClient.invalidateQueries({ queryKey: ["todos", { projectId: pid, viewMode }] });
         });
-      } else { // If viewing a single project, and a task might have moved out, invalidate "all"
-         queryClient.invalidateQueries({ queryKey: ["todos", { projectId: "all", viewMode }] });
-      }
 
+      } else { // Viewing a single project (currentProjectId is specific)
+        // If the item moved out of the current project, or into the current project from another
+        if (newProjectId !== currentProjectId || (originalProjectId && originalProjectId !== currentProjectId)) {
+          queryClient.invalidateQueries({ queryKey: ["todos", { projectId: "all", viewMode }] });
+          if (newProjectId && newProjectId !== currentProjectId) {
+            queryClient.invalidateQueries({ queryKey: ["todos", { projectId: newProjectId, viewMode }] });
+          }
+          if (originalProjectId && originalProjectId !== currentProjectId && originalProjectId !== newProjectId){
+             queryClient.invalidateQueries({ queryKey: ["todos", { projectId: originalProjectId, viewMode }] });
+          }
+        }
+      }
     },
   });
 
