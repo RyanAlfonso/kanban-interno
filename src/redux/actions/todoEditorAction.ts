@@ -22,8 +22,11 @@ export interface OpenTodoEditorI<T extends TodoEditType> {
 }
 
 export type TaskCreatorDefaultValues = Partial<
-  Pick<OptionalTodo, "deadline" | "state">
->;
+  Pick<OptionalTodo, "deadline"> // Removed 'state'
+> & {
+  columnId?: string; // Added columnId
+  projectId?: string; // Added projectId
+};
 
 export const closeTodoEditor = (): CloseTodoEditorI => {
   return {

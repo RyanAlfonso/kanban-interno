@@ -112,28 +112,47 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
 
   const ExtraInfoField = () => {
     console.log("Rendering ExtraInfoField...");
+    // Check if we are creating a new task and if columnId is already provided
+    const isCreatingNewTaskWithColumn = title === "Create Task" && task?.columnId;
+
     try {
       return (
         <>
-          <div className="relative grid gap-1 pb-4">
-            <Label className="text-sm font-medium" htmlFor="state">
-              Status
-            </Label>
-            <Controller
-              control={control}
-              name="state"
-              defaultValue={task.state} // Use defaultValue from task prop
-              render={({ field }) => (
-                <CustomizedSelect
-                  options={TASK_STATE_OPTIONS}
-                  placeholder="Selecione o estado"
-                  onChange={field.onChange}
-                  value={field.value}
-                />
-              )}
-            />
-            <ErrorMessage msg={errors.state?.message?.toString()} />
-          </div>
+          {/* Conditionally render Status field */}
+          {!isCreatingNewTaskWithColumn && ( // Only show if not creating with a pre-defined column
+            <div className="relative grid gap-1 pb-4">
+              <Label className="text-sm font-medium" htmlFor="state">
+                Status (Legado - a ser removido/alterado para Coluna)
+              </Label>
+              <Controller
+                control={control}
+                name="state" // This name might need to change if state is fully removed from form data
+                defaultValue={task.state}
+                render={({ field }) => (
+                  <CustomizedSelect
+                    options={TASK_STATE_OPTIONS}
+                    placeholder="Selecione o estado"
+                    onChange={field.onChange}
+                    value={field.value}
+                    // Consider disabling this if editing and column change is only by drag-drop
+                  />
+                )}
+              />
+              <ErrorMessage msg={errors.state?.message?.toString()} />
+            </div>
+          )}
+
+          {/* Display Column Name if creating with a pre-defined column */}
+          {isCreatingNewTaskWithColumn && task.columnId && (
+            <div className="relative grid gap-1 pb-4">
+              <Label className="text-sm font-medium">
+                Coluna
+              </Label>
+              {/* Here you might want to fetch and display the actual column name based on task.columnId */}
+              {/* For now, just showing the ID or a placeholder. Fetching column name here adds complexity. */}
+              <Input type="text" value={task.columnName || `(Coluna Pré-selecionada)`} readOnly className="bg-slate-100 dark:bg-slate-800"/>
+            </div>
+          )}
 
           <div className="relative grid gap-1 pb-4">
             <Label className="text-sm font-medium" htmlFor="projectId">
@@ -212,10 +231,10 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
               defaultValue={task.label || []} // Use defaultValue from task prop
               render={({ field }) => (
                 <CustomizedMultSelect
-                  value={field.value || []} // Ensure value is always an array
+                  value={field.value || []}
                   onChange={field.onChange}
                   placeholder="Selecione tags"
-                  options={labels || []} // Pass fetched labels, ensure it's an array
+                  options={labels || []}
                   isLoading={labelsLoading} // Pass loading state
                 />
               )}
@@ -276,7 +295,7 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
                   <Controller
                     control={control}
                     name="description"
-                    defaultValue={task.description || ""} // Use defaultValue
+                    defaultValue={task.description || ""} // Use defaultValue 
                     render={({ field }) => (
                       <CustomizedReactQuill
                         theme="snow"
