@@ -1,13 +1,13 @@
 import { TIMEFRAMECOLOR } from "@/lib/const";
 import { cn } from "@/lib/utils";
-import { Todo } from "@prisma/client";
+import { TodoWithColumn } from "@/types/todo"; // Import TodoWithColumn
 import { FC } from "react";
 import TimelineItem from "./TimelineItem";
 import dayjs from "dayjs";
 
 type VerticalTimelineSectionProps = {
   title: string;
-  todos: Todo[];
+  todos: TodoWithColumn[]; // Use TodoWithColumn[]
 };
 
 const VerticalTimelineSection: FC<VerticalTimelineSectionProps> = ({
@@ -16,9 +16,13 @@ const VerticalTimelineSection: FC<VerticalTimelineSectionProps> = ({
 }) => {
   if (todos.length === 0) return null;
 
-  const sortedTodos = todos.toSorted(
-    (a, b) => dayjs(b.createdAt).unix() - dayjs(a.createdAt).unix(),
-  );
+  // Sorting is already done in TimelineComponent's reduce step,
+  // but if it needs to be ensured or done differently here, it can be.
+  // For now, assuming todos are correctly sorted as passed.
+  // const sortedTodos = todos.toSorted(
+  // (a, b) => dayjs(b.createdAt).unix() - dayjs(a.createdAt).unix(),
+  // );
+  // Using 'todos' directly as they should be pre-sorted.
 
   return (
     <div className="mb-8">
@@ -35,10 +39,11 @@ const VerticalTimelineSection: FC<VerticalTimelineSectionProps> = ({
       </div>
 
       <div className="space-y-0">
-        {sortedTodos.map((todo, index) => (
+        {/* Using 'todos' directly as sortedTodos was commented out */}
+        {todos.map((todo, index) => (
           <TimelineItem
             key={todo.id}
-            todo={todo}
+            todo={todo} // todo is now TodoWithColumn
             isLast={index === todos.length - 1}
           />
         ))}
