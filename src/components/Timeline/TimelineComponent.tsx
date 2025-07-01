@@ -4,10 +4,10 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { categorizeDate, getTimeframeSortOrder } from "@/lib/date-util";
 import todoFetchRequest from "@/requests/todoFetchRequest";
-import { Todo } from "@prisma/client";
+import { TodoWithColumn } from "@/types/todo"; // Import TodoWithColumn
 import dayjs from "dayjs";
 // Update import from react-query to @tanstack/react-query
-import { useQuery } from "@tanstack/react-query"; 
+import { useQuery } from "@tanstack/react-query";
 import VerticalTimelineSection from "./VerticalTimelineSection";
 import { VerticalTimelineSkeleton } from "./VerticalTimelineSkeleton";
 import { useToast } from "../ui/use-toast"; // Import useToast
@@ -22,9 +22,9 @@ const TimelineComponent = () => {
 
   // Update useQuery syntax for v4+
   // Include projectId and view in the queryKey to refetch when they change
-  const { data: todos, isLoading, error } = useQuery<Todo[], Error>({
+  const { data: todos, isLoading, error } = useQuery<TodoWithColumn[], Error>({ // Use TodoWithColumn[]
     queryKey: ["todos", { projectId, view }], // Query key includes projectId and view
-    queryFn: () => todoFetchRequest(projectId, view), // Pass projectId and view to fetch function
+    queryFn: () => todoFetchRequest(projectId, view) as Promise<TodoWithColumn[]>, // Assert type here
     onError: (err) => {
       console.error("Error fetching todos for timeline:", err);
       // Show toast on error
@@ -39,7 +39,7 @@ const TimelineComponent = () => {
   // Group tasks only if todos exist and are not empty
   const groupedTasks =
     todos && todos.length > 0
-      ? todos.reduce((groups: Record<string, Todo[]>, task) => {
+      ? todos.reduce((groups: Record<string, TodoWithColumn[]>, task) => { // Use TodoWithColumn[] for groups
           const date = dayjs(task.createdAt);
           const timeframe = categorizeDate(date);
 
@@ -47,10 +47,10 @@ const TimelineComponent = () => {
             groups[timeframe] = [];
           }
           // Sort tasks within each group by creation date (newest first)
-          groups[timeframe].push(task);
+          groups[timeframe].push(task); // task is TodoWithColumn
           groups[timeframe].sort((a, b) => dayjs(b.createdAt).unix() - dayjs(a.createdAt).unix());
           return groups;
-        }, {}) 
+        }, {} as Record<string, TodoWithColumn[]>) // Initialize with correct type
       : {}; // Default to empty object if no todos
 
   if (isLoading) {
