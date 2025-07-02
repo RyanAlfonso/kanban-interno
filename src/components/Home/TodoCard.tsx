@@ -46,7 +46,7 @@ const TodoCard: FC<TodoProps> = ({ todo }) => {
 
   return (
     <div
-      className="border-zinc-100 hover:shadow-md rounded-md mb-2 mx-auto p-3 flex flex-col cursor-pointer bg-white dark:bg-gray-800"
+      className="border-zinc-100 hover:shadow-md rounded-md mb-2 mx-auto p-3 flex flex-col cursor-pointer bg-white dark:bg-gray-900"
       ref={setNodeRef}
       {...attributes}
     >
