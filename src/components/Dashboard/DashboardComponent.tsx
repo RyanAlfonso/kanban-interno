@@ -36,6 +36,11 @@ type Project = {
 interface ExtendedTodo extends Todo {
   labels?: LabelType[]; // Assuming labels are directly on Todo or fetched separately
   project?: Project; // Assuming a relation exists
+  column?: { // Added column to ExtendedTodo
+    id: string;
+    name: string;
+    order: number;
+  };
 }
 
 
@@ -110,16 +115,16 @@ const DashboardComponent = () => {
   const projectProgress =
     (todos as ExtendedTodo[])?.reduce(
       (acc: Record<string, { total: number; completed: number }>, todo: ExtendedTodo) => {
-        // Assuming todo.label is an array of strings representing label names
-        const labels = (todo as any).label || []; 
-        for (const labelName of labels) {
-          if (acc[labelName]) {
-            acc[labelName].total += 1;
+        // Use todo.column.name for grouping progress by area/column
+        const columnName = todo.column?.name;
+        if (columnName) {
+          if (acc[columnName]) {
+            acc[columnName].total += 1;
             if (todo.state === "DONE") {
-              acc[labelName].completed += 1;
+              acc[columnName].completed += 1;
             }
           } else {
-            acc[labelName] = { total: 1, completed: todo.state === "DONE" ? 1 : 0 };
+            acc[columnName] = { total: 1, completed: todo.state === "DONE" ? 1 : 0 };
           }
         }
         return acc;
@@ -257,27 +262,28 @@ const DashboardComponent = () => {
             <CardContent>
               <div className="space-y-4">
                 {Object.keys(projectProgress).length > 0 ? (
-                  Object.keys(projectProgress).map((labelName) => (
-                    <div key={labelName} className="space-y-2">
+                  Object.keys(projectProgress).map((columnName) => (
+                    <div key={columnName} className="space-y-2">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center">
-                          <span
+                          <span // Placeholder for color, actual color logic might need adjustment
                             className={cn(
                               `h-3 w-3 rounded-full mr-2`,
-                              getLabelColor(labelName).bg, // Assumes getLabelColor works with label names
+                              // Using a generic or default color for now, as getLabelColor might not apply to column names
+                              "bg-gray-400"
                             )}
                           ></span>
-                          <span className="text-sm font-medium">{labelName}</span>
+                          <span className="text-sm font-medium">{columnName}</span>
                         </div>
                         <span className="text-sm text-muted-foreground">
-                          {projectProgress[labelName].completed}/
-                          {projectProgress[labelName].total} tasks
+                          {projectProgress[columnName].completed}/
+                          {projectProgress[columnName].total} tasks
                         </span>
                       </div>
                       <Progress
                         value={
-                          (projectProgress[labelName].completed /
-                            projectProgress[labelName].total) *
+                          (projectProgress[columnName].completed /
+                            projectProgress[columnName].total) *
                           100
                         }
                         className={cn("h-2", /* Optionally add more classes here */)}
@@ -285,7 +291,7 @@ const DashboardComponent = () => {
                     </div>
                   ))
                 ) : (
-                  <p className="text-sm text-muted-foreground">No tasks with labels found.</p>
+                  <p className="text-sm text-muted-foreground">No tasks with columns found.</p>
                 )}
               </div>
             </CardContent>
