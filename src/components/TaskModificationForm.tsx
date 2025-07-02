@@ -2,8 +2,9 @@
 
 import useBreakpoint from "@/hooks/useBreakpoint";
 import { TASK_STATE_OPTIONS } from "@/lib/const";
+import { PREDEFINED_TAGS } from "@/lib/tags"; // Import PREDEFINED_TAGS
 import { cn } from "@/lib/utils";
-import todoLabelFetchRequest from "@/requests/todoLabelFetchRequest";
+// import todoLabelFetchRequest from "@/requests/todoLabelFetchRequest"; // Remove old label fetch
 import { Project, Todo } from "@prisma/client";
 import {
   Popover,
@@ -75,15 +76,20 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
   const { mutate: deleteFunc, isPending: isDeleteLoading } = 
     deleteMutationFunctionReturn ?? { mutate: () => {}, isPending: false };
 
-  // Ensure useQuery uses v4+ syntax
-  const { data: labels, isLoading: labelsLoading, error: labelsError } = useQuery<LabelType[], Error>({
-    queryKey: ["labels"], 
-    queryFn: todoLabelFetchRequest,
-    onError: (err) => {
-        console.error("Error fetching labels in TaskModificationForm:", err);
-        // Optionally show a toast or message for label fetch error
-    }
-  });
+  // REMOVED: Old label fetching logic
+  // const { data: labels, isLoading: labelsLoading, error: labelsError } = useQuery<LabelType[], Error>({
+  //   queryKey: ["labels"],
+  //   queryFn: todoLabelFetchRequest,
+  //   onError: (err) => {
+  //       console.error("Error fetching labels in TaskModificationForm:", err);
+  //       // Optionally show a toast or message for label fetch error
+  //   }
+  // });
+
+  // Convert PREDEFINED_TAGS to the format expected by CustomizedMultSelect if necessary,
+  // or adapt CustomizedMultSelect. For now, assuming CustomizedMultSelect can take string[].
+  const tagOptions = [...PREDEFINED_TAGS];
+
 
   // Buscar áreas para o seletor
   const { data: projects, isLoading: projectsLoading, error: projectsError } = useQuery<Project[], Error>({
@@ -235,25 +241,25 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
             <ErrorMessage msg={errors.deadline?.message?.toString()} />
           </div>
           <div className="relative grid gap-1 pb-4">
-            <Label className="text-sm font-medium" htmlFor="label">
+            <Label className="text-sm font-medium" htmlFor="tags"> {/* Changed htmlFor to "tags" */}
               Tags
             </Label>
             <Controller
               control={control}
-              name="label"
-              defaultValue={task.label || []} // Use defaultValue from task prop
+              name="tags" // Changed name to "tags"
+              defaultValue={task.tags || []} // Use task.tags
               render={({ field }) => (
                 <CustomizedMultSelect
                   value={field.value || []}
                   onChange={field.onChange}
                   placeholder="Selecione tags"
-                  options={labels || []}
-                  isLoading={labelsLoading} // Pass loading state
+                  options={tagOptions} // Use predefined tagOptions
+                  // isLoading prop can be removed as tags are predefined
                 />
               )}
             />
-            {labelsError && <ErrorMessage msg="Erro ao carregar tags."/>}
-            <ErrorMessage msg={errors.label?.message?.toString()} />
+            {/* Removed labelsError as it's no longer fetched */}
+            <ErrorMessage msg={errors.tags?.message?.toString()} /> {/* Changed to errors.tags */}
           </div>
         </>
       );

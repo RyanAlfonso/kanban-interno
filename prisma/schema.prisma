@@ -43,7 +43,8 @@ model Todo {
   title       String
   description String?
   // state       State // REMOVE or repurpose this global state. For now, removing.
-  label       String[] @default([])
+  label       String[] @default([]) // This 'label' field seems to be the old one. We'll add a new 'tags' field.
+  tags        String[] @default([]) // New field for tags
   deadline    Int? // Considerar mudar para DateTime?
   isDeleted   Boolean  @default(false)
   order       Int // Order of the card within its column
