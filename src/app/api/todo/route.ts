@@ -139,6 +139,12 @@ export async function PUT(req: NextRequest) {
     // Destructure columnId, remove state, add tags
     const { id, title, description, columnId, label, tags, deadline, projectId, order, isDeleted } = body;
 
+    // SERVER-SIDE LOGGING START
+    const loggerForContext = getLogger("info"); // Use your existing logger or console.log
+    loggerForContext.info("--- Backend API (PUT): Received request body ---", JSON.stringify(body, null, 2));
+    loggerForContext.info("--- Backend API (PUT): Tags received in body ---", JSON.stringify(tags, null, 2));
+    // SERVER-SIDE LOGGING END
+
     if (!id) {
       return new Response("Todo ID is required", { status: 400 });
     }
@@ -169,24 +175,37 @@ export async function PUT(req: NextRequest) {
         }
     }
 
+    // SERVER-SIDE LOGGING START
+    const dataForPrismaUpdate = {
+      title: title || undefined,
+      description: description || null,
+      columnId: columnId || undefined,
+      label: label || undefined,
+      tags: tags !== undefined ? tags : undefined,
+      deadline: deadline || null,
+      projectId: projectId || undefined,
+      order: order !== undefined ? order : undefined,
+      isDeleted: isDeleted !== undefined ? isDeleted : undefined,
+    };
+    loggerForContext.info("--- Backend API (PUT): Data being sent to Prisma update ---", JSON.stringify(dataForPrismaUpdate, null, 2));
+    // SERVER-SIDE LOGGING END
+
     const updatedTodo = await prisma.todo.update({
       where: { id: id },
-      data: {
-        title: title || undefined,
-        description: description || null,
-        columnId: columnId || undefined, // Use columnId
-        label: label || undefined, // Keep existing label field behavior
-        tags: tags !== undefined ? tags : undefined, // Update tags, allow setting to empty array
-        deadline: deadline || null,
-        projectId: projectId || undefined, // Allow projectId to be updated if necessary
-        order: order !== undefined ? order : undefined,
-        isDeleted: isDeleted !== undefined ? isDeleted : undefined,
-      },
+      data: dataForPrismaUpdate, // Use the constructed object
     });
+
+    // SERVER-SIDE LOGGING START
+    loggerForContext.info("--- Backend API (PUT): Todo returned from Prisma update ---", JSON.stringify(updatedTodo, null, 2));
+    // SERVER-SIDE LOGGING END
 
     return new Response(JSON.stringify(updatedTodo), { status: 200 });
   } catch (error) {
-    logger.error("Error updating todo:", error);
+    // SERVER-SIDE LOGGING START
+    const loggerForCatch = getLogger("error"); // Use your existing logger or console.error
+    loggerForCatch.error("--- Backend API (PUT): Error during Prisma update ---", error);
+    // SERVER-SIDE LOGGING END
+    logger.error("Error updating todo:", error); // Keep original error logging too
     return new Response("Internal Server Error", { status: 500 });
   }
 }
