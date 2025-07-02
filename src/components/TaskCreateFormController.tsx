@@ -37,12 +37,12 @@ const TaskCreateFormController: FC<TaskCreateFormProps> = ({
     defaultValues: {
       title: "",
       description: "",
-      // state: task.state || TASK_STATE_OPTIONS[0].value, // Removed state
-      columnId: task.columnId || undefined, // Set columnId from task prop
+      columnId: task.columnId || undefined,
       deadline: task.deadline || null,
-      label: [],
-      // projectId from task prop (derived from column) should take precedence
+      label: [], // Keep if 'label' is still part of TodoCreateRequest, otherwise remove
+      tags: [], // Add default empty array for tags
       projectId: task.projectId || (searchParams.get("projectId") !== "all" ? searchParams.get("projectId") : null) || undefined,
+      order: undefined, // Add default for order, backend might handle final assignment
     },
   });
 
