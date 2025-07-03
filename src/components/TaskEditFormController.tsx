@@ -40,7 +40,16 @@ const TaskEditFormController: FC<TaskEditFormProps> = ({
   const form = useForm<TodoEditRequest>({
     resolver: zodResolver(TodoEditValidator),
     defaultValues: {
-      ...task,
+      id: task.id,
+      title: task.title || "",
+      description: task.description || null,
+      columnId: task.columnId || undefined,
+      label: task.label || [], // Assuming 'label' is still part of Todo and TodoEditRequest
+      tags: task.tags || [], // Explicitly include tags
+      deadline: task.deadline || null,
+      projectId: task.projectId || null,
+      order: task.order, // Assuming 'order' is part of Todo and TodoEditRequest
+      isDeleted: task.isDeleted || false, // Assuming 'isDeleted' is part of Todo and TodoEditRequest
     },
   });
 

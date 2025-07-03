@@ -2,6 +2,7 @@ import { getAuthSession } from "@/lib/nextAuthOptions";
 import { getLogger } from "@/logger";
 import prisma from "@/lib/prismadb";
 import { NextRequest } from 'next/server';
+import { isValidTag, PREDEFINED_TAGS } from '@/lib/tags';
 
 export async function GET(req: NextRequest) {
   const logger = getLogger("info");
@@ -69,11 +70,22 @@ export async function POST(req: NextRequest) {
     if (!session?.user) return new Response("Unauthorized", { status: 401 });
 
     const body = await req.json();
-    // Destructure columnId, remove state
-    const { title, description, columnId, label, deadline, projectId, order } = body;
+    // Destructure columnId, remove state, add tags
+    const { title, description, columnId, label, tags, deadline, projectId, order } = body;
 
     if (!title || !columnId || order === undefined) {
       return new Response("Missing required fields: title, columnId, order", { status: 400 });
+    }
+
+    // Validate tags if provided
+    if (tags && Array.isArray(tags)) {
+      for (const tag of tags) {
+        if (!isValidTag(tag)) {
+          return new Response(`Invalid tag: ${tag}. Allowed tags are: ${PREDEFINED_TAGS.join(", ")}`, { status: 400 });
+        }
+      }
+    } else if (tags) {
+      return new Response("Tags must be an array of strings.", { status: 400 });
     }
 
     // Optional: Validate that the columnId belongs to the projectId if both are provided
@@ -97,7 +109,8 @@ export async function POST(req: NextRequest) {
         title,
         description: description || null,
         columnId, // Use columnId
-        label: label || [],
+        label: label || [], // Keep existing label field behavior if necessary
+        tags: tags || [], // Add new tags field
         deadline: deadline || null,
         projectId: projectId || null, // projectId can still be set directly if needed, or inferred later
         order,
@@ -123,11 +136,28 @@ export async function PUT(req: NextRequest) {
     if (!session?.user) return new Response("Unauthorized", { status: 401 });
 
     const body = await req.json();
-    // Destructure columnId, remove state
-    const { id, title, description, columnId, label, deadline, projectId, order, isDeleted } = body;
+    // Destructure columnId, remove state, add tags
+    const { id, title, description, columnId, label, tags, deadline, projectId, order, isDeleted } = body;
+
+    // SERVER-SIDE LOGGING START
+    const loggerForContext = getLogger("info"); // Use your existing logger or console.log
+    loggerForContext.info("--- Backend API (PUT): Received request body ---", JSON.stringify(body, null, 2));
+    loggerForContext.info("--- Backend API (PUT): Tags received in body ---", JSON.stringify(tags, null, 2));
+    // SERVER-SIDE LOGGING END
 
     if (!id) {
       return new Response("Todo ID is required", { status: 400 });
+    }
+
+    // Validate tags if provided
+    if (tags && Array.isArray(tags)) {
+      for (const tag of tags) {
+        if (!isValidTag(tag)) {
+          return new Response(`Invalid tag: ${tag}. Allowed tags are: ${PREDEFINED_TAGS.join(", ")}`, { status: 400 });
+        }
+      }
+    } else if (tags && tags !== undefined) { // Allow tags to be explicitly set to empty array, but not other non-array types
+      return new Response("Tags must be an array of strings.", { status: 400 });
     }
 
     // Optional: Validate that the columnId belongs to the projectId if both are provided
@@ -145,23 +175,37 @@ export async function PUT(req: NextRequest) {
         }
     }
 
+    // SERVER-SIDE LOGGING START
+    const dataForPrismaUpdate = {
+      title: title || undefined,
+      description: description || null,
+      columnId: columnId || undefined,
+      label: label || undefined,
+      tags: tags !== undefined ? tags : undefined,
+      deadline: deadline || null,
+      projectId: projectId || undefined,
+      order: order !== undefined ? order : undefined,
+      isDeleted: isDeleted !== undefined ? isDeleted : undefined,
+    };
+    loggerForContext.info("--- Backend API (PUT): Data being sent to Prisma update ---", JSON.stringify(dataForPrismaUpdate, null, 2));
+    // SERVER-SIDE LOGGING END
+
     const updatedTodo = await prisma.todo.update({
       where: { id: id },
-      data: {
-        title: title || undefined,
-        description: description || null,
-        columnId: columnId || undefined, // Use columnId
-        label: label || undefined,
-        deadline: deadline || null,
-        projectId: projectId || undefined, // Allow projectId to be updated if necessary
-        order: order !== undefined ? order : undefined,
-        isDeleted: isDeleted !== undefined ? isDeleted : undefined,
-      },
+      data: dataForPrismaUpdate, // Use the constructed object
     });
+
+    // SERVER-SIDE LOGGING START
+    loggerForContext.info("--- Backend API (PUT): Todo returned from Prisma update ---", JSON.stringify(updatedTodo, null, 2));
+    // SERVER-SIDE LOGGING END
 
     return new Response(JSON.stringify(updatedTodo), { status: 200 });
   } catch (error) {
-    logger.error("Error updating todo:", error);
+    // SERVER-SIDE LOGGING START
+    const loggerForCatch = getLogger("error"); // Use your existing logger or console.error
+    loggerForCatch.error("--- Backend API (PUT): Error during Prisma update ---", error);
+    // SERVER-SIDE LOGGING END
+    logger.error("Error updating todo:", error); // Keep original error logging too
     return new Response("Internal Server Error", { status: 500 });
   }
 }

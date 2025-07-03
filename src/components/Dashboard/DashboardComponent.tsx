@@ -3,7 +3,8 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { getClockColor, getLabelColor } from "@/lib/color";
+import { getClockColor } from "@/lib/color"; // Removed getLabelColor
+import { PREDEFINED_TAGS, getTagColor, PredefinedTag, TagColor } from "@/lib/tags"; // Added tag imports
 import { cn } from "@/lib/utils";
 import todoFetchRequest from "@/requests/todoFetchRequest";
 import { Todo } from "@prisma/client";
@@ -36,6 +37,12 @@ type Project = {
 interface ExtendedTodo extends Todo {
   labels?: LabelType[]; // Assuming labels are directly on Todo or fetched separately
   project?: Project; // Assuming a relation exists
+  column?: { // Added column to ExtendedTodo
+    id: string;
+    name: string;
+    order: number;
+  };
+  tags?: string[]; // Added tags to ExtendedTodo for dashboard
 }
 
 
@@ -110,22 +117,53 @@ const DashboardComponent = () => {
   const projectProgress =
     (todos as ExtendedTodo[])?.reduce(
       (acc: Record<string, { total: number; completed: number }>, todo: ExtendedTodo) => {
-        // Assuming todo.label is an array of strings representing label names
-        const labels = (todo as any).label || []; 
-        for (const labelName of labels) {
-          if (acc[labelName]) {
-            acc[labelName].total += 1;
+        // Use todo.column.name for grouping progress by area/column
+        const columnName = todo.column?.name;
+        if (columnName) {
+          if (acc[columnName]) {
+            acc[columnName].total += 1;
             if (todo.state === "DONE") {
-              acc[labelName].completed += 1;
+              acc[columnName].completed += 1;
             }
           } else {
-            acc[labelName] = { total: 1, completed: todo.state === "DONE" ? 1 : 0 };
+            acc[columnName] = { total: 1, completed: todo.state === "DONE" ? 1 : 0 };
           }
         }
         return acc;
       },
       {} as Record<string, { total: number; completed: number }>,
     ) || {};
+
+  // Calculate task progress by tag
+  const taskProgressByTag = useMemo(() => {
+    const progress: Record<PredefinedTag, { total: number; completed: number; colors: TagColor }> =
+      PREDEFINED_TAGS.reduce((acc, tag) => {
+        acc[tag] = { total: 0, completed: 0, colors: getTagColor(tag) };
+        return acc;
+      }, {} as Record<PredefinedTag, { total: number; completed: number; colors: TagColor }>);
+
+    (Array.isArray(todos) ? todos : []).forEach((todo: ExtendedTodo) => {
+      if (todo.tags && todo.tags.length > 0) {
+        todo.tags.forEach(tagString => {
+          const tag = tagString as PredefinedTag; // Assuming tags in DB are valid PredefinedTag
+          if (progress[tag]) {
+            progress[tag].total += 1;
+            if (todo.state === "DONE") {
+              progress[tag].completed += 1;
+            }
+          }
+        });
+      }
+    });
+    // Filter out tags that have no tasks for cleaner display
+    return Object.entries(progress)
+      .filter(([_, data]) => data.total > 0)
+      .reduce((acc, [tag, data]) => {
+        acc[tag as PredefinedTag] = data;
+        return acc;
+      }, {} as Record<PredefinedTag, { total: number; completed: number; colors: TagColor }>);
+  }, [todos]);
+
 
   if (isLoading) {
     console.log("DashboardComponent loading...");
@@ -165,7 +203,7 @@ const DashboardComponent = () => {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <h3 className="text-sm font-medium">Total Tasks</h3>
+              <h3 className="text-sm font-medium">Tarefas</h3>
               <BarChart className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -184,7 +222,7 @@ const DashboardComponent = () => {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <h3 className="text-sm font-medium">Completed</h3>
+              <h3 className="text-sm font-medium">Concluídas</h3>
               <CheckCircle className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -196,7 +234,7 @@ const DashboardComponent = () => {
                     {dayjs(lastCompletedTask.updatedAt).format("MMM D, h:mm A")}
                   </>
                 ) : (
-                  "No completed tasks"
+                  "Sem tarefas concluídas"
                 )}
               </p>
               {/* <Progress value={totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0} className="mt-3 h-1" /> */} 
@@ -205,7 +243,7 @@ const DashboardComponent = () => {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <h3 className="text-sm font-medium">In Progress</h3>
+              <h3 className="text-sm font-medium">Em progresso</h3>
               <Circle className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -216,7 +254,7 @@ const DashboardComponent = () => {
                 </p>
               ) : (
                 <p className="text-xs text-muted-foreground">
-                  No tasks in progress
+                  Sem tarefas em progresso
                 </p>
               )}
               {/* <Progress value={totalTasks > 0 ? (inProgressTasks / totalTasks) * 100 : 0} className="mt-3 h-1" /> */} 
@@ -225,7 +263,7 @@ const DashboardComponent = () => {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <h3 className="text-sm font-medium">Upcoming Due</h3>
+              <h3 className="text-sm font-medium">Prazos próximos</h3>
               <Clock className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -233,7 +271,7 @@ const DashboardComponent = () => {
               <p className="text-xs text-muted-foreground">
                 {nextDueTask ? (
                   <>
-                    Next due:{" "}
+                    Próximo prazo:{" "}
                     {dayjs(nextDueTask.deadline).format("MMM D, h:mm A")}
                   </>
                 ) : (
@@ -245,47 +283,40 @@ const DashboardComponent = () => {
           </Card>
         </div>
 
-        {/* Project Progress and Upcoming Deadlines */} 
+        {/* Task Completion by Tag and Upcoming Deadlines */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
           <Card className="lg:col-span-4">
             <CardHeader>
-              <h3 className="text-base font-medium">Project Progress</h3>
-              <p className="text-sm text-muted-foreground">
-                Task completion by label/category
-              </p>
+              <h3 className="text-base font-medium">Progresso de tarefas por tag</h3>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {Object.keys(projectProgress).length > 0 ? (
-                  Object.keys(projectProgress).map((labelName) => (
-                    <div key={labelName} className="space-y-2">
+                {Object.keys(taskProgressByTag).length > 0 ? (
+                  Object.entries(taskProgressByTag).map(([tagName, data]) => (
+                    <div key={tagName} className="space-y-2">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center">
                           <span
                             className={cn(
                               `h-3 w-3 rounded-full mr-2`,
-                              getLabelColor(labelName).bg, // Assumes getLabelColor works with label names
+                              data.colors.bg
                             )}
                           ></span>
-                          <span className="text-sm font-medium">{labelName}</span>
+                          <span className={cn("text-sm font-medium", data.colors.text && data.colors.bg.includes("dark:") ? data.colors.text.replace("text-","dark:text-") : data.colors.text )}>{tagName}</span>
                         </div>
                         <span className="text-sm text-muted-foreground">
-                          {projectProgress[labelName].completed}/
-                          {projectProgress[labelName].total} tasks
+                          {data.completed}/{data.total} tasks
                         </span>
                       </div>
                       <Progress
-                        value={
-                          (projectProgress[labelName].completed /
-                            projectProgress[labelName].total) *
-                          100
-                        }
-                        className={cn("h-2", /* Optionally add more classes here */)}
+                        value={ (data.total > 0 ? (data.completed / data.total) * 100 : 0)}
+                        className={cn("h-2", data.colors.bg)} // Use tag color for progress bar background
+                        indicatorClassName={cn(data.colors.text === "text-white" ? "bg-white" : "bg-slate-700")} // Adjust indicator for contrast
                       />
                     </div>
                   ))
                 ) : (
-                  <p className="text-sm text-muted-foreground">No tasks with labels found.</p>
+                  <p className="text-sm text-muted-foreground">No tasks found with tags.</p>
                 )}
               </div>
             </CardContent>
@@ -293,14 +324,14 @@ const DashboardComponent = () => {
 
           <Card className="lg:col-span-3">
             <CardHeader>
-              <h3 className="text-base font-medium">Upcoming Deadlines</h3>
+              <h3 className="text-base font-medium">Próximos prazos</h3>
               {nextDueTask ? (
                 <p className="text-sm text-muted-foreground truncate" title={nextDueTask.title}>
-                  Next due task : {nextDueTask.title}
+                  Próximo prazo: {nextDueTask.title}
                 </p>
               ) : (
                 <p className="text-sm text-muted-foreground">
-                  No tasks with upcoming deadlines
+                  Sem tarefas com prazos próximos.
                 </p>
               )}
             </CardHeader>

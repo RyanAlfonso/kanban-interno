@@ -12,9 +12,12 @@ export async function PATCH(req) {
       return new Response("Unauthorized", { status: 401 });
 
     const body = await req.json();
+    logger.info("--- Backend API (PATCH /edit): Received request body ---", JSON.stringify(body, null, 2));
 
-    const { id, title, description, deadline, label, order, columnId, projectId } = // Added columnId and projectId
+    const { id, title, description, deadline, label, tags, order, columnId, projectId } = // Added columnId, projectId AND tags
       TodoEditValidator.parse(body);
+
+    logger.info("--- Backend API (PATCH /edit): Destructured tags from body ---", JSON.stringify(tags, null, 2));
 
     // Fetch the existing record to compare
     const record = await prisma.todo.findUnique({
@@ -41,40 +44,41 @@ export async function PATCH(req) {
     if (description !== undefined) dataToUpdate.description = description;
     if (deadline !== undefined) dataToUpdate.deadline = deadline;
     if (label !== undefined) dataToUpdate.label = label;
+    if (tags !== undefined) dataToUpdate.tags = tags; // Added tags to dataToUpdate
     if (order !== undefined) dataToUpdate.order = order;
-    if (columnId !== undefined) dataToUpdate.columnId = columnId; // Update columnId if provided
-    if (projectId !== undefined) dataToUpdate.projectId = projectId; // Update projectId if provided
+    if (columnId !== undefined) dataToUpdate.columnId = columnId;
+    if (projectId !== undefined) dataToUpdate.projectId = projectId;
 
-    // Note: The 'state' field is being ignored here as we transition to columnId.
-    // If 'state' still needs to be derived or used, that logic would need to be added.
+    // Note: The 'state' field is being ignored here.
+
+    logger.info("--- Backend API (PATCH /edit): Data being sent to Prisma update ---", JSON.stringify(dataToUpdate, null, 2));
 
     // Perform the update for the single item
     const updatedTodo = await prisma.todo.update({
       where: {
-        id: record.id // Use record.id to ensure we are updating the validated record
+        id: record.id
       },
       data: dataToUpdate,
-      include: { // Include relations needed by the frontend (TodoWithColumn)
+      include: {
         project: true,
         column: true,
-        owner: true, // Assuming owner details might be useful too
+        owner: true,
       }
     });
 
+    logger.info("--- Backend API (PATCH /edit): Todo returned from Prisma update ---", JSON.stringify(updatedTodo, null, 2));
+
     if (!updatedTodo) {
-      // This case should ideally not be reached if the above update was successful
-      // and the record existed.
-      logger.error(`Failed to fetch updated todo with id: ${record.id} after update operation.`);
+      logger.error(`--- Backend API (PATCH /edit): Failed to fetch updated todo with id: ${record.id} after update operation.`);
       return new Response("Failed to retrieve updated record after update.", { status: 500 });
     }
 
-    // Log the updated item that will be returned
-    logger.info(`Successfully updated todo with id: ${updatedTodo.id}. Returning updated record.`);
-    // console.log("Returning updatedTodo:", updatedTodo); // For more verbose server-side logging if needed
+    // Log the updated item that will be returned - this is already covered by the logger.info above.
+    // logger.info(`Successfully updated todo with id: ${updatedTodo.id}. Returning updated record.`);
 
     return new Response(JSON.stringify(updatedTodo), { status: 200 });
   } catch (error) {
-    logger.error(error);
+    logger.error("--- Backend API (PATCH /edit): Error in PATCH handler ---", error); // Enhanced error logging
     return new Response("Internal Server Error", { status: 500 });
   }
 }

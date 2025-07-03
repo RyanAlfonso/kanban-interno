@@ -37,26 +37,19 @@ const TaskCreateFormController: FC<TaskCreateFormProps> = ({
     defaultValues: {
       title: "",
       description: "",
-      // state: task.state || TASK_STATE_OPTIONS[0].value, // Removed state
-      columnId: task.columnId || undefined, // Set columnId from task prop
+      columnId: task.columnId || undefined,
       deadline: task.deadline || null,
-      label: [],
-      // projectId from task prop (derived from column) should take precedence
+      label: [], // Keep if 'label' is still part of TodoCreateRequest, otherwise remove
+      tags: [], // Add default empty array for tags
       projectId: task.projectId || (searchParams.get("projectId") !== "all" ? searchParams.get("projectId") : null) || undefined,
+      order: undefined, // Add default for order, backend might handle final assignment
     },
   });
 
-  // Ensure useMutation uses v4+ syntax
   const createMutation = useMutation<Todo, AxiosError, TodoCreateRequest>({
     mutationFn: async (data: TodoCreateRequest) => {
-      // data should now include columnId from the form (defaultValues)
-      // projectId in data should also be correctly defaulted.
-      // The backend /api/todo/create will verify columnId and use its projectId.
-      // We can simplify here if the form data is trusted.
-      // Let's ensure the projectId passed to todoCreateRequest is explicitly the one from the column if available.
       const payload = {
         ...data,
-        // Ensure projectId from the task prop (which is from the column context) is used if available
         projectId: task.projectId || data.projectId,
       };
       return todoCreateRequest(payload);
@@ -66,7 +59,6 @@ const TaskCreateFormController: FC<TaskCreateFormProps> = ({
       
       const effectiveProjectId = newTodo.projectId; // Can be null
 
-      // Update cache: Add the new todo to the list associated with its project
       const queryKey = ["todos", { projectId: effectiveProjectId }];
 
       queryClient.setQueryData<Todo[]>(queryKey, (oldTodos = []) => [ // oldTodos defaults to []
@@ -74,14 +66,13 @@ const TaskCreateFormController: FC<TaskCreateFormProps> = ({
         newTodo,
       ]);
       
-      // Comprehensive query invalidations
       queryClient.invalidateQueries({ queryKey: ["todos"] });
       if (effectiveProjectId) {
         queryClient.invalidateQueries({ queryKey: ["todos", { projectId: effectiveProjectId }] });
       }
       queryClient.invalidateQueries({ queryKey: ["todos", { projectId: null }] });
 
-      handleOnSuccess(); // Close dialog on success
+      handleOnSuccess(); 
     },
     onError: (error) => {
       console.error("onError createMutation:", error);
@@ -93,9 +84,9 @@ const TaskCreateFormController: FC<TaskCreateFormProps> = ({
     return (
       <TaskModificationForm
         handleOnClose={handleOnClose}
-        task={task} // Pass default values for creation
-        title="Create Task"
-        editMutationFunctionReturn={createMutation} // Pass the creation mutation
+        task={task}
+        title="Criar Tarefa"
+        editMutationFunctionReturn={createMutation} 
         formFunctionReturn={form}
       />
     );
