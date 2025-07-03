@@ -74,6 +74,37 @@ const DashboardComponent = () => {
     [todos]
   );
 
+  // Calculate task progress by tag
+  // Moved this useMemo hook before conditional returns
+  const taskProgressByTag = useMemo(() => {
+    const progress: Record<PredefinedTag, { total: number; completed: number; colors: TagColor }> =
+      PREDEFINED_TAGS.reduce((acc, tag) => {
+        acc[tag] = { total: 0, completed: 0, colors: getTagColor(tag) };
+        return acc;
+      }, {} as Record<PredefinedTag, { total: number; completed: number; colors: TagColor }>);
+
+    (Array.isArray(todos) ? todos : []).forEach((todo: ExtendedTodo) => {
+      if (todo.tags && todo.tags.length > 0) {
+        todo.tags.forEach(tagString => {
+          const tag = tagString as PredefinedTag; // Assuming tags in DB are valid PredefinedTag
+          if (progress[tag]) {
+            progress[tag].total += 1;
+            if (todo.state === "DONE") {
+              progress[tag].completed += 1;
+            }
+          }
+        });
+      }
+    });
+    // Filter out tags that have no tasks for cleaner display
+    return Object.entries(progress)
+      .filter(([_, data]) => data.total > 0)
+      .reduce((acc, [tag, data]) => {
+        acc[tag as PredefinedTag] = data;
+        return acc;
+      }, {} as Record<PredefinedTag, { total: number; completed: number; colors: TagColor }>);
+  }, [todos]);
+
   // Early return for loading and error states
   if (isLoading) return <DashboardSkeleton />;
   if (error || !Array.isArray(todos)) {
@@ -134,36 +165,7 @@ const DashboardComponent = () => {
       {} as Record<string, { total: number; completed: number }>,
     ) || {};
 
-  // Calculate task progress by tag
-  const taskProgressByTag = useMemo(() => {
-    const progress: Record<PredefinedTag, { total: number; completed: number; colors: TagColor }> =
-      PREDEFINED_TAGS.reduce((acc, tag) => {
-        acc[tag] = { total: 0, completed: 0, colors: getTagColor(tag) };
-        return acc;
-      }, {} as Record<PredefinedTag, { total: number; completed: number; colors: TagColor }>);
-
-    (Array.isArray(todos) ? todos : []).forEach((todo: ExtendedTodo) => {
-      if (todo.tags && todo.tags.length > 0) {
-        todo.tags.forEach(tagString => {
-          const tag = tagString as PredefinedTag; // Assuming tags in DB are valid PredefinedTag
-          if (progress[tag]) {
-            progress[tag].total += 1;
-            if (todo.state === "DONE") {
-              progress[tag].completed += 1;
-            }
-          }
-        });
-      }
-    });
-    // Filter out tags that have no tasks for cleaner display
-    return Object.entries(progress)
-      .filter(([_, data]) => data.total > 0)
-      .reduce((acc, [tag, data]) => {
-        acc[tag as PredefinedTag] = data;
-        return acc;
-      }, {} as Record<PredefinedTag, { total: number; completed: number; colors: TagColor }>);
-  }, [todos]);
-
+  // taskProgressByTag is already moved up
 
   if (isLoading) {
     console.log("DashboardComponent loading...");
