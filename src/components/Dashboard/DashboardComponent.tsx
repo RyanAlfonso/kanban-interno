@@ -203,7 +203,7 @@ const DashboardComponent = () => {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <h3 className="text-sm font-medium">Total Tasks</h3>
+              <h3 className="text-sm font-medium">Tarefas</h3>
               <BarChart className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -222,7 +222,7 @@ const DashboardComponent = () => {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <h3 className="text-sm font-medium">Completed</h3>
+              <h3 className="text-sm font-medium">Concluídas</h3>
               <CheckCircle className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -234,7 +234,7 @@ const DashboardComponent = () => {
                     {dayjs(lastCompletedTask.updatedAt).format("MMM D, h:mm A")}
                   </>
                 ) : (
-                  "No completed tasks"
+                  "Sem tarefas concluídas"
                 )}
               </p>
               {/* <Progress value={totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0} className="mt-3 h-1" /> */} 
@@ -243,7 +243,7 @@ const DashboardComponent = () => {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <h3 className="text-sm font-medium">In Progress</h3>
+              <h3 className="text-sm font-medium">Em progresso</h3>
               <Circle className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -254,7 +254,7 @@ const DashboardComponent = () => {
                 </p>
               ) : (
                 <p className="text-xs text-muted-foreground">
-                  No tasks in progress
+                  Sem tarefas em progresso
                 </p>
               )}
               {/* <Progress value={totalTasks > 0 ? (inProgressTasks / totalTasks) * 100 : 0} className="mt-3 h-1" /> */} 
@@ -263,7 +263,7 @@ const DashboardComponent = () => {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <h3 className="text-sm font-medium">Upcoming Due</h3>
+              <h3 className="text-sm font-medium">Prazos próximos</h3>
               <Clock className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -271,7 +271,7 @@ const DashboardComponent = () => {
               <p className="text-xs text-muted-foreground">
                 {nextDueTask ? (
                   <>
-                    Next due:{" "}
+                    Próximo prazo:{" "}
                     {dayjs(nextDueTask.deadline).format("MMM D, h:mm A")}
                   </>
                 ) : (
@@ -287,10 +287,7 @@ const DashboardComponent = () => {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
           <Card className="lg:col-span-4">
             <CardHeader>
-              <h3 className="text-base font-medium">Task Completion by Tag</h3>
-              <p className="text-sm text-muted-foreground">
-                Overview of task status for each tag
-              </p>
+              <h3 className="text-base font-medium">Progresso de tarefas por tag</h3>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
@@ -327,14 +324,14 @@ const DashboardComponent = () => {
 
           <Card className="lg:col-span-3">
             <CardHeader>
-              <h3 className="text-base font-medium">Upcoming Deadlines</h3>
+              <h3 className="text-base font-medium">Próximos prazos</h3>
               {nextDueTask ? (
                 <p className="text-sm text-muted-foreground truncate" title={nextDueTask.title}>
-                  Next due task : {nextDueTask.title}
+                  Próximo prazo: {nextDueTask.title}
                 </p>
               ) : (
                 <p className="text-sm text-muted-foreground">
-                  No tasks with upcoming deadlines
+                  Sem tarefas com prazos próximos.
                 </p>
               )}
             </CardHeader>
