@@ -3,69 +3,61 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { getClockColor } from "@/lib/color"; // Removed getLabelColor
-import { PREDEFINED_TAGS, getTagColor, PredefinedTag, TagColor } from "@/lib/tags"; // Added tag imports
+import { getClockColor } from "@/lib/color";
+import { PREDEFINED_TAGS, getTagColor, PredefinedTag, TagColor } from "@/lib/tags";
 import { cn } from "@/lib/utils";
 import todoFetchRequest from "@/requests/todoFetchRequest";
 import { Todo } from "@prisma/client";
 import dayjs from "dayjs";
 import { BarChart, CheckCircle, Circle, Clock } from "lucide-react";
-// Update import from react-query to @tanstack/react-query
 import { useQuery } from "@tanstack/react-query"; 
 import { Skeleton } from "../ui/skeleton";
-import { useSearchParams } from "next/navigation"; // Import useSearchParams
+import { useSearchParams } from "next/navigation";
 import { useMemo } from "react";
 
-// Define Label type if not already defined globally or imported
 type LabelType = {
   id: string;
   name: string;
   color: string;
 };
 
-// Define Project type if not already defined globally or imported
-// Assuming a simple structure, adjust if needed based on actual Prisma schema
 type Project = {
   id: string;
   name: string;
-  // Add other project fields if necessary
 };
 
-// Update Todo type to include project relation if necessary
-// Assuming labels are now associated with projects or tasks directly
-// Adjust the Todo type based on your actual Prisma schema
 interface ExtendedTodo extends Todo {
-  labels?: LabelType[]; // Assuming labels are directly on Todo or fetched separately
-  project?: Project; // Assuming a relation exists
-  column?: { // Added column to ExtendedTodo
+  state: string; 
+  labels?: LabelType[];
+  project?: Project;
+  column?: {
     id: string;
     name: string;
     order: number;
   };
-  tags?: string[]; // Added tags to ExtendedTodo for dashboard
+  tags: string[];
 }
 
 
 const DashboardComponent = () => {
-  console.log("Rendering DashboardComponent..."); // Added log
-  const searchParams = useSearchParams(); // Get search params
-  const projectId = searchParams.get("projectId") || null; // Get current projectId
-  const view = searchParams.get("view") || "all"; // Get current view
+  console.log("Rendering DashboardComponent...");
+  const searchParams = useSearchParams();
+  const projectId = searchParams.get("projectId") || null;
+  const view = searchParams.get("view") || "all";
 
-  // Update useQuery syntax for v4+
-  // Include projectId and view in the queryKey to refetch when they change
   const { data: todos = [], isLoading, error } = useQuery<ExtendedTodo[], Error>({
-    queryKey: ["todos", { projectId, view }], // Query key includes projectId and view
-    queryFn: () => todoFetchRequest(projectId, view), // Pass projectId and view to fetch function
-    onError: (err) => {
-      console.error("Error fetching todos for dashboard:", err);
+    queryKey: ["todos", { projectId, view }],
+    queryFn: async () => {
+      const todos = await todoFetchRequest(projectId, view);
+      return todos.map((todo: any) => ({
+        ...todo,
+        state: todo.state ?? "TODO",
+        tags: todo.tags ?? [],
+      }));
     },
-    // Add stale time and caching strategy
-    staleTime: 1000 * 60, // 1 minute
-    cacheTime: 1000 * 60 * 5, // 5 minutes
+    staleTime: 1000 * 60,
   });
 
-  // Mova o useMemo para antes dos returns condicionais
   const sortedTodos = useMemo(
     () =>
       ([...(Array.isArray(todos) ? todos : [])] as ExtendedTodo[]).sort(
@@ -74,8 +66,6 @@ const DashboardComponent = () => {
     [todos]
   );
 
-  // Calculate task progress by tag
-  // Moved this useMemo hook before conditional returns
   const taskProgressByTag = useMemo(() => {
     const progress: Record<PredefinedTag, { total: number; completed: number; colors: TagColor }> =
       PREDEFINED_TAGS.reduce((acc, tag) => {
@@ -86,7 +76,7 @@ const DashboardComponent = () => {
     (Array.isArray(todos) ? todos : []).forEach((todo: ExtendedTodo) => {
       if (todo.tags && todo.tags.length > 0) {
         todo.tags.forEach(tagString => {
-          const tag = tagString as PredefinedTag; // Assuming tags in DB are valid PredefinedTag
+          const tag = tagString as PredefinedTag;
           if (progress[tag]) {
             progress[tag].total += 1;
             if (todo.state === "DONE") {
@@ -96,7 +86,6 @@ const DashboardComponent = () => {
         });
       }
     });
-    // Filter out tags that have no tasks for cleaner display
     return Object.entries(progress)
       .filter(([_, data]) => data.total > 0)
       .reduce((acc, [tag, data]) => {
@@ -105,7 +94,6 @@ const DashboardComponent = () => {
       }, {} as Record<PredefinedTag, { total: number; completed: number; colors: TagColor }>);
   }, [todos]);
 
-  // Early return for loading and error states
   if (isLoading) return <DashboardSkeleton />;
   if (error || !Array.isArray(todos)) {
     console.error("DashboardComponent render error:", error);
@@ -143,12 +131,9 @@ const DashboardComponent = () => {
     .slice().sort((a, b) => dayjs(a.deadline).unix() - dayjs(b.deadline).unix()) : [];
   const nextDueTask = upcomingTasks?.[0];
 
-  // Adjust project progress calculation based on how labels/projects are structured
-  // This assumes labels are directly on the Todo object as an array of strings
   const projectProgress =
     (todos as ExtendedTodo[])?.reduce(
       (acc: Record<string, { total: number; completed: number }>, todo: ExtendedTodo) => {
-        // Use todo.column.name for grouping progress by area/column
         const columnName = todo.column?.name;
         if (columnName) {
           if (acc[columnName]) {
@@ -165,7 +150,6 @@ const DashboardComponent = () => {
       {} as Record<string, { total: number; completed: number }>,
     ) || {};
 
-  // taskProgressByTag is already moved up
 
   if (isLoading) {
     console.log("DashboardComponent loading...");
@@ -201,7 +185,6 @@ const DashboardComponent = () => {
           </div>
         </div>
 
-        {/* Summary Cards */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -217,8 +200,6 @@ const DashboardComponent = () => {
                   +{numOfNewTask} from this week
                 </p>
               )}
-              {/* Progress bar might need meaningful value */}
-              {/* <Progress value={totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0} className="mt-3 h-1" /> */} 
             </CardContent>
           </Card>
 
@@ -239,7 +220,6 @@ const DashboardComponent = () => {
                   "Sem tarefas concluídas"
                 )}
               </p>
-              {/* <Progress value={totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0} className="mt-3 h-1" /> */} 
             </CardContent>
           </Card>
 
@@ -259,7 +239,6 @@ const DashboardComponent = () => {
                   Sem tarefas em progresso
                 </p>
               )}
-              {/* <Progress value={totalTasks > 0 ? (inProgressTasks / totalTasks) * 100 : 0} className="mt-3 h-1" /> */} 
             </CardContent>
           </Card>
 
@@ -280,12 +259,10 @@ const DashboardComponent = () => {
                   "No upcoming tasks"
                 )}
               </p>
-              {/* <Progress value={upcomingTasks?.length ?? 0 > 0 ? 50 : 0} className="mt-3 h-1" /> */}
             </CardContent>
           </Card>
         </div>
 
-        {/* Task Completion by Tag and Upcoming Deadlines */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
           <Card className="lg:col-span-4">
             <CardHeader>
@@ -312,8 +289,7 @@ const DashboardComponent = () => {
                       </div>
                       <Progress
                         value={ (data.total > 0 ? (data.completed / data.total) * 100 : 0)}
-                        className={cn("h-2", data.colors.bg)} // Use tag color for progress bar background
-                        indicatorClassName={cn(data.colors.text === "text-white" ? "bg-white" : "bg-slate-700")} // Adjust indicator for contrast
+                        className={cn("h-2", data.colors.bg, data.colors.text === "text-white" ? "progress-indicator-white" : "progress-indicator-dark")} // Custom class for indicator if needed
                       />
                     </div>
                   ))
@@ -344,15 +320,15 @@ const DashboardComponent = () => {
                     <div key={task.id} className="flex items-center mb-4">
                       <div
                         className={cn(
-                          "mr-4 flex h-9 w-9 items-center justify-center rounded-full flex-shrink-0", // Added flex-shrink-0
-                          getClockColor(task.deadline ? dayjs(task.deadline).diff(dayjs(), 'day').toString() : 'default').bg, // Use days diff for color
+                          "mr-4 flex h-9 w-9 items-center justify-center rounded-full flex-shrink-0",
+                          getClockColor(task.deadline ? dayjs(task.deadline).diff(dayjs(), 'day').toString() : 'default').bg,
                         )}
                       >
                         <Clock
                           className={cn("h-5 w-5", getClockColor(task.deadline ? dayjs(task.deadline).diff(dayjs(), 'day').toString() : 'default').badge)}
                         />
                       </div>
-                      <div className="space-y-1 overflow-hidden flex-grow min-w-0"> {/* Added flex-grow and min-w-0 */} 
+                      <div className="space-y-1 overflow-hidden flex-grow min-w-0"> 
                         <p className="text-sm font-medium leading-none truncate" title={task.title}>
                           {task.title}
                         </p>
@@ -360,7 +336,7 @@ const DashboardComponent = () => {
                           {task.deadline ? dayjs(task.deadline).format("MMM D, YYYY h:mm A") : "No deadline"}
                         </p>
                       </div>
-                      <div className="ml-auto flex gap-1 flex-wrap justify-end pl-2"> {/* Added flex-wrap and justify-end */} 
+                      <div className="ml-auto flex gap-1 flex-wrap justify-end pl-2">
                         {(task.label || []).map((label) => (
                           <Badge variant="outline" key={label} className="text-xs whitespace-nowrap">
                             {label}
@@ -384,9 +360,6 @@ const DashboardComponent = () => {
   }
 };
 
-/**
- * Skeleton loader for the dashboard.
- */
 const DashboardSkeleton = () => (
   <div className="p-6 space-y-6">
     <div className="text-sm text-muted-foreground mb-8">

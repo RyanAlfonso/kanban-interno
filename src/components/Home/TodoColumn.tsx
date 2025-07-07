@@ -79,7 +79,6 @@ const TodoColumn: FC<TodoColumnProp> = ({ title, todos, columnId, projectId, onD
             return <TodoCard todo={todo} key={todo.id.toString()} />;
           })}
       </div>
-      {/* Pass columnId and projectId to HomeTaskCreator instead of state */}
       <HomeTaskCreator columnId={columnId} projectId={projectId} />
     </div>
   );

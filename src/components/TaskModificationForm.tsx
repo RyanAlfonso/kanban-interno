@@ -2,9 +2,8 @@
 
 import useBreakpoint from "@/hooks/useBreakpoint";
 import { TASK_STATE_OPTIONS } from "@/lib/const";
-import { PREDEFINED_TAGS } from "@/lib/tags"; // Import PREDEFINED_TAGS
+import { PREDEFINED_TAGS } from "@/lib/tags";
 import { cn } from "@/lib/utils";
-// import todoLabelFetchRequest from "@/requests/todoLabelFetchRequest"; // Remove old label fetch
 import { Project, Todo } from "@prisma/client";
 import {
   Popover,
@@ -16,7 +15,6 @@ import dayjs from "dayjs";
 import { CalendarIcon, X } from "lucide-react";
 import { FC, lazy } from "react";
 import { Controller, UseFormReturn } from "react-hook-form";
-// Ensure this import uses @tanstack/react-query
 import { UseMutationResult, useQuery } from "@tanstack/react-query"; 
 import "react-quill/dist/quill.snow.css";
 import CustomizedMultSelect from "./CustomizedMultSelect";
@@ -28,21 +26,14 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { useToast } from "./ui/use-toast";
 
-// Define Label type if not already defined globally or imported
-type LabelType = {
-  id: string;
-  name: string;
-  color: string;
-};
 
 type TaskEditFormProps = {
   handleOnClose: () => void;
-  task: Partial<Todo>; // Can be partial for creation form defaults
+  task: Partial<Todo>;
   title: string;
   enableDelete?: boolean;
-  // Ensure UseMutationResult type matches @tanstack/react-query v4+
-  deleteMutationFunctionReturn?: UseMutationResult<Todo[], AxiosError, { id: string }, any>; // Specify variable type for delete
-  editMutationFunctionReturn: UseMutationResult<Todo | Todo[], AxiosError, any, any>; // Allow Todo or Todo[] based on mutation
+  deleteMutationFunctionReturn?: UseMutationResult<Todo[], AxiosError, { id: string }, any>;
+  editMutationFunctionReturn: UseMutationResult<Todo | Todo[], AxiosError, any, any>;
   formFunctionReturn: UseFormReturn<any>;
 };
 
@@ -63,7 +54,7 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
 }) => {
   console.log("Rendering TaskModificationForm (Corrected)..."); 
   const { md } = useBreakpoint();
-  const { axiosToast } = useToast();
+  useToast();
   const {
     handleSubmit,
     register,
@@ -71,46 +62,36 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
     control,
   } = formFunctionReturn;
   
-  // Destructure mutation functions and loading states (use isPending for v4+)
   const { mutate: submitEditTodoTask, isPending: isEditLoading } = editMutationFunctionReturn;
   const { mutate: deleteFunc, isPending: isDeleteLoading } = 
     deleteMutationFunctionReturn ?? { mutate: () => {}, isPending: false };
 
-  // REMOVED: Old label fetching logic
-  // const { data: labels, isLoading: labelsLoading, error: labelsError } = useQuery<LabelType[], Error>({
-  //   queryKey: ["labels"],
-  //   queryFn: todoLabelFetchRequest,
-  //   onError: (err) => {
-  //       console.error("Error fetching labels in TaskModificationForm:", err);
-  //       // Optionally show a toast or message for label fetch error
-  //   }
-  // });
 
-  // Convert PREDEFINED_TAGS to the format expected by CustomizedMultSelect if necessary,
-  // or adapt CustomizedMultSelect. For now, assuming CustomizedMultSelect can take string[].
   const tagOptions = [...PREDEFINED_TAGS];
 
 
-  // Buscar áreas para o seletor
   const { data: projects, isLoading: projectsLoading, error: projectsError } = useQuery<Project[], Error>({
     queryKey: ["projects"],
     queryFn: async () => {
-      const response = await fetch("/api/projects");
-      if (!response.ok) {
-        throw new Error("Falha ao buscar áreas");
+      try {
+        const response = await fetch("/api/projects");
+        if (!response.ok) {
+          throw new Error("Falha ao buscar áreas");
+        }
+        return response.json();
+      } catch (err) {
+        console.error("Error fetching projects in TaskModificationForm:", err);
+        throw err;
       }
-      return response.json();
-    },
-    onError: (err) => {
-      console.error("Error fetching projects in TaskModificationForm:", err);
     }
   });
 
-  // Converter áreas para o formato de opções do select
-  const projectOptions = projects?.map(project => ({
-    value: project.id.toString(), // Ensure value is a string
-    title: project.name,
-  })) || [];
+  const projectOptions = Array.isArray(projects)
+    ? projects.map(project => ({
+        value: project.id.toString(),
+        title: project.name,
+      }))
+    : [];
 
   const ErrorMessage = ({ msg }: ErrorMessageProps) => {
     return msg ? <span className="text-red-500 text-xs">{msg}</span> : null;
@@ -118,45 +99,17 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
 
   const ExtraInfoField = () => {
     console.log("Rendering ExtraInfoField...");
-    // Check if we are creating a new task and if columnId is already provided
     const isCreatingNewTaskWithColumn = title === "Create Task" && task?.columnId;
 
     try {
       return (
         <>
-          {/* Conditionally render Status field */}
-          {!isCreatingNewTaskWithColumn && ( // Only show if not creating with a pre-defined column
-            <div className="relative grid gap-1 pb-4">
-              <Label className="text-sm font-medium" htmlFor="state">
-                Status (Legado - a ser removido/alterado para Coluna)
-              </Label>
-              <Controller
-                control={control}
-                name="state" // This name might need to change if state is fully removed from form data
-                defaultValue={task.state}
-                render={({ field }) => (
-                  <CustomizedSelect
-                    options={TASK_STATE_OPTIONS}
-                    placeholder="Selecione o estado"
-                    onChange={field.onChange}
-                    value={field.value}
-                    // Consider disabling this if editing and column change is only by drag-drop
-                  />
-                )}
-              />
-              <ErrorMessage msg={errors.state?.message?.toString()} />
-            </div>
-          )}
-
-          {/* Display Column Name if creating with a pre-defined column */}
           {isCreatingNewTaskWithColumn && task.columnId && (
             <div className="relative grid gap-1 pb-4">
               <Label className="text-sm font-medium">
                 Coluna
               </Label>
-              {/* Here you might want to fetch and display the actual column name based on task.columnId */}
-              {/* For now, just showing the ID or a placeholder. Fetching column name here adds complexity. */}
-              <Input type="text" value={task.columnName || `(Coluna Pré-selecionada)`} readOnly className="bg-slate-100 dark:bg-slate-800"/>
+              <Input type="text" value={task.columnId || `(Coluna Pré-selecionada)`} readOnly className="bg-slate-100 dark:bg-slate-800"/>
             </div>
           )}
 
@@ -167,33 +120,24 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
             <Controller
               control={control}
               name="projectId"
-              defaultValue={task.projectId?.toString() || ""} // Use defaultValue from task prop, ensure string
+              defaultValue={task.projectId?.toString() || ""}
               render={({ field }) => {
-                // Determine the effective value for the select:
-                // 1. If field.value is already set (e.g., editing an existing task or user selected an option), use it.
-                // 2. If creating a new task (task.projectId is initially undefined) AND projectOptions are available,
-                //    default to the first available project.
-                // 3. Otherwise, default to empty string (though this case should ideally not show "Sem área" if it's removed).
                 let currentValue = field.value?.toString() || "";
                 if (!currentValue && !task.projectId && projectOptions.length > 0 && title === "Create Task") {
                   currentValue = projectOptions[0].value;
-                  // Optionally, update the form state immediately if you want the first project to be pre-selected
-                  // field.onChange(currentValue); // This might be better done via `reset` or `setValue` in useEffect
                 }
 
                 return (
                   <CustomizedSelect
-                    options={projectOptions} // Directly use projectOptions without "Sem área"
+                    options={projectOptions}
                     placeholder="Selecione a área"
                     onChange={field.onChange}
                     value={currentValue}
-                    isLoading={projectsLoading}
                   />
                 );
               }}
             />
             {projectsError && <ErrorMessage msg="Erro ao carregar áreas."/>}
-            {/* Add a specific error message if no projects are available and selection is mandatory */}
             {!projectsLoading && projectOptions.length === 0 && <ErrorMessage msg="Nenhuma área disponível. Crie uma área primeiro."/>}
             <ErrorMessage msg={errors.projectId?.message?.toString()} />
           </div>
@@ -205,14 +149,14 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
             <Controller
               control={control}
               name="deadline"
-              defaultValue={task.deadline} // Use defaultValue from task prop
+              defaultValue={task.deadline}
               render={({ field }) => (
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
                       variant={"outline"}
                       className={cn(
-                        "justify-start text-left font-normal w-full h-9 px-3 py-2 text-sm", // Standardized size/padding
+                        "justify-start text-left font-normal w-full h-9 px-3 py-2 text-sm",
                         !field.value && "text-muted-foreground",
                       )}
                     >
@@ -233,6 +177,7 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
                         field.onChange(timestamp);
                       }}
                       initialFocus
+                      register={register("deadline")}
                     />
                   </PopoverContent>
                 </Popover>
@@ -241,25 +186,23 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
             <ErrorMessage msg={errors.deadline?.message?.toString()} />
           </div>
           <div className="relative grid gap-1 pb-4">
-            <Label className="text-sm font-medium" htmlFor="tags"> {/* Changed htmlFor to "tags" */}
+            <Label className="text-sm font-medium" htmlFor="tags">
               Tags
             </Label>
             <Controller
               control={control}
-              name="tags" // Changed name to "tags"
-              defaultValue={task.tags || []} // Use task.tags
+              name="tags"
+              defaultValue={task.tags || []}
               render={({ field }) => (
                 <CustomizedMultSelect
                   value={field.value || []}
                   onChange={field.onChange}
                   placeholder="Selecione tags"
-                  options={tagOptions} // Use predefined tagOptions
-                  // isLoading prop can be removed as tags are predefined
+                  options={tagOptions}
                 />
               )}
             />
-            {/* Removed labelsError as it's no longer fetched */}
-            <ErrorMessage msg={errors.tags?.message?.toString()} /> {/* Changed to errors.tags */}
+            <ErrorMessage msg={errors.tags?.message?.toString()} />
           </div>
         </>
       );
@@ -274,7 +217,6 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
       <form
         onSubmit={handleSubmit((data) => {
           console.log("Form submitted with data:", data);
-          // Add the task ID for edit operations if it exists
           const payload = title === "Edit Task" && task.id ? { ...data, id: task.id } : data;
           submitEditTodoTask(payload);
         })}
@@ -290,7 +232,6 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
           </CardHeader>
           <CardContent className="p-4">
             <div className="flex flex-col md:flex-row gap-4">
-              {/* Main content area */} 
               <div className="flex flex-col gap-4 flex-1">
                 <div className="relative grid gap-1">
                   <Label className="text-sm font-medium" htmlFor="title">
@@ -298,29 +239,28 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
                   </Label>
                   <Input
                     id="title"
-                    className="w-full h-9 px-3 py-2 text-sm" // Standardized size/padding
+                    className="w-full h-9 px-3 py-2 text-sm"
                     {...register("title")}
                   />
                   <ErrorMessage msg={errors.title?.message?.toString()} />
                 </div>
                 
-                {/* Render ExtraInfoField on small screens here */} 
                 {!md && <ExtraInfoField />}
                 
-                <div className="relative grid gap-1 h-80"> {/* Reduced height slightly */} 
+                <div className="relative grid gap-1 h-80">
                   <Label className="text-sm font-medium" htmlFor="description">
                     Descrição
                   </Label>
                   <Controller
                     control={control}
                     name="description"
-                    defaultValue={task.description || ""} // Use defaultValue 
+                    defaultValue={task.description || ""}
                     render={({ field }) => (
                       <CustomizedReactQuill
                         theme="snow"
-                        value={field.value || ""} // Ensure value is a string
+                        value={field.value || ""}
                         onChange={field.onChange}
-                        className="h-[calc(100%-1.75rem)]" // Adjusted height calculation
+                        className="h-[calc(100%-1.75rem)]"
                       />
                     )}
                   />
@@ -336,7 +276,7 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
                       variant="outline"
                       onClick={() => task.id && deleteFunc({ id: task.id })} 
                       isLoading={isDeleteLoading}
-                      disabled={!task.id || isDeleteLoading} // Disable if no task id or already deleting
+                      disabled={!task.id || isDeleteLoading}
                     >
                       Excluir Tarefa
                     </Button>
@@ -344,7 +284,6 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
                 </div>
               </div>
               
-              {/* Sidebar for extra info on larger screens */} 
               {md && (
                 <div className="w-full md:w-64 flex flex-col border dark:border-gray-700 rounded-lg p-4 h-min space-y-4">
                   <ExtraInfoField />
