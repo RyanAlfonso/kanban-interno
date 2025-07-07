@@ -2,39 +2,33 @@ import dayjs, { type Dayjs } from "dayjs";
 
 export function categorizeDate(date: Dayjs): string {
   const now = dayjs();
-  const yesterday = now.subtract(1, "day").toDate();
+  const today = now.startOf('day');
+  const yesterday = now.subtract(1, "day").startOf('day');
+  const oneWeekAgo = now.subtract(7, "day").startOf('day');
+  const fifteenDaysAgo = now.subtract(15, "day").startOf('day');
+  const thirtyDaysAgo = now.subtract(30, "day").startOf('day');
 
-  if (dayjs(date).isSame(now, "day")) {
-    return "Today";
+  if (date.isSame(today, "day")) {
+    return "Hoje";
   }
 
   if (date.isSame(yesterday, "day")) {
-    return "Yesterday";
+    return "Ontem";
   }
 
-  // Check if the date is within this week
-  const startOfWeek = dayjs().startOf("week").toDate();
-  const endOfWeek = dayjs().endOf("week").toDate();
-
-  if (date.isAfter(startOfWeek) && date.isBefore(endOfWeek)) {
-    return "This Week";
+  if (date.isAfter(oneWeekAgo)) {
+    return "Última Semana";
   }
 
-  // Check if the date is within the past 30 days
-  const thirtyDaysAgo = dayjs().subtract(30, "day").toDate();
+  if (date.isAfter(fifteenDaysAgo)) {
+    return "Últimos 15 dias";
+  }
+
   if (date.isAfter(thirtyDaysAgo)) {
-    return "Last 30 Days";
+    return "Últimos 30 dias";
   }
 
-  // Check if the date is within the last month
-  const lastMonth = dayjs().subtract(1, "month").toDate();
-
-  if (date.isAfter(lastMonth)) {
-    return "Last Month";
-  }
-
-  // If the date is older than two months
-  return "Older";
+  return "Mais Antigo";
 }
 
 export function getRelativeTimeString(date: Dayjs): string {
@@ -76,14 +70,13 @@ export function getRelativeTimeString(date: Dayjs): string {
 
 export function getTimeframeSortOrder(timeframe: string): number {
   const order: Record<string, number> = {
-    Today: 1,
-    Yesterday: 2,
-    "This Week": 3,
-    "Past 30 Days": 4,
-    "Last Month": 5,
-    "Two Months Ago": 6,
-    Older: 7,
+    Hoje: 1,
+    Ontem: 2,
+    "Última Semana": 3,
+    "Últimos 15 dias": 4,
+    "Últimos 30 dias": 5,
+    "Mais Antigo": 6,
   };
 
-  return order[timeframe] || 999;
+  return order[timeframe] || 999; // Should not happen if categorizeDate is exhaustive
 }
