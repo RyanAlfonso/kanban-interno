@@ -106,11 +106,10 @@ export const CLOCK_COLOR = [
 ];
 
 export const TIMEFRAMECOLOR: Record<string, string> = {
-  Today: "bg-blue-500/10 text-blue-500 border-blue-500/20",
-  Yesterday: "bg-purple-500/10 text-purple-500 border-purple-500/20",
-  "This Week": "bg-green-500/10 text-green-500 border-green-500/20",
-  "Past 30 Days": "bg-amber-500/10 text-amber-500 border-amber-500/20",
-  "Last Month": "bg-orange-500/10 text-orange-500 border-orange-500/20",
-  "Two Months Ago": "bg-red-500/10 text-red-500 border-red-500/20",
-  Older: "bg-gray-500/10 text-gray-500 border-gray-500/20",
+  Hoje: "bg-blue-500/10 text-blue-500 border-blue-500/20", // Blue for Today
+  Ontem: "bg-purple-500/10 text-purple-500 border-purple-500/20", // Purple for Yesterday
+  "Última Semana": "bg-green-500/10 text-green-500 border-green-500/20", // Green for Last Week
+  "Últimos 15 dias": "bg-amber-500/10 text-amber-500 border-amber-500/20", // Amber for Last 15 days
+  "Últimos 30 dias": "bg-orange-500/10 text-orange-500 border-orange-500/20", // Orange for Last 30 days
+  "Mais Antigo": "bg-gray-500/10 text-gray-500 border-gray-500/20", // Gray for Older
 };
