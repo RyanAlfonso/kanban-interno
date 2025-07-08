@@ -601,12 +601,12 @@ const TodoColumnManager = () => {
                           .sort((a, b) => a.order - b.order);
                         return (
                           <TodoColumn
-                            key={column.id} // Use globally unique column.id
+                            key={column.id}
                             title={column.name}
                             todos={projectColumnTodos}
                             columnId={column.id}
                             projectId={project.id}
-                            onDeleteColumn={handleDeleteColumn} // Pass delete handler
+                            onDeleteColumn={handleDeleteColumn}
                           />
                         );
                       })

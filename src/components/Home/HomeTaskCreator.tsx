@@ -8,7 +8,6 @@ import { useDispatch } from "react-redux";
 import { Button } from "../ui/button";
 
 type HomeTaskCreatorProps = {
-  // state: Todo["state"]; // Removed state
   columnId: string;
   projectId?: string;
 };
@@ -17,7 +16,6 @@ const HomeTaskCreator: FC<HomeTaskCreatorProps> = ({ columnId, projectId }) => {
   const dispatch = useDispatch();
 
   const handleOpenDialog = () => {
-    // Pass columnId and projectId for default values
     dispatch(openTodoEditor({ columnId, projectId }, "/", "create"));
   };
 
