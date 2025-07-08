@@ -48,8 +48,16 @@ export async function POST(
   const logger = getLogger('info');
   try {
     const session = await getAuthSession();
+    console.log(`DEBUG: POST /api/projects/${params.projectId}/columns - Session object:`, JSON.stringify(session, null, 2)); // DEBUGGING ROLE
     if (!session?.user) {
       return new NextResponse('Unauthorized', { status: 401 });
+    }
+
+    // @ts-ignore
+    console.log(`DEBUG: POST /api/projects/${params.projectId}/columns - User role:`, session.user.role); // DEBUGGING ROLE
+    // @ts-ignore
+    if (session.user.role !== 'ADMIN') {
+      return new NextResponse('Forbidden: User is not an Admin', { status: 403 });
     }
 
     const { projectId } = params;
