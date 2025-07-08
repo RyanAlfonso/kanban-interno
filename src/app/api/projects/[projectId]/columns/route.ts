@@ -19,10 +19,7 @@ export async function GET(
       return new NextResponse('Unauthorized', { status: 401 });
     }
 
-    // @ts-ignore // session.user.role will exist due to next-auth.d.ts and callback updates
-    if (session.user.role !== 'ADMIN') {
-      return new NextResponse('Forbidden: User is not an Admin', { status: 403 });
-    }
+    // A VERIFICAÇÃO DE ADMIN FOI REMOVIDA DAQUI PARA PERMITIR QUE TODOS OS USUÁRIOS LOGADOS VEJAM AS COLUNAS
 
     const { projectId } = params;
     if (!projectId) {
