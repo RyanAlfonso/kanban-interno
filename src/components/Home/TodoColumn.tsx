@@ -8,6 +8,7 @@ import { PlusCircle, Trash2 } from "lucide-react";
 import { FC } from "react";
 import { useDispatch } from "react-redux";
 import { Badge } from "../ui/badge";
+import { useSession } from 'next-auth/react'; // Import useSession
 import { Button } from "../ui/button";
 import HomeTaskCreator from "./HomeTaskCreator";
 import TodoCard from "./TodoCard";
@@ -22,6 +23,7 @@ type TodoColumnProp = {
 
 const TodoColumn: FC<TodoColumnProp> = ({ title, todos, columnId, projectId, onDeleteColumn }) => {
   const dispatch = useDispatch();
+  const { data: session } = useSession(); // Get session
 
   const { setNodeRef } = useDroppable({ id: columnId });
 
@@ -52,7 +54,7 @@ const TodoColumn: FC<TodoColumnProp> = ({ title, todos, columnId, projectId, onD
           </Badge>
         </div>
         <div className="flex items-center space-x-1">
-          {onDeleteColumn && (
+          {session?.user?.role === 'ADMIN' && onDeleteColumn && (
              <Button
               variant="ghost"
               size="icon"

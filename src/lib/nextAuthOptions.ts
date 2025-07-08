@@ -41,7 +41,6 @@ export const authOptions: NextAuthOptions = {
           return null; // Senha incorreta
         }
 
-        console.log("User from Prisma in authorize:", user); // DEBUGGING ROLE
         console.log("Autorização bem-sucedida para:", user.email);
         // Retorna o objeto do usuário sem a senha
         // O tipo User do NextAuth pode precisar ser estendido para incluir 'role'
@@ -72,8 +71,6 @@ export const authOptions: NextAuthOptions = {
         // @ts-ignore // NextAuth tipicamente infere isso, mas podemos ser explícitos
         token.role = user.role; // Adicionar role ao token
       }
-      console.log("JWT callback token:", token); // DEBUGGING ROLE
-      console.log("JWT callback user object:", user); // DEBUGGING ROLE
       return token;
     },
     async session({ session, token }) {
@@ -86,8 +83,6 @@ export const authOptions: NextAuthOptions = {
         // @ts-ignore // Similar ao JWT, para popular o objeto session.user
         session.user.role = token.role; // Adicionar role à sessão
       }
-      console.log("Session callback session object:", session); // DEBUGGING ROLE
-      console.log("Session callback token object:", token); // DEBUGGING ROLE
       return session;
     },
     redirect({ url, baseUrl }) {

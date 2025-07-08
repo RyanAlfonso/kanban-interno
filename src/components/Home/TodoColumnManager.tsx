@@ -22,6 +22,7 @@ import { Input } from '../ui/input';
 import { PlusCircle } from 'lucide-react';
 import projectColumnCreateRequest, { ProjectColumnCreatePayload } from '@/requests/projectColumnCreateRequest';
 import projectColumnDeleteRequest from '@/requests/projectColumnDeleteRequest'; // Import delete request
+import { useSession } from 'next-auth/react'; // Import useSession
 
 // Define a type for the grouped projects
 interface GroupedProject {
@@ -31,7 +32,6 @@ interface GroupedProject {
 }
 
 const TodoColumnManager = () => {
-  console.log("Rendering TodoColumnManager...");
   const router = useRouter();
   const { axiosToast } = useToast();
   const queryClient = useQueryClient();
@@ -39,6 +39,7 @@ const TodoColumnManager = () => {
   const searchTerm = searchParams.get("q")?.toLowerCase() || "";
   const currentProjectId = searchParams.get("projectId") || "all";
   const viewMode = searchParams.get("view") || null;
+  const { data: session } = useSession(); // Get session
 
   const [showAddColumnForm, setShowAddColumnForm] = useState(false);
   const [newColumnName, setNewColumnName] = useState("");
@@ -48,7 +49,7 @@ const TodoColumnManager = () => {
     queryKey: ["todos", { projectId: currentProjectId, viewMode }],
     queryFn: () => todoFetchRequest(currentProjectId === "all" ? null : currentProjectId, viewMode) as Promise<TodoWithColumn[]>, // Assert type
     onError: (err) => {
-      console.error("Error fetching todos:", err);
+      // console.error("Error fetching todos:", err); // Log removido
       axiosToast(new AxiosError("Falha ao buscar tarefas."));
     },
   });
@@ -67,7 +68,7 @@ const TodoColumnManager = () => {
     },
     enabled: currentProjectId !== "all",
     onError: (err) => {
-      console.error(`Error fetching project columns for project ${currentProjectId}:`, err);
+      // console.error(`Error fetching project columns for project ${currentProjectId}:`, err); // Log removido
       axiosToast(new AxiosError(`Falha ao buscar colunas do projeto ${currentProjectId}.`));
     },
   });
@@ -198,7 +199,7 @@ const TodoColumnManager = () => {
   const handleDeleteColumn = (columnId: string) => {
     if (window.confirm("Tem certeza que deseja excluir esta coluna? As tarefas nesta coluna ficarão desassociadas.")) {
       if (currentProjectId === "all") {
-        console.warn("Delete column initiated from 'all projects' view. Ensure context is correct.");
+        // console.warn("Delete column initiated from 'all projects' view. Ensure context is correct."); // Log removido
         let ownerProjectId: string | undefined;
         for (const projId in allProjectsColumnsMap) {
             if (allProjectsColumnsMap[projId].some(col => col.id === columnId)) {
@@ -235,36 +236,36 @@ const TodoColumnManager = () => {
       return updatedTodo as TodoWithColumn; // Cast to TodoWithColumn
     },
     onMutate: async (payload: TodoEditRequest) => {
-      console.log("[TodoColumnManager] onMutate: init", JSON.parse(JSON.stringify(payload)));
+      // console.log("[TodoColumnManager] onMutate: init", JSON.parse(JSON.stringify(payload))); // Log removido
       const queryKey = ["todos", { projectId: currentProjectId, viewMode }];
       await queryClient.cancelQueries({ queryKey });
 
       const previousTodos = queryClient.getQueryData<TodoWithColumn[]>(queryKey);
-      console.log("[TodoColumnManager] onMutate: previousTodos", JSON.parse(JSON.stringify(previousTodos)));
+      // console.log("[TodoColumnManager] onMutate: previousTodos", JSON.parse(JSON.stringify(previousTodos))); // Log removido
 
       if (!previousTodos) {
-        console.warn("[TodoColumnManager] onMutate: No previousTodos found in cache.");
+        // console.warn("[TodoColumnManager] onMutate: No previousTodos found in cache."); // Log removido
         return { previousTodos: undefined, queryKey };
       }
 
       const todoToUpdate = previousTodos.find((todo) => todo.id === payload.id);
       if (!todoToUpdate) {
-        console.warn("[TodoColumnManager] onMutate: todoToUpdate not found in previousTodos. ID:", payload.id);
+        // console.warn("[TodoColumnManager] onMutate: todoToUpdate not found in previousTodos. ID:", payload.id); // Log removido
         return { previousTodos, queryKey };
       }
 
       const originalTodoState = JSON.parse(JSON.stringify(todoToUpdate)); // Deep clone for logging and reference
-      console.log("[TodoColumnManager] onMutate: originalTodoState of the dragged item", originalTodoState);
+      // console.log("[TodoColumnManager] onMutate: originalTodoState of the dragged item", originalTodoState); // Log removido
 
       // Determine new properties for the dragged todo
       const newProjectId = payload.projectId || originalTodoState.projectId;
       const newColumnId = payload.columnId!; // columnId must be present in payload for a move
       const newOrder = payload.order!;     // order must be present in payload
 
-      console.log(`[TodoColumnManager] onMutate: Optimistic Update Params:
-        Todo ID: ${originalTodoState.id}
-        Original Project ID: ${originalTodoState.projectId}, Original Column ID: ${originalTodoState.columnId}, Original Order: ${originalTodoState.order}
-        New Project ID: ${newProjectId}, New Column ID: ${newColumnId}, New Order: ${newOrder}`);
+      // console.log(`[TodoColumnManager] onMutate: Optimistic Update Params: // Log removido
+      //   Todo ID: ${originalTodoState.id}
+      //   Original Project ID: ${originalTodoState.projectId}, Original Column ID: ${originalTodoState.columnId}, Original Order: ${originalTodoState.order}
+      //   New Project ID: ${newProjectId}, New Column ID: ${newColumnId}, New Order: ${newOrder}`);
 
       let tempTodos = JSON.parse(JSON.stringify(previousTodos)) as TodoWithColumn[]; // Deep clone to avoid mutating cache directly
 
@@ -273,7 +274,7 @@ const TodoColumnManager = () => {
       if (itemIndex > -1) {
         tempTodos.splice(itemIndex, 1);
       }
-      console.log("[TodoColumnManager] onMutate: tempTodos after removing item", JSON.parse(JSON.stringify(tempTodos)));
+      // console.log("[TodoColumnManager] onMutate: tempTodos after removing item", JSON.parse(JSON.stringify(tempTodos))); // Log removido
 
 
       // --- Step 2: Adjust order in the source column (originalTodoState.columnId) ---
@@ -288,7 +289,7 @@ const TodoColumnManager = () => {
           }
           return todo;
         });
-        console.log("[TodoColumnManager] onMutate: tempTodos after adjusting source column", JSON.parse(JSON.stringify(tempTodos)));
+        // console.log("[TodoColumnManager] onMutate: tempTodos after adjusting source column", JSON.parse(JSON.stringify(tempTodos))); // Log removido
       }
 
       // --- Step 3: Adjust order in the destination column (newColumnId) ---
@@ -306,7 +307,7 @@ const TodoColumnManager = () => {
         }
         return todo;
       });
-      console.log("[TodoColumnManager] onMutate: tempTodos after adjusting destination column", JSON.parse(JSON.stringify(tempTodos)));
+      // console.log("[TodoColumnManager] onMutate: tempTodos after adjusting destination column", JSON.parse(JSON.stringify(tempTodos))); // Log removido
 
       // --- Step 4: Construct and add the updated item to its new position ---
       const updatedTodoItem: TodoWithColumn = {
@@ -325,10 +326,10 @@ const TodoColumnManager = () => {
       // Simplification: Removed optimistic update of .project and .column objects.
       // We will rely on the server refetch to get the correct associated objects.
       // The updatedTodoItem will have the correct IDs (projectId, columnId).
-      console.log("[TodoColumnManager] onMutate: updatedTodoItem to be inserted (project/column objects will be updated on refetch)", JSON.parse(JSON.stringify(updatedTodoItem)));
+      // console.log("[TodoColumnManager] onMutate: updatedTodoItem to be inserted (project/column objects will be updated on refetch)", JSON.parse(JSON.stringify(updatedTodoItem))); // Log removido
 
       tempTodos.push(updatedTodoItem);
-      console.log("[TodoColumnManager] onMutate: tempTodos after adding updated item", JSON.parse(JSON.stringify(tempTodos)));
+      // console.log("[TodoColumnManager] onMutate: tempTodos after adding updated item", JSON.parse(JSON.stringify(tempTodos))); // Log removido
 
       // Sort the final list to ensure correct order for rendering
       tempTodos.sort((a, b) => {
@@ -340,23 +341,23 @@ const TodoColumnManager = () => {
         }
         return a.order - b.order;
       });
-      console.log("[TodoColumnManager] onMutate: tempTodos final before setQueryData", JSON.parse(JSON.stringify(tempTodos)));
+      // console.log("[TodoColumnManager] onMutate: tempTodos final before setQueryData", JSON.parse(JSON.stringify(tempTodos))); // Log removido
 
       queryClient.setQueryData<TodoWithColumn[]>(queryKey, tempTodos);
 
       return { previousTodos, queryKey };
     },
     onError: (error, variables, context) => {
-      console.error("onError handleUpdateState:", error);
+      // console.error("onError handleUpdateState:", error); // Log removido
       if (context?.previousTodos) {
         queryClient.setQueryData(context.queryKey, context.previousTodos);
       }
       axiosToast(error);
     },
     onSuccess: (updatedTodoFromServer, variables, context) => {
-      console.log("[TodoColumnManager] onSuccess: Raw updatedTodoFromServer from API", JSON.parse(JSON.stringify(updatedTodoFromServer)));
-      console.log("[TodoColumnManager] onSuccess: Variables sent to mutation", JSON.parse(JSON.stringify(variables)));
-      console.log("[TodoColumnManager] onSuccess: Context", JSON.parse(JSON.stringify(context)));
+      // console.log("[TodoColumnManager] onSuccess: Raw updatedTodoFromServer from API", JSON.parse(JSON.stringify(updatedTodoFromServer))); // Log removido
+      // console.log("[TodoColumnManager] onSuccess: Variables sent to mutation", JSON.parse(JSON.stringify(variables))); // Log removido
+      // console.log("[TodoColumnManager] onSuccess: Context", JSON.parse(JSON.stringify(context))); // Log removido
 
 
       queryClient.invalidateQueries({ queryKey: context.queryKey });
@@ -395,17 +396,17 @@ const TodoColumnManager = () => {
   });
 
   const handleDragEnd = (dragEndEvent: OnDragEndEvent) => {
-    console.log("handleDragEnd event:", dragEndEvent);
+    // console.log("handleDragEnd event:", dragEndEvent); // Log removido
     const { over, item, order } = dragEndEvent;
 
     if (!over || !item || order === undefined || order === null) {
-      console.warn("Invalid drag end event data:", dragEndEvent);
+      // console.warn("Invalid drag end event data:", dragEndEvent); // Log removido
       return;
     }
 
     const draggedTodo = (todos ?? []).find(t => t.id === item);
     if (!draggedTodo) {
-      console.error("Dragged todo not found:", item);
+      // console.error("Dragged todo not found:", item); // Log removido
       return;
     }
     const originalProjectId = draggedTodo.projectId;
@@ -427,14 +428,14 @@ const TodoColumnManager = () => {
         }
       }
       if (!foundProjectForColumn) {
-        console.error(`Could not find project for targetColumnId: ${targetColumnId} in 'all projects' view. Drag operation aborted.`);
-        targetProjectId = originalProjectId;
-        console.warn(`Target project for column ${targetColumnId} not definitively found in allProjectsColumnsMap. Defaulting to original project ${originalProjectId}. This might be incorrect.`);
+        // console.error(`Could not find project for targetColumnId: ${targetColumnId} in 'all projects' view. Drag operation aborted.`); // Log removido
+        targetProjectId = originalProjectId; // Fallback, though this might be incorrect if the column truly belongs to another project.
+        // console.warn(`Target project for column ${targetColumnId} not definitively found in allProjectsColumnsMap. Defaulting to original project ${originalProjectId}. This might be incorrect.`); // Log removido
       }
     }
 
 
-    console.log(`Drag End: Item ${item} (Original Proj: ${originalProjectId}, Original Col: ${originalColumnId}) dropped on TargetColId: ${targetColumnId}. Determined Target Proj: ${targetProjectId}, Order: ${order}`);
+    // console.log(`Drag End: Item ${item} (Original Proj: ${originalProjectId}, Original Col: ${originalColumnId}) dropped on TargetColId: ${targetColumnId}. Determined Target Proj: ${targetProjectId}, Order: ${order}`); // Log removido
 
     const payload: TodoEditRequest = {
       id: item as string,
@@ -443,13 +444,12 @@ const TodoColumnManager = () => {
       projectId: (targetProjectId && targetProjectId !== "all" && targetProjectId !== originalProjectId) ? targetProjectId : undefined,
     };
 
-    console.log("Calling handleUpdateState with payload:", payload);
-    console.log("[TodoColumnManager] handleDragEnd: Payload for handleUpdateState", JSON.parse(JSON.stringify(payload)));
+    // console.log("Calling handleUpdateState with payload:", payload); // Log removido
+    // console.log("[TodoColumnManager] handleDragEnd: Payload for handleUpdateState", JSON.parse(JSON.stringify(payload))); // Log removido
     handleUpdateState(payload);
   };
 
   if (isLoading) {
-    console.log("TodoColumnManager loading...");
     return (
       <div className="flex flex-col gap-4">
         <div className="flex justify-between items-center px-6 pt-6">
@@ -467,7 +467,7 @@ const TodoColumnManager = () => {
   }
 
   if (error) {
-    console.error("TodoColumnManager render error:", error);
+    // console.error("TodoColumnManager render error:", error); // Log removido
     return <div className="p-6 text-red-500">Erro ao carregar tarefas: {error.message}</div>;
   }
 
@@ -478,7 +478,7 @@ const TodoColumnManager = () => {
       const inDescription = todo.description?.toLowerCase().includes(searchTerm) ?? false;
       return inTitle || inDescription;
     });
-  console.log(`Filtered Todos (${filteredTodos.length}):`, filteredTodos);
+  // console.log(`Filtered Todos (${filteredTodos.length}):`, filteredTodos); // Log removido
 
   let pageTitle = "Todas as áreas";
   let singleProjectName: string | null = null;
@@ -546,7 +546,7 @@ const TodoColumnManager = () => {
                 />
               );
             })}
-            {currentProjectId !== "all" && !isLoadingProjectColumns && (
+            {session?.user?.role === 'ADMIN' && currentProjectId !== "all" && !isLoadingProjectColumns && (
               <div className="min-w-[280px] w-[280px] flex-shrink-0 p-1">
                 {showAddColumnForm ? (
                   <form
