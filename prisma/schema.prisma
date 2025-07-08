@@ -95,8 +95,15 @@ model User {
   // Adicionar relação inversa para Assignee aqui se for implementar
   // assignedTodos Todo[] @relation(name: "AssignedTodos")
 
+  role Role @default(USER) // Adicionando o campo role
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+enum Role {
+  USER
+  ADMIN
 }
 
 model Account {

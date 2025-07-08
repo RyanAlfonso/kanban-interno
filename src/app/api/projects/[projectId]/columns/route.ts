@@ -19,6 +19,11 @@ export async function GET(
       return new NextResponse('Unauthorized', { status: 401 });
     }
 
+    // @ts-ignore // session.user.role will exist due to next-auth.d.ts and callback updates
+    if (session.user.role !== 'ADMIN') {
+      return new NextResponse('Forbidden: User is not an Admin', { status: 403 });
+    }
+
     const { projectId } = params;
     if (!projectId) {
       return new NextResponse('Project ID is required', { status: 400 });

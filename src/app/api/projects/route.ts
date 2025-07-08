@@ -30,6 +30,11 @@ export async function POST(req: NextRequest) {
     const session = await getAuthSession();
     if (!session?.user) return new Response("Unauthorized", { status: 401 });
 
+    // @ts-ignore // session.user.role will exist due to next-auth.d.ts and callback updates
+    if (session.user.role !== 'ADMIN') {
+      return new Response('Forbidden: User is not an Admin', { status: 403 });
+    }
+
     const body = await req.json();
     const { name, description } = body;
 
@@ -60,6 +65,11 @@ export async function PUT(req: NextRequest) {
   try {
     const session = await getAuthSession();
     if (!session?.user) return new Response("Unauthorized", { status: 401 });
+
+    // @ts-ignore // session.user.role will exist due to next-auth.d.ts and callback updates
+    if (session.user.role !== 'ADMIN') {
+      return new Response('Forbidden: User is not an Admin', { status: 403 });
+    }
 
     const body = await req.json();
     const { id, name, description } = body;
