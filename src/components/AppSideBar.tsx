@@ -19,23 +19,24 @@ import {
 import { useQuery, useQueryClient } from "@tanstack/react-query"; 
 import { Project } from "@prisma/client";
 import { useToast } from "./ui/use-toast";
+import { useSession } from 'next-auth/react'; // Import useSession
 import { Skeleton } from "./ui/skeleton"; // Import Skeleton for loading state
 import ProjectForm from "./ProjectForm"; // Import ProjectForm
 
 // Define fetchProjects function (can be moved to a separate requests file later)
 const fetchProjects = async (): Promise<Project[]> => {
-  console.log("Fetching projects..."); // Log fetch start
+  // console.log("Fetching projects..."); // Log removido
   try {
     const response = await fetch("/api/projects");
     if (!response.ok) {
-      console.error("Failed to fetch projects, status:", response.status);
+      // console.error("Failed to fetch projects, status:", response.status); // Log removido
       throw new Error("Falha ao buscar áreas");
     }
     const data = await response.json();
-    console.log("Projects fetched successfully:", data);
+    // console.log("Projects fetched successfully:", data); // Log removido
     return data;
   } catch (error) {
-    console.error("Error in fetchProjects:", error);
+    // console.error("Error in fetchProjects:", error); // Log removido
     throw error;
   }
 };
@@ -70,7 +71,7 @@ const NAV_CONTENT: NavContent[] = [
 ];
 
 const AppSideBar = () => {
-  console.log("Rendering AppSideBar..."); // Added log
+  // console.log("Rendering AppSideBar..."); // Log removido
   const sidebarRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const router = useRouter();
@@ -83,6 +84,7 @@ const AppSideBar = () => {
     (state) => state.sidebar.isSidebarOpen,
   );
   const dispatch = useDispatch();
+  const { data: session } = useSession(); // Get session
 
   // Fetch projects using @tanstack/react-query v4+ syntax
   const { data: projects, isLoading, error } = useQuery<Project[], Error>({
@@ -92,7 +94,7 @@ const AppSideBar = () => {
     // Note: onError/onSuccess callbacks directly in useQuery options are deprecated in v5,
     // but still work. Consider using them outside or via QueryCache callbacks for future-proofing.
     onError: (err) => {
-      console.error("React Query onError fetching projects:", err);
+      // console.error("React Query onError fetching projects:", err); // Log removido
       toast({
         title: "Erro",
         description: "Não foi possível carregar as áreas na barra lateral",
@@ -100,47 +102,47 @@ const AppSideBar = () => {
       });
     },
     onSuccess: (data) => {
-      console.log("React Query onSuccess fetching projects:", data);
+      // console.log("React Query onSuccess fetching projects:", data); // Log removido
     }
   });
 
   // Get current project ID from URL for highlighting
   const currentProjectId = searchParams.get("projectId");
-  console.log("Current Project ID from URL:", currentProjectId);
+  // console.log("Current Project ID from URL:", currentProjectId); // Log removido
 
   useEffect(() => {
-    console.log("AppSideBar useEffect for resize running...");
+    // console.log("AppSideBar useEffect for resize running..."); // Log removido
     const handleResize = () => {
       if (lg && !isSidebarOpen) {
-        console.log("Opening sidebar due to resize (lg)");
+        // console.log("Opening sidebar due to resize (lg)"); // Log removido
         dispatch(openSidebar());
       }
     };
 
     window.addEventListener("resize", handleResize);
     return () => {
-      console.log("Cleaning up AppSideBar resize listener...");
+      // console.log("Cleaning up AppSideBar resize listener..."); // Log removido
       window.removeEventListener("resize", handleResize);
     };
   }, [isSidebarOpen, lg, dispatch]);
 
   const handleToggleSidebar = () => {
-    console.log("Toggling sidebar");
+    // console.log("Toggling sidebar"); // Log removido
     dispatch(toggleSidebar());
   };
 
   const handleNavigate = (link: string) => {
-    console.log("Navigating to:", link);
+    // console.log("Navigating to:", link); // Log removido
     router.push(link);
     // Close sidebar on navigation on smaller screens
     if (md) return;
-    console.log("Closing sidebar due to navigation (small screen)");
+    // console.log("Closing sidebar due to navigation (small screen)"); // Log removido
     dispatch(closeSidebar());
   };
 
   // Function to handle project selection
   const handleProjectSelect = (projectId: string | null) => {
-    console.log("Selecting project:", projectId);
+    // console.log("Selecting project:", projectId); // Log removido
     const params = new URLSearchParams(Array.from(searchParams.entries()));
     if (projectId) {
       params.set("projectId", projectId);
@@ -154,7 +156,7 @@ const AppSideBar = () => {
 
   // Callback function for successful project creation
   const handleProjectCreated = () => {
-    console.log("Project created, invalidating projects query...");
+    // console.log("Project created, invalidating projects query..."); // Log removido
     // Update invalidateQueries syntax for v4+
     queryClient.invalidateQueries({ queryKey: ["projects"] }); 
   };
@@ -244,7 +246,7 @@ const AppSideBar = () => {
                   </h3>
                 )}
                 {/* Add Project Button integrated with ProjectForm */} 
-                {isSidebarOpen && (
+                {session?.user?.role === 'ADMIN' && isSidebarOpen && (
                   <ProjectForm 
                     onSuccess={handleProjectCreated} 
                     trigger={
@@ -311,7 +313,7 @@ const AppSideBar = () => {
       </>
     );
   } catch (error) {
-    console.error("Error rendering AppSideBar:", error); // Added try-catch
+    // console.error("Error rendering AppSideBar:", error); // Log removido
     // Optionally render an error message or fallback UI
     return <div>Ocorreu um erro na barra lateral.</div>;
   }

@@ -28,11 +28,9 @@ export async function POST(req: NextRequest) {
   const logger = getLogger("info");
   try {
     const session = await getAuthSession();
-    console.log(`DEBUG: POST /api/projects - Session object:`, JSON.stringify(session, null, 2)); // DEBUGGING ROLE
     if (!session?.user) return new Response("Unauthorized", { status: 401 });
 
     // @ts-ignore // session.user.role will exist due to next-auth.d.ts and callback updates
-    console.log(`DEBUG: POST /api/projects - User role:`, session.user.role); // DEBUGGING ROLE
     if (session.user.role !== 'ADMIN') {
       return new Response('Forbidden: User is not an Admin', { status: 403 });
     }
@@ -66,11 +64,9 @@ export async function PUT(req: NextRequest) {
   const logger = getLogger("info");
   try {
     const session = await getAuthSession();
-    console.log(`DEBUG: PUT /api/projects - Session object:`, JSON.stringify(session, null, 2)); // DEBUGGING ROLE
     if (!session?.user) return new Response("Unauthorized", { status: 401 });
 
     // @ts-ignore // session.user.role will exist due to next-auth.d.ts and callback updates
-    console.log(`DEBUG: PUT /api/projects - User role:`, session.user.role); // DEBUGGING ROLE
     if (session.user.role !== 'ADMIN') {
       return new Response('Forbidden: User is not an Admin', { status: 403 });
     }
@@ -102,11 +98,8 @@ export async function DELETE(req: NextRequest) {
   const logger = getLogger("info");
   try {
     const session = await getAuthSession();
-    console.log(`DEBUG: DELETE /api/projects - Session object:`, JSON.stringify(session, null, 2)); // DEBUGGING ROLE
     if (!session?.user) return new Response("Unauthorized", { status: 401 });
 
-    // @ts-ignore
-    console.log(`DEBUG: DELETE /api/projects - User role:`, session.user.role); // DEBUGGING ROLE
     // @ts-ignore
     if (session.user.role !== 'ADMIN') {
       return new Response('Forbidden: User is not an Admin', { status: 403 });

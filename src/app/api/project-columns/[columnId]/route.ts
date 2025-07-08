@@ -15,13 +15,10 @@ export async function PUT(
   const logger = getLogger('info');
   try {
     const session = await getAuthSession();
-    console.log(`DEBUG: PUT /api/project-columns/${params.columnId} - Session object:`, JSON.stringify(session, null, 2)); // DEBUGGING ROLE
     if (!session?.user) {
       return new NextResponse('Unauthorized', { status: 401 });
     }
 
-    // @ts-ignore
-    console.log(`DEBUG: PUT /api/project-columns/${params.columnId} - User role:`, session.user.role); // DEBUGGING ROLE
     // @ts-ignore // session.user.role will exist due to next-auth.d.ts and callback updates
     if (session.user.role !== 'ADMIN') {
       return new NextResponse('Forbidden: User is not an Admin', { status: 403 });
@@ -77,13 +74,10 @@ export async function DELETE(
   const logger = getLogger('info');
   try {
     const session = await getAuthSession();
-    console.log(`DEBUG: DELETE /api/project-columns/${params.columnId} - Session object:`, JSON.stringify(session, null, 2)); // DEBUGGING ROLE
     if (!session?.user) {
       return new NextResponse('Unauthorized', { status: 401 });
     }
 
-    // @ts-ignore
-    console.log(`DEBUG: DELETE /api/project-columns/${params.columnId} - User role:`, session.user.role); // DEBUGGING ROLE
     // @ts-ignore
     if (session.user.role !== 'ADMIN') {
       return new NextResponse('Forbidden: User is not an Admin', { status: 403 });
