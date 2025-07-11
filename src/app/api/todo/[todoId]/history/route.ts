@@ -62,6 +62,12 @@ export async function GET(
 
   } catch (error) {
     logger.error(`--- Backend API (GET /api/todo/[todoId]/history): Error ---`, error);
+    if (error.code && error.meta) { // Check if it's likely a PrismaKnownRequestError
+      logger.error(`--- Backend API (GET /api/todo/[todoId]/history): Prisma Error Code: ${error.code}, Meta: ${JSON.stringify(error.meta)} ---`);
+      if (error.code === 'P2025') {
+        logger.error("--- Backend API (GET /api/todo/[todoId]/history): This is a Prisma P2025 error. It means a required related record was not found. Please check data integrity, e.g., orphaned TodoHistory records pointing to deleted Users or Columns if relations are mandatory. ---");
+      }
+    }
     return new NextResponse("Internal Server Error", { status: 500 });
   }
 }
