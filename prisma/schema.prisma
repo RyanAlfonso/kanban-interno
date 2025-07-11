@@ -14,6 +14,8 @@ model ProjectColumn {
   projectId String   @db.ObjectId
   project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   todos     Todo[] // Each column can have multiple Todo items (cards)
+  fromColumnHistoryEntries TodoHistory[] @relation("FromColumnHistory") // History entries where this column was the source
+  toColumnHistoryEntries   TodoHistory[] @relation("ToColumnHistory")   // History entries where this column was the destination
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -58,9 +60,25 @@ model Todo {
 
   columnId    String?   @db.ObjectId // ID of the ProjectColumn this Todo belongs to
   column      ProjectColumn? @relation(fields: [columnId], references: [id], onDelete: SetNull) // If column is deleted, set Todo's columnId to null
+  history     TodoHistory[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model TodoHistory {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  todoId       String   @db.ObjectId
+  todo         Todo     @relation(fields: [todoId], references: [id], onDelete: Cascade)
+  userId       String   @db.ObjectId
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade) // Assuming User model exists and you want to link who made the change
+  actionType   String // e.g., "MOVED", "CREATED", "UPDATED_TITLE", "DESCRIPTION_CHANGED"
+  fromColumnId String?  @db.ObjectId
+  fromColumn   ProjectColumn? @relation("FromColumnHistory", fields: [fromColumnId], references: [id], onDelete: SetNull)
+  toColumnId   String?  @db.ObjectId
+  toColumn     ProjectColumn? @relation("ToColumnHistory", fields: [toColumnId], references: [id], onDelete: SetNull)
+  changedAt    DateTime @default(now())
+  details      Json? // For storing arbitrary details, e.g., old/new values for other fields { field: "title", oldValue: "Old", newValue: "New" }
 }
 
 // Keeping State enum for now, in case it's used elsewhere or can be repurposed.
@@ -94,6 +112,7 @@ model User {
 
   // Adicionar relação inversa para Assignee aqui se for implementar
   // assignedTodos Todo[] @relation(name: "AssignedTodos")
+  todoHistoryEntries TodoHistory[] // Relation to history entries made by this user
 
   role Role @default(USER) // Adicionando o campo role
 

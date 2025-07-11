@@ -13,10 +13,11 @@ import {
 import { AxiosError } from "axios";
 import dayjs from "dayjs";
 import { CalendarIcon, X } from "lucide-react";
-import { FC, lazy } from "react";
+import { FC, lazy, useEffect, useState, Fragment } from "react"; // Added useEffect, useState, Fragment
 import { Controller, UseFormReturn } from "react-hook-form";
 import { UseMutationResult, useQuery } from "@tanstack/react-query"; 
 import "react-quill/dist/quill.snow.css";
+import { PopulatedTodoHistoryEntry } from "@/types/history"; // Added import for history type
 import CustomizedMultSelect from "./CustomizedMultSelect";
 import CustomizedSelect from "./CustomizedSelect";
 import { Button } from "./ui/button";
@@ -65,6 +66,35 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
   const { mutate: submitEditTodoTask, isPending: isEditLoading } = editMutationFunctionReturn;
   const { mutate: deleteFunc, isPending: isDeleteLoading } = 
     deleteMutationFunctionReturn ?? { mutate: () => {}, isPending: false };
+
+  const [historyEntries, setHistoryEntries] = useState<PopulatedTodoHistoryEntry[]>([]);
+  const [historyLoading, setHistoryLoading] = useState<boolean>(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (task.id && title === "Edit Task") { // Only fetch if task.id exists and it's an edit form
+      setHistoryLoading(true);
+      setHistoryError(null);
+      fetch(`/api/todo/${task.id}/history`)
+        .then(async (res) => {
+          if (!res.ok) {
+            const errorText = await res.text();
+            throw new Error(errorText || `Failed to fetch history: ${res.status}`);
+          }
+          return res.json();
+        })
+        .then((data: PopulatedTodoHistoryEntry[]) => {
+          setHistoryEntries(data);
+        })
+        .catch((err) => {
+          console.error("Error fetching task history:", err);
+          setHistoryError(err.message || "An unknown error occurred while fetching history.");
+        })
+        .finally(() => {
+          setHistoryLoading(false);
+        });
+    }
+  }, [task.id, title]);
 
 
   const tagOptions = [...PREDEFINED_TAGS];
@@ -266,6 +296,41 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
                   />
                    <ErrorMessage msg={errors.description?.message?.toString()} />
                 </div>
+
+                {/* History Section */}
+                {task.id && ( // Only show history for existing tasks
+                  <div className="relative grid gap-1 pt-4">
+                    <Label className="text-sm font-medium">
+                      Histórico de Modificações
+                    </Label>
+                    <div className="max-h-40 overflow-y-auto border rounded-md p-2 bg-slate-50 dark:bg-slate-800 text-xs">
+                      {historyLoading && <p>Carregando histórico...</p>}
+                      {historyError && <p className="text-red-500">Erro ao carregar histórico.</p>}
+                      {!historyLoading && !historyError && historyEntries.length === 0 && (
+                        <p>Nenhuma modificação registrada.</p>
+                      )}
+                      {!historyLoading && !historyError && historyEntries.length > 0 && (
+                        <ul>
+                          {historyEntries.map((entry) => (
+                            <li key={entry.id} className="mb-1 p-1 border-b border-slate-200 dark:border-slate-700 last:border-b-0">
+                              {entry.actionType === "MOVED" && (
+                                <p>
+                                  <strong>{entry.user?.name || entry.user?.email || "Usuário desconhecido"}</strong> moveu
+                                  {entry.fromColumn ? ` de "${entry.fromColumn.name}"` : ""}
+                                  {entry.toColumn ? ` para "${entry.toColumn.name}"` : ""}
+                                  <span className="text-gray-500 dark:text-gray-400"> em {dayjs(entry.changedAt).format("DD/MM/YYYY HH:mm")}</span>
+                                </p>
+                              )}
+                              {/* Add more conditions here for other actionTypes if needed */}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  </div>
+                )}
+                {/* End History Section */}
+
                 <div className="relative flex gap-2 pt-4"> 
                   <Button type="submit" isLoading={isEditLoading}> 
                     {title === "Create Task" ? "Criar Tarefa" : "Salvar Alterações"}
