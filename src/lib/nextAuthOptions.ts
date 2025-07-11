@@ -43,12 +43,15 @@ export const authOptions: NextAuthOptions = {
 
         console.log("Autorização bem-sucedida para:", user.email);
         // Retorna o objeto do usuário sem a senha
+        // O tipo User do NextAuth pode precisar ser estendido para incluir 'role'
+        // em um arquivo d.ts, ex: src/types/next-auth.d.ts
         return {
           id: user.id,
           name: user.name,
           email: user.email,
           image: user.image,
-        } as User; // Faz type assertion para User
+          role: user.role, // Adicionar role aqui
+        } as User; // O tipo User aqui é o do next-auth, pode ser necessário ajustar
       },
     }),
   ],
@@ -59,11 +62,14 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async jwt({ token, user }) {
       // O objeto 'user' aqui é o retornado pela função 'authorize'
+      // e já deve conter o campo 'role'
       if (user) {
         token.id = user.id;
         token.email = user.email;
         token.name = user.name;
         token.image = user.image;
+        // @ts-ignore // NextAuth tipicamente infere isso, mas podemos ser explícitos
+        token.role = user.role; // Adicionar role ao token
       }
       return token;
     },
@@ -74,6 +80,8 @@ export const authOptions: NextAuthOptions = {
         session.user.email = token.email as string;
         session.user.name = token.name as string;
         session.user.image = token.image as string;
+        // @ts-ignore // Similar ao JWT, para popular o objeto session.user
+        session.user.role = token.role; // Adicionar role à sessão
       }
       return session;
     },

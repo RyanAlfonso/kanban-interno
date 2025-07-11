@@ -10,6 +10,7 @@ import ProjectEditForm from "./ProjectEditForm";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "./ui/button";
 import { Plus } from "lucide-react";
+import { useSession } from 'next-auth/react'; // Import useSession
 
 // Função para buscar projetos da API
 const fetchProjects = async (): Promise<Project[]> => {
@@ -28,6 +29,7 @@ const ProjectList: FC<ProjectListProps> = ({ className }) => {
   const { toast } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { data: session } = useSession(); // Get session
   
   // Obter o projectId atual da URL
   const currentProjectId = searchParams.get("projectId") || "all";
@@ -62,15 +64,17 @@ const ProjectList: FC<ProjectListProps> = ({ className }) => {
     <div className={`space-y-4 ${className}`}>
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold">Projetos</h2>
-        <ProjectForm 
-          onSuccess={refetch}
-          trigger={
-            <Button size="sm" className="h-8 flex items-center gap-1">
-              <Plus className="h-4 w-4" />
-              <span>Novo</span>
-            </Button>
-          }
-        />
+        {session?.user?.role === 'ADMIN' && (
+          <ProjectForm
+            onSuccess={refetch}
+            trigger={
+              <Button size="sm" className="h-8 flex items-center gap-1">
+                <Plus className="h-4 w-4" />
+                <span>Novo</span>
+              </Button>
+            }
+          />
+        )}
       </div>
       
       {isLoading ? (
@@ -113,7 +117,9 @@ const ProjectList: FC<ProjectListProps> = ({ className }) => {
                     </div>
                   )}
                 </div>
-                <ProjectEditForm project={project} onSuccess={refetch} />
+                {session?.user?.role === 'ADMIN' && (
+                  <ProjectEditForm project={project} onSuccess={refetch} />
+                )}
               </div>
             ))
           ) : (

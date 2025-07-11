@@ -19,6 +19,11 @@ export async function PUT(
       return new NextResponse('Unauthorized', { status: 401 });
     }
 
+    // @ts-ignore // session.user.role will exist due to next-auth.d.ts and callback updates
+    if (session.user.role !== 'ADMIN') {
+      return new NextResponse('Forbidden: User is not an Admin', { status: 403 });
+    }
+
     const { columnId } = params;
     if (!columnId) {
       return new NextResponse('Column ID is required', { status: 400 });
@@ -71,6 +76,11 @@ export async function DELETE(
     const session = await getAuthSession();
     if (!session?.user) {
       return new NextResponse('Unauthorized', { status: 401 });
+    }
+
+    // @ts-ignore
+    if (session.user.role !== 'ADMIN') {
+      return new NextResponse('Forbidden: User is not an Admin', { status: 403 });
     }
 
     const { columnId } = params;

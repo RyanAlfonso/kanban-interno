@@ -19,6 +19,8 @@ export async function GET(
       return new NextResponse('Unauthorized', { status: 401 });
     }
 
+    // A VERIFICAÇÃO DE ADMIN FOI REMOVIDA DAQUI PARA PERMITIR QUE TODOS OS USUÁRIOS LOGADOS VEJAM AS COLUNAS
+
     const { projectId } = params;
     if (!projectId) {
       return new NextResponse('Project ID is required', { status: 400 });
@@ -48,6 +50,11 @@ export async function POST(
     const session = await getAuthSession();
     if (!session?.user) {
       return new NextResponse('Unauthorized', { status: 401 });
+    }
+
+    // @ts-ignore
+    if (session.user.role !== 'ADMIN') {
+      return new NextResponse('Forbidden: User is not an Admin', { status: 403 });
     }
 
     const { projectId } = params;
