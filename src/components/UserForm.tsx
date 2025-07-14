@@ -1,35 +1,7 @@
 'use client';
 
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
-import * as z from 'zod';
-import { Button } from '@/components/ui/button';
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { UserType } from '@prisma/client';
 import { useEffect, useState } from 'react';
-
-const formSchema = z.object({
-  name: z.string().min(1, 'O nome é obrigatório.'),
-  email: z.string().email('O email não é válido.'),
-  password: z.string().min(6, 'A senha deve ter pelo menos 6 caracteres.'),
-  type: z.nativeEnum(UserType),
-  areaIds: z.array(z.string()).min(1, 'Selecione pelo menos uma área.'),
-});
 
 interface Area {
   id: string;
@@ -37,12 +9,20 @@ interface Area {
 }
 
 interface UserFormProps {
-  onSubmit: (data: z.infer<typeof formSchema>) => void;
+  onSubmit: (data: any) => void;
   initialData?: any;
 }
 
 export function UserForm({ onSubmit, initialData }: UserFormProps) {
   const [areas, setAreas] = useState<Area[]>([]);
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    password: '',
+    type: UserType.COLLABORATOR,
+    areaIds: [],
+    ...initialData,
+  });
 
   useEffect(() => {
     // Em um aplicativo real, você buscaria as áreas de uma API
@@ -53,110 +33,111 @@ export function UserForm({ onSubmit, initialData }: UserFormProps) {
     ]);
   }, []);
 
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: initialData || {
-      name: '',
-      email: '',
-      password: '',
-      type: UserType.COLLABORATOR,
-      areaIds: [],
-    },
-  });
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleAreaChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const { options } = e.target;
+    const value: string[] = [];
+    for (let i = 0, l = options.length; i < l; i++) {
+      if (options[i].selected) {
+        value.push(options[i].value);
+      }
+    }
+    setFormData((prev) => ({ ...prev, areaIds: value }));
+  };
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    onSubmit(formData);
+  };
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-        <FormField
-          control={form.control}
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+          Nome
+        </label>
+        <input
+          type="text"
           name="name"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Nome</FormLabel>
-              <FormControl>
-                <Input placeholder="Nome do usuário" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
+          id="name"
+          value={formData.name}
+          onChange={handleChange}
+          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
         />
-        <FormField
-          control={form.control}
+      </div>
+      <div>
+        <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+          Email
+        </label>
+        <input
+          type="email"
           name="email"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Email</FormLabel>
-              <FormControl>
-                <Input placeholder="Email do usuário" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
+          id="email"
+          value={formData.email}
+          onChange={handleChange}
+          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
         />
-        <FormField
-          control={form.control}
+      </div>
+      <div>
+        <label
+          htmlFor="password"
+          className="block text-sm font-medium text-gray-700"
+        >
+          Senha
+        </label>
+        <input
+          type="password"
           name="password"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Senha</FormLabel>
-              <FormControl>
-                <Input type="password" placeholder="Senha" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
+          id="password"
+          value={formData.password}
+          onChange={handleChange}
+          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
         />
-        <FormField
-          control={form.control}
+      </div>
+      <div>
+        <label htmlFor="type" className="block text-sm font-medium text-gray-700">
+          Tipo
+        </label>
+        <select
           name="type"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Tipo</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione o tipo de usuário" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  <SelectItem value={UserType.SERVER}>Servidor</SelectItem>
-                  <SelectItem value={UserType.COLLABORATOR}>
-                    Colaborador
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
+          id="type"
+          value={formData.type}
+          onChange={handleChange}
+          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+        >
+          <option value={UserType.SERVER}>Servidor</option>
+          <option value={UserType.COLLABORATOR}>Colaborador</option>
+        </select>
+      </div>
+      <div>
+        <label htmlFor="areas" className="block text-sm font-medium text-gray-700">
+          Áreas
+        </label>
+        <select
+          multiple
           name="areaIds"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Áreas</FormLabel>
-              <Select
-                onValueChange={(value) => field.onChange([...field.value, value])}
-              >
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione as áreas" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {areas.map((area) => (
-                    <SelectItem key={area.id} value={area.id}>
-                      {area.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <Button type="submit">Salvar</Button>
-      </form>
-    </Form>
+          id="areas"
+          value={formData.areaIds}
+          onChange={handleAreaChange}
+          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+        >
+          {areas.map((area) => (
+            <option key={area.id} value={area.id}>
+              {area.name}
+            </option>
+          ))}
+        </select>
+      </div>
+      <button
+        type="submit"
+        className="inline-flex justify-center rounded-md border border-transparent bg-indigo-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+      >
+        Salvar
+      </button>
+    </form>
   );
 }
