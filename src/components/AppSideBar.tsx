@@ -235,6 +235,26 @@ const AppSideBar = () => {
                   </Button>
                 </Link>
               ))}
+              {session?.user?.role === 'ADMIN' && (
+                <Link
+                  href="/admin/users"
+                  className="block"
+                  onClick={(e) => { e.preventDefault(); handleNavigate("/admin/users"); }}
+                >
+                  <Button
+                    variant="ghost"
+                    className={cn(
+                      "w-full justify-start text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800",
+                      pathname === "/admin/users" &&
+                        "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white",
+                      !isSidebarOpen && "justify-center p-0",
+                    )}
+                  >
+                    <Folder className={cn("h-5 w-5", isSidebarOpen && "mr-2")} />
+                    {isSidebarOpen && <span>Usuários</span>}
+                  </Button>
+                </Link>
+              )}
             </nav>
 
             {/* Projects Section */}
