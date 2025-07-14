@@ -18,7 +18,7 @@ importers:
         specifier: ^3.3.1
         version: 3.10.0(react-hook-form@7.57.0(react@18.2.0))
       '@prisma/client':
-        specifier: ^6.11.1
+        specifier: 6.11.1
         version: 6.11.1(prisma@6.11.1(typescript@5.3.3))(typescript@5.3.3)
       '@radix-ui/react-avatar':
         specifier: ^1.0.3
@@ -196,7 +196,7 @@ importers:
         specifier: ^13.0.0
         version: 13.0.1(postcss@8.4.29)
       prisma:
-        specifier: ^6.11.1
+        specifier: 6.11.1
         version: 6.11.1(typescript@5.3.3)
       tsx:
         specifier: ^4.20.3
