@@ -19,7 +19,7 @@ export function UserForm({ onSubmit, initialData }: UserFormProps) {
     name: '',
     email: '',
     password: '',
-    type: UserType.COLLABORATOR,
+    type: UserType.COLABORADOR,
     areaIds: [],
     ...initialData,
   });
@@ -110,7 +110,7 @@ export function UserForm({ onSubmit, initialData }: UserFormProps) {
           className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
         >
           <option value={UserType.SERVER}>Servidor</option>
-          <option value={UserType.COLLABORATOR}>Colaborador</option>
+          <option value={UserType.COLABORADOR}>Colaborador</option>
         </select>
       </div>
       <div>
