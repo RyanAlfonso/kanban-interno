@@ -1,4 +1,5 @@
 import "./globals.css";
+import "../styles/custom.css";
 import type { Metadata } from "next";
 import { Providers } from "@/components/Provider";
 import { Toaster } from "@/components/ui/toaster";
