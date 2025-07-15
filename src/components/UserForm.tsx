@@ -27,7 +27,7 @@ export function UserForm({ onSubmit, initialData }: UserFormProps) {
 
   useEffect(() => {
     const fetchAreas = async () => {
-      const res = await fetch('/api/areas');
+      const res = await fetch('/api/projects');
       const data = await res.json();
       setAreas(data);
     };
