@@ -27,7 +27,7 @@ export function UserForm({ onSubmit, initialData }: UserFormProps) {
 
   useEffect(() => {
     const fetchAreas = async () => {
-      const res = await fetch('/api/projects');
+      const res = await fetch('/api/areas');
       const data = await res.json();
       setAreas(data);
     };
@@ -49,7 +49,7 @@ export function UserForm({ onSubmit, initialData }: UserFormProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-6">
       <div>
         <label htmlFor="name" className="block text-sm font-medium text-gray-700">
           Nome
@@ -60,7 +60,7 @@ export function UserForm({ onSubmit, initialData }: UserFormProps) {
           id="name"
           value={formData.name}
           onChange={handleChange}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2"
         />
       </div>
       <div>
@@ -73,7 +73,7 @@ export function UserForm({ onSubmit, initialData }: UserFormProps) {
           id="email"
           value={formData.email}
           onChange={handleChange}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2"
         />
       </div>
       <div>
@@ -89,7 +89,7 @@ export function UserForm({ onSubmit, initialData }: UserFormProps) {
           id="password"
           value={formData.password}
           onChange={handleChange}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2"
         />
       </div>
       <div>
@@ -101,7 +101,7 @@ export function UserForm({ onSubmit, initialData }: UserFormProps) {
           id="type"
           value={formData.type}
           onChange={handleChange}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2"
         >
           <option value={UserType.SERVIDOR}>Servidor</option>
           <option value={UserType.COLABORADOR}>Colaborador</option>
