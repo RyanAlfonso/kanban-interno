@@ -3,20 +3,39 @@ import { getLogger } from "@/logger";
 import prisma from "@/lib/prismadb";
 import { NextRequest } from 'next/server';
 
-// GET /api/projects - List all projects
 export async function GET(req: NextRequest) {
   const logger = getLogger("info");
   try {
     const session = await getAuthSession();
     if (!session?.user) return new Response("Unauthorized", { status: 401 });
 
-    const projects = await prisma.project.findMany({
-      orderBy: {
-        createdAt: "asc", // Or order by name: name: "asc"
-      },
-    });
+    // @ts-ignore
+    if (session.user.role === 'ADMIN') {
+      const projects = await prisma.project.findMany({
+        orderBy: {
+          createdAt: "asc",
+        },
+      });
+      return new Response(JSON.stringify(projects), { status: 200 });
+    }
 
-    return new Response(JSON.stringify(projects), { status: 200 });
+    // @ts-ignore
+    const user = await prisma.user.findUnique({ where: { email: session.user.email } });
+    // @ts-ignore
+    if (user.areaIds.length > 0) {
+      const projects = await prisma.project.findMany({
+        where: {
+          // @ts-ignore
+          id: { in: user.areaIds },
+        },
+        orderBy: {
+          createdAt: "asc",
+        },
+      });
+      return new Response(JSON.stringify(projects), { status: 200 });
+    }
+
+    return new Response(JSON.stringify([]), { status: 200 });
   } catch (error) {
     logger.error("Error fetching projects:", error);
     return new Response("Internal Server Error", { status: 500 });
