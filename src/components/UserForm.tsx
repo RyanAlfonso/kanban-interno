@@ -32,7 +32,7 @@ export function UserForm({ onSubmit, initialData }: UserFormProps) {
       setAreas(data);
     };
     fetchAreas();
-  }, []);
+  }, [initialData]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
