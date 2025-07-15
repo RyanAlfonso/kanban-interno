@@ -2,6 +2,7 @@
 
 import { UserType } from '@prisma/client';
 import { useEffect, useState } from 'react';
+import { MultiSelect } from './MultiSelect';
 
 interface Area {
   id: string;
@@ -38,15 +39,8 @@ export function UserForm({ onSubmit, initialData }: UserFormProps) {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleAreaChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const { options } = e.target;
-    const value: string[] = [];
-    for (let i = 0, l = options.length; i < l; i++) {
-      if (options[i].selected) {
-        value.push(options[i].value);
-      }
-    }
-    setFormData((prev) => ({ ...prev, areaIds: value }));
+  const handleAreaChange = (selected: string[]) => {
+    setFormData((prev) => ({ ...prev, areaIds: selected }));
   };
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -117,20 +111,11 @@ export function UserForm({ onSubmit, initialData }: UserFormProps) {
         <label htmlFor="areas" className="block text-sm font-medium text-gray-700">
           Áreas
         </label>
-        <select
-          multiple
-          name="areaIds"
-          id="areas"
-          value={formData.areaIds}
+        <MultiSelect
+          options={areas}
+          selected={formData.areaIds}
           onChange={handleAreaChange}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-        >
-          {areas.map((area) => (
-            <option key={area.id} value={area.id}>
-              {area.name}
-            </option>
-          ))}
-        </select>
+        />
       </div>
       <button
         type="submit"
