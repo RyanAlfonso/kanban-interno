@@ -31,7 +31,7 @@ export function MultiSelect({ options, selected, onChange }: MultiSelectProps) {
   return (
     <div className="relative">
       <div
-        className="w-full rounded-md border border-gray-300 bg-white py-2 pl-3 pr-10 text-left shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:text-sm"
+        className="w-full min-h-[38px] rounded-md border border-gray-300 bg-white py-2 pl-3 pr-10 text-left shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:text-sm"
         onClick={() => setIsOpen(!isOpen)}
       >
         <div className="flex flex-wrap gap-2">
