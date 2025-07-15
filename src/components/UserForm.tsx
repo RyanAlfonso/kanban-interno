@@ -51,7 +51,7 @@ export function UserForm({ onSubmit, initialData }: UserFormProps) {
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div>
-        <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+        <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
           Nome
         </label>
         <input
@@ -60,11 +60,11 @@ export function UserForm({ onSubmit, initialData }: UserFormProps) {
           id="name"
           value={formData.name}
           onChange={handleChange}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2"
+          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200"
         />
       </div>
       <div>
-        <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+        <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
           Email
         </label>
         <input
@@ -73,13 +73,13 @@ export function UserForm({ onSubmit, initialData }: UserFormProps) {
           id="email"
           value={formData.email}
           onChange={handleChange}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2"
+          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200"
         />
       </div>
       <div>
         <label
           htmlFor="password"
-          className="block text-sm font-medium text-gray-700"
+          className="block text-sm font-medium text-gray-700 dark:text-gray-300"
         >
           Senha
         </label>
@@ -89,11 +89,11 @@ export function UserForm({ onSubmit, initialData }: UserFormProps) {
           id="password"
           value={formData.password}
           onChange={handleChange}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2"
+          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200"
         />
       </div>
       <div>
-        <label htmlFor="type" className="block text-sm font-medium text-gray-700">
+        <label htmlFor="type" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
           Tipo
         </label>
         <select
@@ -101,14 +101,14 @@ export function UserForm({ onSubmit, initialData }: UserFormProps) {
           id="type"
           value={formData.type}
           onChange={handleChange}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2"
+          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200"
         >
           <option value={UserType.SERVIDOR}>Servidor</option>
           <option value={UserType.COLABORADOR}>Colaborador</option>
         </select>
       </div>
       <div>
-        <label htmlFor="areas" className="block text-sm font-medium text-gray-700">
+        <label htmlFor="areas" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
           Áreas
         </label>
         <MultiSelect
