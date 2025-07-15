@@ -42,7 +42,6 @@ model Todo {
   id          String   @id @default(auto()) @map("_id") @db.ObjectId
   title       String
   description String?
-  // state       State // REMOVE or repurpose this global state. For now, removing.
   label       String[] @default([]) // This 'label' field seems to be the old one. We'll add a new 'tags' field.
   tags        String[] @default([]) // New field for tags
   deadline    Int? // Considerar mudar para DateTime?
@@ -52,7 +51,6 @@ model Todo {
   ownerId String @db.ObjectId
   owner   User?  @relation(fields: [ownerId], references: [id])
 
-  // Adicionando relação com Projeto
   projectId String? @db.ObjectId // Keep this for project-level association
   project   Project? @relation(fields: [projectId], references: [id])
 
@@ -63,8 +61,6 @@ model Todo {
   updatedAt DateTime @updatedAt
 }
 
-// Keeping State enum for now, in case it's used elsewhere or can be repurposed.
-// If ProjectColumn.name serves as the definitive state, this might be removed later.
 enum State {
   TODO
   IN_PROGRESS
@@ -92,11 +88,9 @@ model User {
 
   todos Todo[] // Todos criados pelo usuário (owner)
 
-  // Adicionar relação inversa para Assignee aqui se for implementar
-  // assignedTodos Todo[] @relation(name: "AssignedTodos")
 
   role Role @default(USER) // Adicionando o campo role
-  type UserType @default(COLLABORATOR)
+  type UserType @default(COLABORADOR)
 
   areas     Area[]   @relation(fields: [areaIds], references: [id])
   areaIds   String[] @db.ObjectId
@@ -111,8 +105,8 @@ enum Role {
 }
 
 enum UserType {
-  SERVER
-  COLLABORATOR
+  SERVIDOR
+  COLABORADOR
 }
 
 model Area {
