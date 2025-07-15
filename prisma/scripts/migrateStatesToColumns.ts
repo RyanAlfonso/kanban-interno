@@ -11,10 +11,12 @@ async function main() {
   const projects = await prisma.project.findMany({
     include: {
       todos: {
-
+        // Only fetch todos that might need migration (have a state, no columnId yet)
+        // However, prisma.projectColumn.create below needs to know all states used in a project
+        // So, fetch all todos for state analysis, then filter for update later.
         select: {
           id: true,
-          state: true,
+          state: true, // This is the old state field
           projectId: true,
         },
       },

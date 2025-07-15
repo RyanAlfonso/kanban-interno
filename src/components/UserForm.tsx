@@ -19,18 +19,18 @@ export function UserForm({ onSubmit, initialData }: UserFormProps) {
     name: '',
     email: '',
     password: '',
-    type: UserType.COLABORADOR,
+    type: UserType.COLLABORATOR,
     areaIds: [],
     ...initialData,
   });
 
   useEffect(() => {
-    // Em um aplicativo real, você buscaria as áreas de uma API
-    setAreas([
-      { id: '1', name: 'Área 1' },
-      { id: '2', name: 'Área 2' },
-      { id: '3', name: 'Área 3' },
-    ]);
+    const fetchAreas = async () => {
+      const res = await fetch('/api/areas');
+      const data = await res.json();
+      setAreas(data);
+    };
+    fetchAreas();
   }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -110,7 +110,7 @@ export function UserForm({ onSubmit, initialData }: UserFormProps) {
           className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
         >
           <option value={UserType.SERVER}>Servidor</option>
-          <option value={UserType.COLABORADOR}>Colaborador</option>
+          <option value={UserType.COLLABORATOR}>Colaborador</option>
         </select>
       </div>
       <div>
