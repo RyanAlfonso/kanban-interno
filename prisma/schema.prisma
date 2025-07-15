@@ -96,7 +96,7 @@ model User {
   // assignedTodos Todo[] @relation(name: "AssignedTodos")
 
   role Role @default(USER) // Adicionando o campo role
-  type UserType @default(COLLABORATOR)
+  type UserType @default(COLABORADOR)
 
   areas     Area[]   @relation(fields: [areaIds], references: [id])
   areaIds   String[] @db.ObjectId
@@ -111,8 +111,8 @@ enum Role {
 }
 
 enum UserType {
-  SERVER
-  COLLABORATOR
+  SERVIDOR
+  COLABORADOR
 }
 
 model Area {

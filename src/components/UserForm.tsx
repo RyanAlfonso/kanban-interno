@@ -20,14 +20,14 @@ export function UserForm({ onSubmit, initialData }: UserFormProps) {
     name: '',
     email: '',
     password: '',
-    type: UserType.COLLABORATOR,
+    type: UserType.COLABORADOR,
     areaIds: [],
     ...initialData,
   });
 
   useEffect(() => {
     const fetchAreas = async () => {
-      const res = await fetch('/api/areas');
+      const res = await fetch('/api/projects');
       const data = await res.json();
       setAreas(data);
     };
@@ -103,8 +103,8 @@ export function UserForm({ onSubmit, initialData }: UserFormProps) {
           onChange={handleChange}
           className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2"
         >
-          <option value={UserType.SERVER}>Servidor</option>
-          <option value={UserType.COLLABORATOR}>Colaborador</option>
+          <option value={UserType.SERVIDOR}>Servidor</option>
+          <option value={UserType.COLABORADOR}>Colaborador</option>
         </select>
       </div>
       <div>
