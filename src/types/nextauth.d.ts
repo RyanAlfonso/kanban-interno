@@ -13,14 +13,14 @@ declare module "next-auth" {
     // Adiciona o campo role ao tipo User padrão do NextAuth
     // Este User é o que vem da função authorize e é passado para o callback jwt
     role?: Role; // Ou string, se preferir não usar o enum diretamente aqui
-    areaIds?: string[];
+    projectIds?: string[];
   }
 
   interface Session extends DefaultSession {
     user?: User & { // User aqui já estaria estendido acima
       id: string;
       role?: Role; // Adiciona role ao user dentro da Session
-      areaIds?: string[];
+      projectIds?: string[];
     };
   }
 }
@@ -29,7 +29,7 @@ declare module "next-auth/jwt" {
   interface JWT extends NextAuthJWT {
     // Adiciona role ao token JWT
     role?: Role;
-    areaIds?: string[];
+    projectIds?: string[];
     // id, email, name, image já são esperados no token se passados no callback jwt
     id?: string;
   }

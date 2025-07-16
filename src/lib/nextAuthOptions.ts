@@ -53,7 +53,7 @@ export const authOptions: NextAuthOptions = {
           // @ts-ignore
           role: user.role, // Adicionar role aqui
           // @ts-ignore
-          areaIds: user.areaIds,
+          projectIds: user.projectIds,
         } as User; // O tipo User aqui é o do next-auth, pode ser necessário ajustar
       },
     }),
@@ -74,7 +74,7 @@ export const authOptions: NextAuthOptions = {
         // @ts-ignore // NextAuth tipicamente infere isso, mas podemos ser explícitos
         token.role = user.role; // Adicionar role ao token
         // @ts-ignore
-        token.areaIds = user.areaIds;
+        token.projectIds = user.projectIds;
       }
       return token;
     },
@@ -88,7 +88,7 @@ export const authOptions: NextAuthOptions = {
         // @ts-ignore // Similar ao JWT, para popular o objeto session.user
         session.user.role = token.role; // Adicionar role à sessão
         // @ts-ignore
-        session.user.areaIds = token.areaIds;
+        session.user.projectIds = token.projectIds;
       }
       return session;
     },

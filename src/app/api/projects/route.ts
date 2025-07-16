@@ -20,11 +20,11 @@ export async function GET(req: NextRequest) {
     }
 
     // @ts-ignore
-    if (session.user.areaIds.length > 0) {
+    if (session.user.projectIds.length > 0) {
       const projects = await prisma.project.findMany({
         where: {
           // @ts-ignore
-          id: { in: session.user.areaIds },
+          id: { in: session.user.projectIds },
         },
         orderBy: {
           createdAt: "asc",
