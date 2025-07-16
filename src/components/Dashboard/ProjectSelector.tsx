@@ -111,13 +111,15 @@ const DashboardProjectSelector: FC<DashboardProjectSelectorProps> = ({ className
           {!isLoading && !error && (
             <div className="max-h-60 overflow-auto p-1">
               {/* "All Projects" Option */}
-              <Button
-                variant={currentProjectId === "all" ? "secondary" : "ghost"}
-                className="w-full justify-start font-normal h-8 px-2 text-sm"
-                onClick={() => handleProjectChange("all")}
-              >
-                Todas as áreas
-              </Button>
+              {projects && projects.length > 0 && (
+                <Button
+                  variant={currentProjectId === "all" ? "secondary" : "ghost"}
+                  className="w-full justify-start font-normal h-8 px-2 text-sm"
+                  onClick={() => handleProjectChange("all")}
+                >
+                  Todas as áreas
+                </Button>
+              )}
               
               {/* Individual Projects */}
               {projects?.map((project) => (

@@ -90,14 +90,16 @@ const ProjectList: FC<ProjectListProps> = ({ className }) => {
       ) : (
         <div className="space-y-1">
           {/* Opção "Todas as áreas" */}
-          <div 
-            className={`flex items-center justify-between p-2 rounded-md cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 ${
-              currentProjectId === "all" ? "bg-gray-100 dark:bg-gray-800" : ""
-            }`}
-            onClick={() => handleSelectProject("all")}
-          >
-            <span className="font-medium">Todas as áreas</span>
-          </div>
+          {projects && projects.length > 0 && (
+            <div
+              className={`flex items-center justify-between p-2 rounded-md cursor-pointer hover:bg-gray-100 dark:hover:bg-ray-800 ${
+                currentProjectId === "all" ? "bg-gray-100 dark:bg-gray-800" : ""
+              }`}
+              onClick={() => handleSelectProject("all")}
+            >
+              <span className="font-medium">Todas as áreas</span>
+            </div>
+          )}
           
           {/* Lista de projetos */}
           {projects && projects.length > 0 ? (
