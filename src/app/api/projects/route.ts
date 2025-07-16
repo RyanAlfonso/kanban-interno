@@ -20,13 +20,11 @@ export async function GET(req: NextRequest) {
     }
 
     // @ts-ignore
-    const user = await prisma.user.findUnique({ where: { email: session.user.email } });
-    // @ts-ignore
-    if (user.areaIds.length > 0) {
+    if (session.user.areaIds.length > 0) {
       const projects = await prisma.project.findMany({
         where: {
           // @ts-ignore
-          id: { in: user.areaIds },
+          id: { in: session.user.areaIds },
         },
         orderBy: {
           createdAt: "asc",
