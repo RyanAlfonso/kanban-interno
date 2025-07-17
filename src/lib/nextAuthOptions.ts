@@ -24,6 +24,9 @@ export const authOptions: NextAuthOptions = {
           where: {
             email: credentials.email,
           },
+          include: {
+            areas: true, // Inclui as áreas relacionadas
+          },
         });
 
         if (!user || !user.password) {
@@ -45,13 +48,17 @@ export const authOptions: NextAuthOptions = {
         // Retorna o objeto do usuário sem a senha
         // O tipo User do NextAuth pode precisar ser estendido para incluir 'role'
         // em um arquivo d.ts, ex: src/types/next-auth.d.ts
-        return {
+        const userResponse = {
           id: user.id,
           name: user.name,
           email: user.email,
           image: user.image,
-          role: user.role, // Adicionar role aqui
-        } as User; // O tipo User aqui é o do next-auth, pode ser necessário ajustar
+          role: user.role,
+          // @ts-ignore
+          areas: user.areas, // Adiciona as áreas ao objeto do usuário
+        };
+
+        return userResponse as User;
       },
     }),
   ],
@@ -61,27 +68,28 @@ export const authOptions: NextAuthOptions = {
   },
   callbacks: {
     async jwt({ token, user }) {
-      // O objeto 'user' aqui é o retornado pela função 'authorize'
-      // e já deve conter o campo 'role'
       if (user) {
         token.id = user.id;
         token.email = user.email;
         token.name = user.name;
         token.image = user.image;
-        // @ts-ignore // NextAuth tipicamente infere isso, mas podemos ser explícitos
-        token.role = user.role; // Adicionar role ao token
+        // @ts-ignore
+        token.role = user.role;
+        // @ts-ignore
+        token.areas = user.areas; // Adiciona as áreas ao token
       }
       return token;
     },
     async session({ session, token }) {
-      // Adiciona informações do token JWT para o objeto de sessão
       if (token && session.user) {
         session.user.id = token.id as string;
         session.user.email = token.email as string;
         session.user.name = token.name as string;
         session.user.image = token.image as string;
-        // @ts-ignore // Similar ao JWT, para popular o objeto session.user
-        session.user.role = token.role; // Adicionar role à sessão
+        // @ts-ignore
+        session.user.role = token.role;
+        // @ts-ignore
+        session.user.areas = token.areas; // Adiciona as áreas à sessão
       }
       return session;
     },

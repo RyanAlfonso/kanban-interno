@@ -23,20 +23,22 @@ import { useSession } from 'next-auth/react'; // Import useSession
 import { Skeleton } from "./ui/skeleton"; // Import Skeleton for loading state
 import ProjectForm from "./ProjectForm"; // Import ProjectForm
 
-// Define fetchProjects function (can be moved to a separate requests file later)
+const fetchUserAreas = async (): Promise<any[]> => {
+  const response = await fetch("/api/user/areas");
+  if (!response.ok) {
+    throw new Error("Failed to fetch user areas");
+  }
+  return response.json();
+};
+
 const fetchProjects = async (): Promise<Project[]> => {
-  // console.log("Fetching projects..."); // Log removido
   try {
     const response = await fetch("/api/projects");
     if (!response.ok) {
-      // console.error("Failed to fetch projects, status:", response.status); // Log removido
       throw new Error("Falha ao buscar áreas");
     }
-    const data = await response.json();
-    // console.log("Projects fetched successfully:", data); // Log removido
-    return data;
+    return await response.json();
   } catch (error) {
-    // console.error("Error in fetchProjects:", error); // Log removido
     throw error;
   }
 };
@@ -84,26 +86,24 @@ const AppSideBar = () => {
     (state) => state.sidebar.isSidebarOpen,
   );
   const dispatch = useDispatch();
-  const { data: session } = useSession(); // Get session
+  const { data: session } = useSession();
 
-  // Fetch projects using @tanstack/react-query v4+ syntax
+  const { data: userAreas } = useQuery<any[], Error>({
+    queryKey: ["userAreas"],
+    queryFn: fetchUserAreas,
+    enabled: !!session,
+  });
+
   const { data: projects, isLoading, error } = useQuery<Project[], Error>({
-    queryKey: ["projects"], // Query key is now an array
-    queryFn: fetchProjects, // Fetch function
-    // onError and onSuccess are handled within the query options object
-    // Note: onError/onSuccess callbacks directly in useQuery options are deprecated in v5,
-    // but still work. Consider using them outside or via QueryCache callbacks for future-proofing.
-    onError: (err) => {
-      // console.error("React Query onError fetching projects:", err); // Log removido
-      toast({
-        title: "Erro",
-        description: "Não foi possível carregar as áreas na barra lateral",
-        variant: "destructive",
-      });
-    },
-    onSuccess: (data) => {
-      // console.log("React Query onSuccess fetching projects:", data); // Log removido
+    queryKey: ["projects"],
+    queryFn: fetchProjects,
+  });
+
+  const filteredProjects = projects?.filter(project => {
+    if (!userAreas || userAreas.length === 0) {
+      return true;
     }
+    return userAreas.some(area => area.name === project.name);
   });
 
   // Get current project ID from URL for highlighting
@@ -280,7 +280,7 @@ const AppSideBar = () => {
               
               {/* Project List */} 
               <div className="space-y-1">
-                {/* "All Projects" Link */} 
+                {/* "All Projects" Link */}
                 <Button
                   variant="ghost"
                   onClick={() => handleProjectSelect(null)} // Pass null for "All Projects"
@@ -295,7 +295,7 @@ const AppSideBar = () => {
                   {isSidebarOpen && <span>Todas as áreas</span>}
                 </Button>
 
-                {/* Loading Skeletons */} 
+                {/* Loading Skeletons */}
                 {isLoading && isSidebarOpen && (
                   <>
                     <Skeleton className="h-8 w-full" />
@@ -303,8 +303,8 @@ const AppSideBar = () => {
                   </>
                 )}
 
-                {/* Actual Project List */} 
-                {!isLoading && projects?.map((project) => (
+                {/* Actual Project List */}
+                {!isLoading && filteredProjects?.map((project) => (
                   <Button
                     key={project.id}
                     variant="ghost"
