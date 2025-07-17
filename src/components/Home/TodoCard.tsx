@@ -10,6 +10,7 @@ import { Clock, Folder } from "lucide-react";
 import { FC, useCallback } from "react";
 import { useDispatch } from "react-redux";
 import { useSearchParams } from "next/navigation";
+import { useSession } from "next-auth/react";
 
 interface ExtendedTodo extends Todo {
   project?: {
