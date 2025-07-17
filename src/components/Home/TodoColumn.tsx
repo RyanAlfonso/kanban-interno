@@ -18,10 +18,9 @@ type TodoColumnProp = {
   todos: Todo[];
   columnId: string;
   projectId?: string;
-  onDeleteColumn?: (columnId: string) => void;
 };
 
-const TodoColumn: FC<TodoColumnProp> = ({ title, todos, columnId, projectId, onDeleteColumn }) => {
+const TodoColumn: FC<TodoColumnProp> = ({ title, todos, columnId, projectId }) => {
   const dispatch = useDispatch();
   const { data: session } = useSession(); // Get session
 
@@ -54,16 +53,6 @@ const TodoColumn: FC<TodoColumnProp> = ({ title, todos, columnId, projectId, onD
           </Badge>
         </div>
         <div className="flex items-center space-x-1">
-          {session?.user?.role === 'ADMIN' && onDeleteColumn && (
-             <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 text-muted-foreground hover:text-destructive"
-              onClick={() => onDeleteColumn(columnId)}
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          )}
           <Button
             variant="ghost"
             size="icon"

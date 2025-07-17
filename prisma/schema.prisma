@@ -16,6 +16,8 @@ model ProjectColumn {
   todos     Todo[] // Each column can have multiple Todo items (cards)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  areaId    String?  @db.ObjectId
+  area      Area?    @relation(fields: [areaId], references: [id])
 
   @@unique([projectId, name]) // Ensure column names are unique within a project
   @@index([projectId, order]) // Index for ordering columns
@@ -121,6 +123,7 @@ model Area {
   description String?
   users       User[]   @relation(fields: [userIds], references: [id])
   userIds     String[] @db.ObjectId
+  columns     ProjectColumn[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }

@@ -8,47 +8,6 @@ export interface CreateProjectColumnData {
   projectId: string;
 }
 
-/**
- * Creates a new column for a project.
- * @param data - The data for the new column (name, order, projectId).
- * @returns The created project column.
- * @throws Error if the project is not found or if a column with the same name already exists for the project.
- */
-export async function createProjectColumn(
-  data: CreateProjectColumnData
-): Promise<ProjectColumn> {
-  const { name, order, projectId } = data;
-
-  // Check if project exists (optional, but good practice)
-  const project = await prisma.project.findUnique({
-    where: { id: projectId },
-  });
-
-  if (!project) {
-    throw new Error(`Project with ID ${projectId} not found.`);
-  }
-
-  // Prisma's @@unique([projectId, name]) constraint will handle duplicate name check at DB level
-  // but you could add a specific check here if you want a more custom error message earlier.
-
-  try {
-    const newColumn = await prisma.projectColumn.create({
-      data: {
-        name,
-        order,
-        projectId,
-      },
-    });
-    return newColumn;
-  } catch (error: any) {
-    if (error.code === 'P2002' && error.meta?.target?.includes('projectId') && error.meta?.target?.includes('name')) {
-      // Unique constraint violation (projectId, name)
-      throw new Error(`A column with the name "${name}" already exists in project ${projectId}.`);
-    }
-    // Re-throw other errors
-    throw error;
-  }
-}
 
 /**
  * Retrieves all columns for a given project, ordered by their 'order' field.
@@ -56,8 +15,47 @@ export async function createProjectColumn(
  * @returns A list of project columns.
  */
 export async function getProjectColumns(
-  projectId: string
+  projectId: string,
+  areaId?: string
 ): Promise<ProjectColumn[]> {
+  if (areaId) {
+    const area = await prisma.area.findUnique({
+      where: { id: areaId },
+    });
+
+    if (area?.name === 'T.I.') {
+      const fixedColumnNames = ['Backlog', 'Em Execução', 'Em Aprovação', 'Monitoramento', 'Concluido'];
+
+      let columns = await prisma.projectColumn.findMany({
+        where: {
+          areaId: areaId,
+        },
+        orderBy: {
+          order: 'asc',
+        },
+      });
+
+      if (columns.length === 0) {
+        // Columns don't exist, so create them
+        const createdColumns = [];
+        for (let i = 0; i < fixedColumnNames.length; i++) {
+          const newColumn = await prisma.projectColumn.create({
+            data: {
+              name: fixedColumnNames[i],
+              order: i,
+              projectId: projectId,
+              areaId: areaId,
+            },
+          });
+          createdColumns.push(newColumn);
+        }
+        return createdColumns;
+      } else {
+          return columns;
+      }
+    }
+  }
+
   return prisma.projectColumn.findMany({
     where: {
       projectId: projectId,

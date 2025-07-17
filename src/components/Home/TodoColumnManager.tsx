@@ -20,8 +20,6 @@ import { TodoWithColumn } from "@/types/todo";
 import { Button } from '../ui/button'; // Import Button
 import { Input } from '../ui/input';
 import { PlusCircle } from 'lucide-react';
-import projectColumnCreateRequest, { ProjectColumnCreatePayload } from '@/requests/projectColumnCreateRequest';
-import projectColumnDeleteRequest from '@/requests/projectColumnDeleteRequest'; // Import delete request
 import { useSession } from 'next-auth/react'; // Import useSession
 
 // Define a type for the grouped projects
@@ -40,9 +38,6 @@ const TodoColumnManager = () => {
   const currentProjectId = searchParams.get("projectId") || "all";
   const viewMode = searchParams.get("view") || null;
   const { data: session } = useSession(); // Get session
-
-  const [showAddColumnForm, setShowAddColumnForm] = useState(false);
-  const [newColumnName, setNewColumnName] = useState("");
 
   // Fetch Todos
   const { data: todos, isLoading: isLoadingTodos, error: errorTodos } = useQuery<TodoWithColumn[], Error>({ // Use TodoWithColumn[]
@@ -64,7 +59,8 @@ const TodoColumnManager = () => {
         // For now, return undefined or an empty array as it's handled by allProjectsColumnsQueries.
         return Promise.resolve(undefined);
       }
-      return projectColumnsFetchRequest(currentProjectId);
+      const areaId = session?.user?.areas?.[0]?.id;
+      return projectColumnsFetchRequest(currentProjectId, areaId);
     },
     enabled: currentProjectId !== "all",
     onError: (err) => {
@@ -81,7 +77,10 @@ const TodoColumnManager = () => {
     queries: (currentProjectId === 'all' && todos && uniqueProjectIdsFromTodos.length > 0)
       ? uniqueProjectIdsFromTodos.map(projId => ({
           queryKey: ["projectColumns", { projectId: projId }],
-          queryFn: () => projectColumnsFetchRequest(projId),
+          queryFn: () => {
+            const areaId = session?.user?.areas?.[0]?.id;
+            return projectColumnsFetchRequest(projId, areaId);
+          },
           // staleTime: 5 * 60 * 1000, // Optional: cache for 5 minutes
         }))
       : [], // Ensure empty array if not applicable, to prevent useQueries error
@@ -109,117 +108,6 @@ const TodoColumnManager = () => {
   const error = errorTodos ||
                 (currentProjectId !== "all" ? errorProjectColumns : null) ||
                 errorAllProjectsColumns;
-
-  const { mutate: createColumnMutation, isLoading: isCreatingColumn } = useMutation<
-    PrismaProjectColumn,
-    AxiosError,         
-    { name: string; order: number; projectId: string },
-    { previousProjectColumns?: PrismaProjectColumn[] }
-  >({
-    mutationFn: async (variables) => {
-      const { projectId, name, order } = variables;
-      return projectColumnCreateRequest(projectId, { name, order });
-    },
-    onMutate: async (newColumnData) => {
-      await queryClient.cancelQueries({ queryKey: ["projectColumns", { projectId: currentProjectId }] });
-      const previousProjectColumns = queryClient.getQueryData<PrismaProjectColumn[]>(["projectColumns", { projectId: currentProjectId }]);
-
-      if (previousProjectColumns) {
-        const optimisticColumn: PrismaProjectColumn = {
-          id: `optimistic-${Date.now()}`, // Temporary ID
-          name: newColumnData.name,
-          order: newColumnData.order,
-          projectId: newColumnData.projectId,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        };
-        queryClient.setQueryData<PrismaProjectColumn[]>(
-          ["projectColumns", { projectId: currentProjectId }],
-          [...previousProjectColumns, optimisticColumn].sort((a,b) => a.order - b.order)
-        );
-      }
-      return { previousProjectColumns };
-    },
-    onError: (err, newColumn, context) => {
-      if (context?.previousProjectColumns) {
-        queryClient.setQueryData(["projectColumns", { projectId: currentProjectId }], context.previousProjectColumns);
-      }
-      axiosToast(new AxiosError(`Falha ao criar coluna: ${err.response?.data || err.message}`));
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["projectColumns", { projectId: currentProjectId }] });
-    },
-    onSettled: () => {
-      setNewColumnName("");
-      setShowAddColumnForm(false);
-    }
-  });
-
-  const handleCreateColumn = (name: string) => {
-    if (!name.trim() || currentProjectId === "all") return;
-    const order = projectColumns ? projectColumns.length : 0;
-    createColumnMutation({ name: name.trim(), order, projectId: currentProjectId });
-  };
-
-  const { mutate: deleteColumnMutation, isLoading: isDeletingColumn } = useMutation<
-    PrismaProjectColumn,
-    AxiosError,
-    string,
-    { previousProjectColumns?: PrismaProjectColumn[] }
-  >({
-    mutationFn: (columnId: string) => projectColumnDeleteRequest(columnId),
-    onMutate: async (columnIdToDelete) => {
-      await queryClient.cancelQueries({ queryKey: ["projectColumns", { projectId: currentProjectId }] });
-      const previousProjectColumns = queryClient.getQueryData<PrismaProjectColumn[]>(["projectColumns", { projectId: currentProjectId }]);
-
-      if (previousProjectColumns) {
-        queryClient.setQueryData<PrismaProjectColumn[]>(
-          ["projectColumns", { projectId: currentProjectId }],
-          previousProjectColumns.filter(column => column.id !== columnIdToDelete)
-        );
-      }
-      return { previousProjectColumns };
-    },
-    onError: (err, columnId, context) => {
-      if (context?.previousProjectColumns) {
-        queryClient.setQueryData(["projectColumns", { projectId: currentProjectId }], context.previousProjectColumns);
-      }
-      axiosToast(new AxiosError(`Falha ao excluir coluna: ${err.response?.data || err.message}`));
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["projectColumns", { projectId: currentProjectId }] });
-      // Also invalidate todos query as some todos might have their columnId set to null
-      queryClient.invalidateQueries({ queryKey: ["todos", { projectId: currentProjectId, viewMode }] });
-      if (currentProjectId === 'all') { // If on all projects view, also invalidate todos for "all"
-          queryClient.invalidateQueries({ queryKey: ["todos", { projectId: "all", viewMode }] });
-      }
-    },
-  });
-
-  const handleDeleteColumn = (columnId: string) => {
-    if (window.confirm("Tem certeza que deseja excluir esta coluna? As tarefas nesta coluna ficarão desassociadas.")) {
-      if (currentProjectId === "all") {
-        // console.warn("Delete column initiated from 'all projects' view. Ensure context is correct."); // Log removido
-        let ownerProjectId: string | undefined;
-        for (const projId in allProjectsColumnsMap) {
-            if (allProjectsColumnsMap[projId].some(col => col.id === columnId)) {
-                ownerProjectId = projId;
-                break;
-            }
-        }
-        if (ownerProjectId) {
-             // TODO: Refactor onMutate/onError for delete to accept dynamic projectId for cache updates.
-             // For now, this optimistic update might only work well if currentProjectId is the ownerProjectId.
-            deleteColumnMutation(columnId);
-        } else {
-            axiosToast(new AxiosError("Não foi possível identificar o projeto da coluna para exclusão."));
-        }
-      } else {
-        deleteColumnMutation(columnId);
-      }
-    }
-  };
-
 
   const { mutate: handleUpdateState } = useMutation<
     TodoWithColumn, // Expect a single updated TodoWithColumn from the mutation function
@@ -542,49 +430,9 @@ const TodoColumnManager = () => {
                   todos={columnTodos}
                   columnId={column.id} 
                   projectId={currentProjectId} 
-                  onDeleteColumn={handleDeleteColumn} 
                 />
               );
             })}
-            {session?.user?.role === 'ADMIN' && currentProjectId !== "all" && !isLoadingProjectColumns && (
-              <div className="min-w-[280px] w-[280px] flex-shrink-0 p-1">
-                {showAddColumnForm ? (
-                  <form
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      handleCreateColumn(newColumnName); // Call the actual handler
-                    }}
-                    className="p-2 bg-slate-200 dark:bg-slate-700 rounded-md space-y-2"
-                  >
-                    <Input
-                      type="text"
-                      value={newColumnName}
-                      onChange={(e) => setNewColumnName(e.target.value)}
-                      placeholder="Nome da Coluna"
-                      className="bg-white dark:bg-slate-800"
-                      autoFocus
-                    />
-                    <div className="flex justify-end gap-2">
-                      <Button type="button" variant="ghost" size="sm" onClick={() => setShowAddColumnForm(false)}>
-                        Cancelar
-                      </Button>
-                      <Button type="submit" size="sm" disabled={!newColumnName.trim()}>
-                        Adicionar
-                      </Button>
-                    </div>
-                  </form>
-                ) : (
-                  <Button
-                    variant="outline"
-                    className="w-full border-dashed hover:bg-slate-200 dark:hover:bg-slate-700"
-                    onClick={() => setShowAddColumnForm(true)}
-                  >
-                    <PlusCircle className="h-4 w-4 mr-2" />
-                    Adicionar Nova Coluna
-                  </Button>
-                )}
-              </div>
-            )}
           </div>
         ) : (
           <div className="flex flex-col gap-6">
@@ -606,7 +454,6 @@ const TodoColumnManager = () => {
                             todos={projectColumnTodos}
                             columnId={column.id}
                             projectId={project.id}
-                            onDeleteColumn={handleDeleteColumn}
                           />
                         );
                       })
@@ -633,4 +480,3 @@ const TodoColumnManager = () => {
 };
 
 export default TodoColumnManager;
-
