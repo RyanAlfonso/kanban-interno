@@ -13,14 +13,26 @@ import { Button } from "../ui/button";
 import HomeTaskCreator from "./HomeTaskCreator";
 import TodoCard from "./TodoCard";
 
+import { UseMutationResult } from "@tanstack/react-query";
+import { TodoWithColumn } from "@/types/todo";
+import { AxiosError } from "axios";
+import { TodoEditRequest } from "@/lib/validators/todo";
+
 type TodoColumnProp = {
   title: string;
   todos: Todo[];
   columnId: string;
   projectId?: string;
+  handleUpdateState: UseMutationResult<TodoWithColumn, AxiosError<unknown, any>, TodoEditRequest, {
+    previousTodos?: TodoWithColumn[] | undefined;
+    queryKey: any[];
+  }>;
+  monitoramentoColumnId?: string;
+  emExecucaoColumnId?: string;
+  concluidoColumnId?: string;
 };
 
-const TodoColumn: FC<TodoColumnProp> = ({ title, todos, columnId, projectId }) => {
+const TodoColumn: FC<TodoColumnProp> = ({ title, todos, columnId, projectId, handleUpdateState, monitoramentoColumnId, emExecucaoColumnId, concluidoColumnId }) => {
   const dispatch = useDispatch();
   const { data: session } = useSession(); // Get session
 
@@ -67,7 +79,7 @@ const TodoColumn: FC<TodoColumnProp> = ({ title, todos, columnId, projectId }) =
         {todos
           ?.sort((a, b) => a.order - b.order)
           .map((todo) => {
-            return <TodoCard todo={todo} key={todo.id.toString()} />;
+            return <TodoCard todo={todo} key={todo.id.toString()} columnName={title} handleUpdateState={handleUpdateState} monitoramentoColumnId={monitoramentoColumnId} emExecucaoColumnId={emExecucaoColumnId} concluidoColumnId={concluidoColumnId} />;
           })}
       </div>
       <HomeTaskCreator columnId={columnId} projectId={projectId} />

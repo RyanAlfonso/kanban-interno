@@ -109,6 +109,10 @@ const TodoColumnManager = () => {
                 (currentProjectId !== "all" ? errorProjectColumns : null) ||
                 errorAllProjectsColumns;
 
+  const monitoramentoColumnId = projectColumns?.find(c => c.name === 'Monitoramento')?.id;
+  const emExecucaoColumnId = projectColumns?.find(c => c.name === 'Em Execução')?.id;
+  const concluidoColumnId = projectColumns?.find(c => c.name === 'Concluido')?.id;
+
   const { mutate: handleUpdateState } = useMutation<
     TodoWithColumn, // Expect a single updated TodoWithColumn from the mutation function
     AxiosError,
@@ -284,29 +288,36 @@ const TodoColumnManager = () => {
   });
 
   const handleDragEnd = (dragEndEvent: OnDragEndEvent) => {
-    // console.log("handleDragEnd event:", dragEndEvent); // Log removido
     const { over, item, order } = dragEndEvent;
 
     if (!over || !item || order === undefined || order === null) {
-      // console.warn("Invalid drag end event data:", dragEndEvent); // Log removido
       return;
     }
 
     const draggedTodo = (todos ?? []).find(t => t.id === item);
     if (!draggedTodo) {
-      // console.error("Dragged todo not found:", item); // Log removido
       return;
     }
-    const originalProjectId = draggedTodo.projectId;
-    const originalColumnId = draggedTodo.columnId;
 
     const targetColumnId = over.toString();
+    const targetColumn = projectColumns?.find(c => c.id === targetColumnId);
 
+    if (!targetColumn) {
+      return;
+    }
 
+    const isServidor = session?.user?.type === 'SERVIDOR';
+
+    // Rule 3.1: Only servidores can drag to "Monitoramento"
+    if (targetColumn.name === 'Monitoramento' && !isServidor) {
+      axiosToast(new AxiosError("Apenas servidores podem mover tarefas para Monitoramento."));
+      return;
+    }
+
+    const originalProjectId = draggedTodo.projectId;
     let targetProjectId = currentProjectId;
 
     if (currentProjectId === "all") {
-      // Find the project ID for the target column from allProjectsColumnsMap
       let foundProjectForColumn = false;
       for (const projId in allProjectsColumnsMap) {
         if (allProjectsColumnsMap[projId].some(col => col.id === targetColumnId)) {
@@ -316,14 +327,9 @@ const TodoColumnManager = () => {
         }
       }
       if (!foundProjectForColumn) {
-        // console.error(`Could not find project for targetColumnId: ${targetColumnId} in 'all projects' view. Drag operation aborted.`); // Log removido
-        targetProjectId = originalProjectId; // Fallback, though this might be incorrect if the column truly belongs to another project.
-        // console.warn(`Target project for column ${targetColumnId} not definitively found in allProjectsColumnsMap. Defaulting to original project ${originalProjectId}. This might be incorrect.`); // Log removido
+        targetProjectId = originalProjectId;
       }
     }
-
-
-    // console.log(`Drag End: Item ${item} (Original Proj: ${originalProjectId}, Original Col: ${originalColumnId}) dropped on TargetColId: ${targetColumnId}. Determined Target Proj: ${targetProjectId}, Order: ${order}`); // Log removido
 
     const payload: TodoEditRequest = {
       id: item as string,
@@ -332,8 +338,6 @@ const TodoColumnManager = () => {
       projectId: (targetProjectId && targetProjectId !== "all" && targetProjectId !== originalProjectId) ? targetProjectId : undefined,
     };
 
-    // console.log("Calling handleUpdateState with payload:", payload); // Log removido
-    // console.log("[TodoColumnManager] handleDragEnd: Payload for handleUpdateState", JSON.parse(JSON.stringify(payload))); // Log removido
     handleUpdateState(payload);
   };
 
@@ -429,7 +433,11 @@ const TodoColumnManager = () => {
                   title={column.name}
                   todos={columnTodos}
                   columnId={column.id} 
-                  projectId={currentProjectId} 
+                  projectId={currentProjectId}
+                  handleUpdateState={handleUpdateState}
+                  monitoramentoColumnId={monitoramentoColumnId}
+                  emExecucaoColumnId={emExecucaoColumnId}
+                  concluidoColumnId={concluidoColumnId}
                 />
               );
             })}
@@ -454,6 +462,10 @@ const TodoColumnManager = () => {
                             todos={projectColumnTodos}
                             columnId={column.id}
                             projectId={project.id}
+                            handleUpdateState={handleUpdateState}
+                            monitoramentoColumnId={monitoramentoColumnId}
+                            emExecucaoColumnId={emExecucaoColumnId}
+                            concluidoColumnId={concluidoColumnId}
                           />
                         );
                       })

@@ -19,11 +19,24 @@ interface ExtendedTodo extends Todo {
   tags: string[];
 }
 
+import { UseMutationResult } from "@tanstack/react-query";
+import { TodoWithColumn } from "@/types/todo";
+import { AxiosError } from "axios";
+import { TodoEditRequest } from "@/lib/validators/todo";
+
 type TodoProps = {
   todo: ExtendedTodo;
+  columnName?: string;
+  handleUpdateState: UseMutationResult<TodoWithColumn, AxiosError<unknown, any>, TodoEditRequest, {
+    previousTodos?: TodoWithColumn[] | undefined;
+    queryKey: any[];
+  }>;
+  monitoramentoColumnId?: string;
+  emExecucaoColumnId?: string;
+  concluidoColumnId?: string;
 };
 
-const TodoCard: FC<TodoProps> = ({ todo }) => {
+const TodoCard: FC<TodoProps> = ({ todo, columnName, handleUpdateState, monitoramentoColumnId, emExecucaoColumnId, concluidoColumnId }) => {
   const dispatch = useDispatch();
   const searchParams = useSearchParams();
   const currentProjectId = searchParams.get("projectId") || "all";
@@ -36,12 +49,41 @@ const TodoCard: FC<TodoProps> = ({ todo }) => {
     [dispatch, todo],
   );
 
+  const { data: session } = useSession();
   const { setNodeRef, attributes } = useDraggable({
     id: todo.id,
     handleClick,
   });
 
   const showProjectName = currentProjectId === "all" || !currentProjectId;
+  const isServidor = session?.user?.type === 'SERVIDOR';
+
+  const handleApprove = () => {
+    if (!monitoramentoColumnId) return;
+    handleUpdateState.mutate({
+      id: todo.id,
+      columnId: monitoramentoColumnId,
+      order: 0,
+    });
+  };
+
+  const handleReview = () => {
+    if (!emExecucaoColumnId) return;
+    handleUpdateState.mutate({
+      id: todo.id,
+      columnId: emExecucaoColumnId,
+      order: 0,
+    });
+  };
+
+  const handleFinalize = () => {
+    if (!concluidoColumnId) return;
+    handleUpdateState.mutate({
+      id: todo.id,
+      columnId: concluidoColumnId,
+      order: 0,
+    });
+  };
 
   return (
     <div
@@ -71,6 +113,17 @@ const TodoCard: FC<TodoProps> = ({ todo }) => {
         )}
       </div>
 
+      <div className="flex justify-end mt-2">
+        {isServidor && columnName === 'Em Aprovação' && (
+          <>
+            <Button onClick={handleApprove} size="sm" variant="success">Aprovar</Button>
+            <Button onClick={handleReview} size="sm" variant="destructive" className="ml-2">Revisar</Button>
+          </>
+        )}
+        {isServidor && columnName === 'Monitoramento' && (
+          <Button onClick={handleFinalize} size="sm" variant="success">Finalizar</Button>
+        )}
+      </div>
       {todo.tags && todo.tags.length > 0 && (
         <div className="absolute bottom-2 right-2 flex flex-wrap gap-1 justify-end mt-2">
           {todo.tags.map((tag) => {
