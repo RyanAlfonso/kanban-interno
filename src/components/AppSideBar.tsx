@@ -103,10 +103,6 @@ const AppSideBar = () => {
     if (!userAreas || userAreas.length === 0) {
       return true;
     }
-    const hasFinanceiro = userAreas.some(area => area.name === "Financeiro");
-    if (hasFinanceiro) {
-      return project.name === "Financeiro";
-    }
     return userAreas.some(area => area.name === project.name);
   });
 
@@ -284,21 +280,20 @@ const AppSideBar = () => {
               
               {/* Project List */} 
               <div className="space-y-1">
-                {(!userAreas?.some(area => area.name === "Financeiro")) && (
-                  <Button
-                    variant="ghost"
-                    onClick={() => handleProjectSelect(null)} // Pass null for "All Projects"
-                    className={cn(
-                      "w-full justify-start text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800",
-                      !currentProjectId && // Highlight if no projectId is in URL
-                        "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white",
-                      !isSidebarOpen && "justify-center p-0",
-                    )}
-                  >
-                    <Folder className={cn("h-5 w-5", isSidebarOpen && "mr-2")} />
-                    {isSidebarOpen && <span>Todas as áreas</span>}
-                  </Button>
-                )}
+                {/* "All Projects" Link */}
+                <Button
+                  variant="ghost"
+                  onClick={() => handleProjectSelect(null)} // Pass null for "All Projects"
+                  className={cn(
+                    "w-full justify-start text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800",
+                    !currentProjectId && // Highlight if no projectId is in URL
+                      "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white",
+                    !isSidebarOpen && "justify-center p-0",
+                  )}
+                >
+                  <Folder className={cn("h-5 w-5", isSidebarOpen && "mr-2")} />
+                  {isSidebarOpen && <span>Todas as áreas</span>}
+                </Button>
 
                 {/* Loading Skeletons */}
                 {isLoading && isSidebarOpen && (
