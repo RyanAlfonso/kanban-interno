@@ -19,41 +19,15 @@ export async function getProjectColumns(
   areaId?: string
 ): Promise<ProjectColumn[]> {
   if (areaId) {
-    const area = await prisma.area.findUnique({
-      where: { id: areaId },
+    return prisma.projectColumn.findMany({
+      where: {
+        areaId: areaId,
+        projectId: projectId,
+      },
+      orderBy: {
+        order: 'asc',
+      },
     });
-
-    if (area?.name === 'T.I.') {
-      const fixedColumnNames = ['Backlog', 'Em Execução', 'Em Aprovação', 'Monitoramento', 'Concluido'];
-
-      let columns = await prisma.projectColumn.findMany({
-        where: {
-          areaId: areaId,
-        },
-        orderBy: {
-          order: 'asc',
-        },
-      });
-
-      if (columns.length === 0) {
-        // Columns don't exist, so create them
-        const createdColumns = [];
-        for (let i = 0; i < fixedColumnNames.length; i++) {
-          const newColumn = await prisma.projectColumn.create({
-            data: {
-              name: fixedColumnNames[i],
-              order: i,
-              projectId: projectId,
-              areaId: areaId,
-            },
-          });
-          createdColumns.push(newColumn);
-        }
-        return createdColumns;
-      } else {
-          return columns;
-      }
-    }
   }
 
   return prisma.projectColumn.findMany({
