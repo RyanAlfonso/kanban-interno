@@ -14,7 +14,7 @@ import projectColumnsFetchRequest from "@/requests/projectColumnsFetchRequest"; 
 import { ProjectColumn as PrismaProjectColumn } from "@prisma/client"; // Alias to avoid name clash if any
 import SkeletonColumn from "./SkeletonColumn";
 import ViewToggle from "../ViewToggle";
-import React, { useState } from 'react'; // Import useState
+import React, { useEffect, useState } from 'react'; // Import useState
 import { Separator } from "../ui/separator";
 import { TodoWithColumn } from "@/types/todo";
 import { Button } from '../ui/button'; // Import Button
@@ -40,9 +40,6 @@ const TodoColumnManager = () => {
   const currentProjectId = searchParams.get("projectId") || "all";
   const viewMode = searchParams.get("view") || null;
   const { data: session } = useSession(); // Get session
-
-  const [showAddColumnForm, setShowAddColumnForm] = useState(false);
-  const [newColumnName, setNewColumnName] = useState("");
 
   // Fetch Todos
   const { data: todos, isLoading: isLoadingTodos, error: errorTodos } = useQuery<TodoWithColumn[], Error>({ // Use TodoWithColumn[]
@@ -99,6 +96,8 @@ const TodoColumnManager = () => {
     return map;
   }, [currentProjectId, allProjectsColumnsQueries, uniqueProjectIdsFromTodos]);
 
+  const columns = currentProjectId === 'all' ? [] : projectColumns;
+
   const isLoadingAllProjectsColumns = currentProjectId === 'all' ? allProjectsColumnsQueries.some(q => q.isLoading) : false;
   const errorAllProjectsColumns = currentProjectId === 'all' ? (allProjectsColumnsQueries.find(q => q.error)?.error as Error | null) : null;
 
@@ -110,56 +109,6 @@ const TodoColumnManager = () => {
                 (currentProjectId !== "all" ? errorProjectColumns : null) ||
                 errorAllProjectsColumns;
 
-  const { mutate: createColumnMutation, isLoading: isCreatingColumn } = useMutation<
-    PrismaProjectColumn,
-    AxiosError,         
-    { name: string; order: number; projectId: string },
-    { previousProjectColumns?: PrismaProjectColumn[] }
-  >({
-    mutationFn: async (variables) => {
-      const { projectId, name, order } = variables;
-      return projectColumnCreateRequest(projectId, { name, order });
-    },
-    onMutate: async (newColumnData) => {
-      await queryClient.cancelQueries({ queryKey: ["projectColumns", { projectId: currentProjectId }] });
-      const previousProjectColumns = queryClient.getQueryData<PrismaProjectColumn[]>(["projectColumns", { projectId: currentProjectId }]);
-
-      if (previousProjectColumns) {
-        const optimisticColumn: PrismaProjectColumn = {
-          id: `optimistic-${Date.now()}`, // Temporary ID
-          name: newColumnData.name,
-          order: newColumnData.order,
-          projectId: newColumnData.projectId,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        };
-        queryClient.setQueryData<PrismaProjectColumn[]>(
-          ["projectColumns", { projectId: currentProjectId }],
-          [...previousProjectColumns, optimisticColumn].sort((a,b) => a.order - b.order)
-        );
-      }
-      return { previousProjectColumns };
-    },
-    onError: (err, newColumn, context) => {
-      if (context?.previousProjectColumns) {
-        queryClient.setQueryData(["projectColumns", { projectId: currentProjectId }], context.previousProjectColumns);
-      }
-      axiosToast(new AxiosError(`Falha ao criar coluna: ${err.response?.data || err.message}`));
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["projectColumns", { projectId: currentProjectId }] });
-    },
-    onSettled: () => {
-      setNewColumnName("");
-      setShowAddColumnForm(false);
-    }
-  });
-
-  const handleCreateColumn = (name: string) => {
-    if (!name.trim() || currentProjectId === "all") return;
-    const order = projectColumns ? projectColumns.length : 0;
-    createColumnMutation({ name: name.trim(), order, projectId: currentProjectId });
-  };
 
   const { mutate: deleteColumnMutation, isLoading: isDeletingColumn } = useMutation<
     PrismaProjectColumn,
@@ -531,7 +480,7 @@ const TodoColumnManager = () => {
       <DndContextProvider onDragEnd={handleDragEnd}>
         {currentProjectId !== "all" ? (
           <div className="flex gap-2 overflow-x-auto px-6">
-            {(Array.isArray(projectColumns) ? [...projectColumns] : []).sort((a,b) => a.order - b.order).map((column) => {
+            {(Array.isArray(columns) ? [...columns] : []).sort((a,b) => a.order - b.order).map((column) => {
               const columnTodos = filteredTodos
                 .filter((todo) => todo.columnId === column.id) 
                 .sort((a, b) => a.order - b.order);
@@ -547,45 +496,6 @@ const TodoColumnManager = () => {
                 />
               );
             })}
-            {session?.user?.role === 'ADMIN' && currentProjectId !== "all" && !isLoadingProjectColumns && (
-              <div className="min-w-[280px] w-[280px] flex-shrink-0 p-1">
-                {showAddColumnForm ? (
-                  <form
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      handleCreateColumn(newColumnName); // Call the actual handler
-                    }}
-                    className="p-2 bg-slate-200 dark:bg-slate-700 rounded-md space-y-2"
-                  >
-                    <Input
-                      type="text"
-                      value={newColumnName}
-                      onChange={(e) => setNewColumnName(e.target.value)}
-                      placeholder="Nome da Coluna"
-                      className="bg-white dark:bg-slate-800"
-                      autoFocus
-                    />
-                    <div className="flex justify-end gap-2">
-                      <Button type="button" variant="ghost" size="sm" onClick={() => setShowAddColumnForm(false)}>
-                        Cancelar
-                      </Button>
-                      <Button type="submit" size="sm" disabled={!newColumnName.trim()}>
-                        Adicionar
-                      </Button>
-                    </div>
-                  </form>
-                ) : (
-                  <Button
-                    variant="outline"
-                    className="w-full border-dashed hover:bg-slate-200 dark:hover:bg-slate-700"
-                    onClick={() => setShowAddColumnForm(true)}
-                  >
-                    <PlusCircle className="h-4 w-4 mr-2" />
-                    Adicionar Nova Coluna
-                  </Button>
-                )}
-              </div>
-            )}
           </div>
         ) : (
           <div className="flex flex-col gap-6">
