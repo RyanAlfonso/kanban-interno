@@ -1,11 +1,12 @@
 import prisma from '../prismadb';
-import { ProjectColumn } from '@prisma/client';
+import { ProjectColumn, State } from '@prisma/client';
 
 // Type for creating a new project column - adjust as needed for required fields
 export interface CreateProjectColumnData {
   name: string;
   order: number;
   projectId: string;
+  state?: State;
 }
 
 /**
@@ -17,7 +18,7 @@ export interface CreateProjectColumnData {
 export async function createProjectColumn(
   data: CreateProjectColumnData
 ): Promise<ProjectColumn> {
-  const { name, order, projectId } = data;
+  const { name, order, projectId, state } = data;
 
   // Check if project exists (optional, but good practice)
   const project = await prisma.project.findUnique({
@@ -37,6 +38,7 @@ export async function createProjectColumn(
         name,
         order,
         projectId,
+        state,
       },
     });
     return newColumn;

@@ -16,6 +16,8 @@ model ProjectColumn {
   todos     Todo[] // Each column can have multiple Todo items (cards)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  isFixed   Boolean  @default(false)
+  state     State?
 
   @@unique([projectId, name]) // Ensure column names are unique within a project
   @@index([projectId, order]) // Index for ordering columns
@@ -63,8 +65,6 @@ model Todo {
   updatedAt DateTime @updatedAt
 }
 
-// Keeping State enum for now, in case it's used elsewhere or can be repurposed.
-// If ProjectColumn.name serves as the definitive state, this might be removed later.
 enum State {
   TODO
   IN_PROGRESS

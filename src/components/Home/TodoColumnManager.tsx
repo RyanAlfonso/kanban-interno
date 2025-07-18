@@ -540,9 +540,10 @@ const TodoColumnManager = () => {
                   key={column.id}
                   title={column.name}
                   todos={columnTodos}
-                  columnId={column.id} 
-                  projectId={currentProjectId} 
-                  onDeleteColumn={handleDeleteColumn} 
+                  columnId={column.id}
+                  projectId={currentProjectId}
+                  onDeleteColumn={handleDeleteColumn}
+                  isFixed={column.isFixed}
                 />
               );
             })}
@@ -607,6 +608,7 @@ const TodoColumnManager = () => {
                             columnId={column.id}
                             projectId={project.id}
                             onDeleteColumn={handleDeleteColumn}
+                            isFixed={column.isFixed}
                           />
                         );
                       })
