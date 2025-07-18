@@ -4,13 +4,13 @@ import useDroppable from "@/hooks/useDroppable";
 import { cn } from "@/lib/utils";
 import { openTodoEditor } from "@/redux/actions/todoEditorAction";
 import { Todo } from "@prisma/client";
-import { PlusCircle, Trash2 } from "lucide-react";
+import { PlusCircle } from "lucide-react"; // Removido Trash2
 import { FC } from "react";
 import { useDispatch } from "react-redux";
 import { Badge } from "../ui/badge";
-import { useSession } from 'next-auth/react'; // Import useSession
+// import { useSession } from 'next-auth/react'; // Removido useSession
 import { Button } from "../ui/button";
-import HomeTaskCreator from "./HomeTaskCreator";
+// import HomeTaskCreator from "./HomeTaskCreator"; // Removido HomeTaskCreator
 import TodoCard from "./TodoCard";
 
 type TodoColumnProp = {
@@ -18,12 +18,12 @@ type TodoColumnProp = {
   todos: Todo[];
   columnId: string;
   projectId?: string;
-  onDeleteColumn?: (columnId: string) => void;
+  // onDeleteColumn?: (columnId: string) => void; // Removido onDeleteColumn
 };
 
-const TodoColumn: FC<TodoColumnProp> = ({ title, todos, columnId, projectId, onDeleteColumn }) => {
+const TodoColumn: FC<TodoColumnProp> = ({ title, todos, columnId, projectId }) => { // Removido onDeleteColumn
   const dispatch = useDispatch();
-  const { data: session } = useSession(); // Get session
+  // const { data: session } = useSession(); // Removido useSession
 
   const { setNodeRef } = useDroppable({ id: columnId });
 
@@ -54,16 +54,7 @@ const TodoColumn: FC<TodoColumnProp> = ({ title, todos, columnId, projectId, onD
           </Badge>
         </div>
         <div className="flex items-center space-x-1">
-          {session?.user?.role === 'ADMIN' && onDeleteColumn && (
-             <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 text-muted-foreground hover:text-destructive"
-              onClick={() => onDeleteColumn(columnId)}
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          )}
+          {/* Removido o botão de exclusão de coluna */}
           <Button
             variant="ghost"
             size="icon"
@@ -81,9 +72,11 @@ const TodoColumn: FC<TodoColumnProp> = ({ title, todos, columnId, projectId, onD
             return <TodoCard todo={todo} key={todo.id.toString()} />;
           })}
       </div>
-      <HomeTaskCreator columnId={columnId} projectId={projectId} />
+      {/* Removido HomeTaskCreator */}
     </div>
   );
 };
 
 export default TodoColumn;
+
+
