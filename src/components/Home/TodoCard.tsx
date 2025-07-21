@@ -17,6 +17,7 @@ interface ExtendedTodo extends Todo {
     name: string;
   } | null;
   tags: string[];
+  color?: string; // Adicionando a propriedade color
 }
 
 type TodoProps = {
@@ -45,7 +46,10 @@ const TodoCard: FC<TodoProps> = ({ todo }) => {
 
   return (
     <div
-      className="border-zinc-100 hover:shadow-md rounded-md mb-2 mx-auto p-3 flex flex-col cursor-pointer bg-white dark:bg-gray-900 relative" // Added relative positioning
+      className={cn(
+        "border-zinc-100 hover:shadow-md rounded-md mb-2 mx-auto p-3 flex flex-col cursor-pointer relative",
+        todo.color ? `bg-${todo.color}-200 dark:bg-${todo.color}-800` : "bg-white dark:bg-gray-900"
+      )}
       ref={setNodeRef}
       {...attributes}
     >
@@ -96,4 +100,5 @@ const TodoCard: FC<TodoProps> = ({ todo }) => {
 };
 
 export default TodoCard;
+
 

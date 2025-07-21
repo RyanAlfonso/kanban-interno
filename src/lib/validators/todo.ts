@@ -29,7 +29,12 @@ export const TodoDeleteValidator = z.object({
   id: z.string().length(24, { message: "Invalid ID format." }),
 });
 
+export const TodoArchiveValidator = z.object({
+  id: z.string().length(24, { message: "Invalid ID format." }),
+});
+
 export type TodoCreateRequest = z.infer<typeof TodoCreateValidator>;
 export type TodoEditRequest = z.infer<typeof TodoEditValidator>;
 export type TodoDeleteRequest = z.infer<typeof TodoDeleteValidator>;
+export type TodoArchiveRequest = z.infer<typeof TodoArchiveValidator>;
 

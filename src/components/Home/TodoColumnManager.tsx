@@ -10,19 +10,14 @@ import DndContextProvider, { OnDragEndEvent } from "../DnDContextProvider";
 import { useToast } from "../ui/use-toast";
 import TodoColumn from "./TodoColumn";
 import todoFetchRequest from "@/requests/todoFetchRequest";
-// import projectColumnsFetchRequest from "@/requests/projectColumnsFetchRequest"; // Import new fetch function
-// import { ProjectColumn as PrismaProjectColumn } from "@prisma/client"; // Alias to avoid name clash if any
 import SkeletonColumn from "./SkeletonColumn";
 import ViewToggle from "../ViewToggle";
 import React, { useState } from "react"; // Import useState
 import { Separator } from "../ui/separator";
 import { TodoWithColumn } from "@/types/todo";
-// import { Button } from "../ui/button"; // Import Button
-// import { Input } from "../ui/input";
-// import { PlusCircle } from "lucide-react";
-// import projectColumnCreateRequest, { ProjectColumnCreatePayload } from "@/requests/projectColumnCreateRequest";
-// import projectColumnDeleteRequest from "@/requests/projectColumnDeleteRequest"; // Import delete request
-// import { useSession } from "next-auth/react"; // Import useSession
+import { Button } from "../ui/button"; // Import Button
+import { exportToExcel } from "@/lib/export"; // Import exportToExcel
+import { Download } from "lucide-react";
 
 // Define a type for the grouped projects
 interface GroupedProject {
@@ -39,17 +34,11 @@ const TodoColumnManager = () => {
   const searchTerm = searchParams.get("q")?.toLowerCase() || "";
   const currentProjectId = searchParams.get("projectId") || "all";
   const viewMode = searchParams.get("view") || null;
-  // const { data: session } = useSession(); // Get session
 
-  // const [showAddColumnForm, setShowAddColumnForm] = useState(false);
-  // const [newColumnName, setNewColumnName] = useState("");
-
-  // Fetch Todos
   const { data: todos, isLoading: isLoadingTodos, error: errorTodos } = useQuery<TodoWithColumn[], Error>({
     queryKey: ["todos", { projectId: currentProjectId, viewMode }],
     queryFn: () => todoFetchRequest(currentProjectId === "all" ? null : currentProjectId, viewMode) as Promise<TodoWithColumn[]>, // Assert type
     onError: (err) => {
-      // console.error("Error fetching todos:", err); // Log removido
       axiosToast(new AxiosError("Falha ao buscar tarefas."));
     },
   });
@@ -58,14 +47,14 @@ const TodoColumnManager = () => {
   const error = errorTodos;
 
   const { mutate: handleUpdateState } = useMutation<
-    TodoWithColumn, // Expect a single updated TodoWithColumn from the mutation function
+    TodoWithColumn, 
     AxiosError,
     TodoEditRequest,
     { previousTodos?: TodoWithColumn[]; queryKey: any[] }
   >({
     mutationFn: async (data: TodoEditRequest) => {
       const updatedTodo = await todoEditRequest(data);
-      return updatedTodo as TodoWithColumn; // Cast to TodoWithColumn
+      return updatedTodo as TodoWithColumn; 
     },
     onMutate: async (payload: TodoEditRequest) => {
       const queryKey = ["todos", { projectId: currentProjectId, viewMode }];
@@ -82,22 +71,19 @@ const TodoColumnManager = () => {
         return { previousTodos, queryKey };
       }
 
-      const originalTodoState = JSON.parse(JSON.stringify(todoToUpdate)); // Deep clone for logging and reference
+      const originalTodoState = JSON.parse(JSON.stringify(todoToUpdate)); 
 
-      // Determine new properties for the dragged todo
       const newProjectId = payload.projectId || originalTodoState.projectId;
-      const newColumnId = payload.columnId!; // columnId must be present in payload for a move
-      const newOrder = payload.order!;     // order must be present in payload
+      const newColumnId = payload.columnId!; 
+      const newOrder = payload.order!;     
 
-      let tempTodos = JSON.parse(JSON.stringify(previousTodos)) as TodoWithColumn[]; // Deep clone to avoid mutating cache directly
+      let tempTodos = JSON.parse(JSON.stringify(previousTodos)) as TodoWithColumn[]; 
 
-      // --- Step 1: Remove the item from its original position in tempTodos ---
       const itemIndex = tempTodos.findIndex(todo => todo.id === payload.id);
       if (itemIndex > -1) {
         tempTodos.splice(itemIndex, 1);
       }
 
-      // --- Step 2: Adjust order in the source column (originalTodoState.columnId) ---
       if (originalTodoState.columnId !== newColumnId || originalTodoState.projectId !== newProjectId) {
         tempTodos = tempTodos.map(todo => {
           if (todo.projectId === originalTodoState.projectId &&
@@ -109,7 +95,6 @@ const TodoColumnManager = () => {
         });
       }
 
-      // --- Step 3: Adjust order in the destination column (newColumnId) ---
       tempTodos = tempTodos.map(todo => {
         if (todo.projectId === newProjectId &&
             todo.columnId === newColumnId &&
@@ -119,12 +104,11 @@ const TodoColumnManager = () => {
         return todo;
       });
 
-      // --- Step 4: Construct and add the updated item to its new position ---
       const updatedTodoItem: TodoWithColumn = {
-        ...originalTodoState, // Base on a clone of the original item's full state
-        projectId: newProjectId, // Override with new projectId
-        columnId: newColumnId,   // Override with new columnId
-        order: newOrder,         // Override with new order
+        ...originalTodoState, 
+        projectId: newProjectId, 
+        columnId: newColumnId,   
+        order: newOrder,         
         ...(payload.title && { title: payload.title }),
         ...(payload.description && { description: payload.description }),
         ...(payload.deadline && { deadline: payload.deadline }),
@@ -134,7 +118,6 @@ const TodoColumnManager = () => {
 
       tempTodos.push(updatedTodoItem);
 
-      // Sort the final list to ensure correct order for rendering
       tempTodos.sort((a, b) => {
         if (a.projectId && b.projectId && a.projectId !== b.projectId) {
           return a.projectId.localeCompare(b.projectId);
@@ -169,8 +152,8 @@ const TodoColumnManager = () => {
         const uniqueProjectIdsInCache = new Set(
           queryClient.getQueryData<TodoWithColumn[]>(context.queryKey)?.map(t => t.projectId).filter(Boolean)
         );
-        uniqueProjectIdsInCache.add(originalProjectId ?? null); // ensure original is included
-        uniqueProjectIdsInCache.add(newProjectId ?? null);      // ensure new is included
+        uniqueProjectIdsInCache.add(originalProjectId ?? null); 
+        uniqueProjectIdsInCache.add(newProjectId ?? null);      
         uniqueProjectIdsInCache.forEach(pid => {
           if (pid) queryClient.invalidateQueries({ queryKey: ["todos", { projectId: pid, viewMode }] });
         });
@@ -222,6 +205,25 @@ const TodoColumnManager = () => {
     handleUpdateState(payload);
   };
 
+  const handleExport = () => {
+    if (filteredTodos.length > 0) {
+      const dataToExport = filteredTodos.map(todo => ({
+        ID: todo.id,
+        Título: todo.title,
+        Descrição: todo.description,
+        Prazo: todo.deadline ? new Date(todo.deadline).toLocaleDateString() : 
+        'N/A',
+        Estado: todo.state,
+        Projeto: todo.project?.name || 'N/A',
+        CriadoEm: new Date(todo.createdAt).toLocaleDateString(),
+        AtualizadoEm: new Date(todo.updatedAt).toLocaleDateString(),
+      }));
+      exportToExcel(dataToExport, "kanban_tasks", "Tarefas");
+    } else {
+      axiosToast(new AxiosError("Nenhuma tarefa para exportar."));
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex flex-col gap-4">
@@ -266,7 +268,7 @@ const TodoColumnManager = () => {
         pageTitle = project.name;
         singleProjectName = project.name;
       } else {
-        pageTitle = "Projeto Desconhecido"; // Fallback
+        pageTitle = "Projeto Desconhecido"; 
       }
     }
   }
@@ -295,6 +297,10 @@ const TodoColumnManager = () => {
       <div className="flex justify-between items-center px-6 pt-6">
         <h1 className="text-2xl font-bold tracking-tight">{pageTitle}</h1>
         <div className="flex items-center gap-2">
+          <Button onClick={handleExport} variant="outline" size="sm">
+            <Download className="mr-2 h-4 w-4" />
+            Exportar XLS
+          </Button>
           <ViewToggle />
         </div>
       </div>
