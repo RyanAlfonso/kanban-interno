@@ -19,6 +19,7 @@ import { UseMutationResult, useQuery } from "@tanstack/react-query";
 import "react-quill/dist/quill.snow.css";
 import CustomizedMultSelect from "./CustomizedMultSelect";
 import CustomizedSelect from "./CustomizedSelect";
+import ColorPicker from "./ColorPicker";
 import { Button } from "./ui/button";
 import { Calendar } from "./ui/calendar";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
@@ -204,6 +205,24 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
             />
             <ErrorMessage msg={errors.tags?.message?.toString()} />
           </div>
+          
+          <div className="relative grid gap-1 pb-4">
+            <Label className="text-sm font-medium" htmlFor="color">
+              Cor do Card
+            </Label>
+            <Controller
+              control={control}
+              name="color"
+              defaultValue={task.color || ""}
+              render={({ field }) => (
+                <ColorPicker
+                  selectedColor={field.value}
+                  onColorChange={field.onChange}
+                />
+              )}
+            />
+            <ErrorMessage msg={errors.color?.message?.toString()} />
+          </div>
         </>
       );
     } catch(error) {
@@ -278,7 +297,7 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
                       isLoading={isDeleteLoading}
                       disabled={!task.id || isDeleteLoading}
                     >
-                      Excluir Tarefa
+                      Arquivar Tarefa
                     </Button>
                   )}
                 </div>
