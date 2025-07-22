@@ -66,10 +66,11 @@ model Todo {
 // Keeping State enum for now, in case it's used elsewhere or can be repurposed.
 // If ProjectColumn.name serves as the definitive state, this might be removed later.
 enum State {
-  TODO
-  IN_PROGRESS
-  REVIEW
-  DONE
+  BACKLOG
+  EM_EXECUCAO
+  EM_APROVACAO
+  MONITORAMENTO
+  CONCLUIDO
 }
 
 // Adicionar enum Priority aqui se for implementar

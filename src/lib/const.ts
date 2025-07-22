@@ -7,20 +7,24 @@ export const TASK_STATE_OPTIONS: Readonly<
   }[]
 > = Object.freeze([
   {
-    value: "TODO",
-    title: "Todo",
+    value: "687fcbd4ae88c19be04bc09d",
+    title: "Backlog",
   },
   {
-    value: "IN_PROGRESS",
-    title: "In Progress",
+    value: "687fcbdfae88c19be04bc09f",
+    title: "Em Execução",
   },
   {
-    value: "REVIEW",
-    title: "Review",
+    value: "687fcbe1ae88c19be04bc0a0",
+    title: "Em Aprovação",
   },
   {
-    value: "DONE",
-    title: "Done",
+    value: "687fcbe4ae88c19be04bc0a1",
+    title: "Monitoramento",
+  },
+  {
+    value: "687fcbe7ae88c19be04bc0a2",
+    title: "Concluído",
   },
 ]);
 
