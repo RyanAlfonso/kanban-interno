@@ -42,7 +42,6 @@ model Todo {
   id          String   @id @default(auto()) @map("_id") @db.ObjectId
   title       String
   description String?
-  // state       State // REMOVE or repurpose this global state. For now, removing.
   label       String[] @default([]) // This 'label' field seems to be the old one. We'll add a new 'tags' field.
   tags        String[] @default([]) // New field for tags
   deadline    Int? // Considerar mudar para DateTime?
@@ -62,24 +61,6 @@ model Todo {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
-
-// Keeping State enum for now, in case it's used elsewhere or can be repurposed.
-// If ProjectColumn.name serves as the definitive state, this might be removed later.
-enum State {
-  BACKLOG
-  EM_EXECUCAO
-  EM_APROVACAO
-  MONITORAMENTO
-  CONCLUIDO
-}
-
-// Adicionar enum Priority aqui se for implementar
-// enum Priority {
-//   LOW
-//   MEDIUM
-//   HIGH
-//   URGENT
-// }
 
 model User {
   id            String    @id @default(auto()) @map("_id") @db.ObjectId

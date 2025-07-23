@@ -205,24 +205,6 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
             />
             <ErrorMessage msg={errors.tags?.message?.toString()} />
           </div>
-          
-          <div className="relative grid gap-1 pb-4">
-            <Label className="text-sm font-medium" htmlFor="color">
-              Cor do Card
-            </Label>
-            <Controller
-              control={control}
-              name="color"
-              defaultValue={task.color || ""}
-              render={({ field }) => (
-                <ColorPicker
-                  selectedColor={field.value}
-                  onColorChange={field.onChange}
-                />
-              )}
-            />
-            <ErrorMessage msg={errors.color?.message?.toString()} />
-          </div>
         </>
       );
     } catch(error) {
