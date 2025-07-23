@@ -19,7 +19,6 @@ import { UseMutationResult, useQuery } from "@tanstack/react-query";
 import "react-quill/dist/quill.snow.css";
 import CustomizedMultSelect from "./CustomizedMultSelect";
 import CustomizedSelect from "./CustomizedSelect";
-import ColorPicker from "./ColorPicker";
 import { Button } from "./ui/button";
 import { Calendar } from "./ui/calendar";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
@@ -279,7 +278,7 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
                       isLoading={isDeleteLoading}
                       disabled={!task.id || isDeleteLoading}
                     >
-                      Arquivar Tarefa
+                      Excluir Tarefa
                     </Button>
                   )}
                 </div>
