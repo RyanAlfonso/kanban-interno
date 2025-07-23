@@ -11,18 +11,18 @@ export async function GET(req) {
     if (!session || !session?.user)
       return new Response("Unauthorized", { status: 401 });
 
-    const todos: Pick<Todo, "label">[] = await prisma.todo.findMany({
+    const todos: Pick<Todo, "tags">[] = await prisma.todo.findMany({
       where: {
         ownerId: session!.user!.id,
         isDeleted: false,
       },
       select: {
-        label: true,
+        tags: true,
       },
     });
 
     const filteredLabels = Array.from(
-      new Set(todos.flatMap((todo) => todo.label)),
+      new Set(todos.flatMap((todo) => todo.tags)),
     );
 
     return new Response(JSON.stringify(filteredLabels), { status: 200 });
