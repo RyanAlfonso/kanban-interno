@@ -24,24 +24,8 @@ export async function DELETE(req: NextRequest) {
     });
     if (!record) return new Response("Record Not Found", { status: 404 });
 
-    await prisma.todo.update({
+    await prisma.todo.delete({
       where: { id },
-      data: {
-        isDeleted: true,
-      },
-    });
-
-    await prisma.todo.updateMany({
-      where: {
-        ownerId: session.user.id,
-        state: record.state,
-        order: { gt: record.order },
-      },
-      data: {
-        order: {
-          decrement: 1,
-        },
-      },
     });
 
     const result = await prisma.todo.findMany({
