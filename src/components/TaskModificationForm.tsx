@@ -4,7 +4,7 @@ import useBreakpoint from "@/hooks/useBreakpoint";
 import { TASK_STATE_OPTIONS } from "@/lib/const";
 import { PREDEFINED_TAGS } from "@/lib/tags";
 import { cn } from "@/lib/utils";
-import { Project, Todo } from "@prisma/client";
+import { Project, Todo, User } from "@prisma/client";
 import {
   Popover,
   PopoverContent,
@@ -86,11 +86,58 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
     }
   });
 
+  const { data: users, isLoading: usersLoading, error: usersError } = useQuery<User[], Error>({
+    queryKey: ["users"],
+    queryFn: async () => {
+      try {
+        const response = await fetch("/api/users");
+        if (!response.ok) {
+          throw new Error("Falha ao buscar usuários");
+        }
+        return response.json();
+      } catch (err) {
+        console.error("Error fetching users in TaskModificationForm:", err);
+        throw err;
+      }
+    }
+  });
+
+  const { data: todos, isLoading: todosLoading, error: todosError } = useQuery<Todo[], Error>({
+    queryKey: ["todos"],
+    queryFn: async () => {
+      try {
+        const response = await fetch("/api/todo");
+        if (!response.ok) {
+          throw new Error("Falha ao buscar cards");
+        }
+        return response.json();
+      } catch (err) {
+        console.error("Error fetching todos in TaskModificationForm:", err);
+        throw err;
+      }
+    }
+  });
+
   const projectOptions = Array.isArray(projects)
     ? projects.map(project => ({
         value: project.id.toString(),
         title: project.name,
       }))
+    : [];
+
+  const userOptions = Array.isArray(users)
+    ? users.map(user => ({
+        value: user.id.toString(),
+        title: user.name || user.email || "Usuário sem nome",
+      }))
+    : [];
+
+  const todoOptions = Array.isArray(todos)
+    ? todos.filter(todo => todo.id !== task.id) // Não incluir o próprio card
+        .map(todo => ({
+          value: todo.id.toString(),
+          title: todo.title,
+        }))
     : [];
 
   const ErrorMessage = ({ msg }: ErrorMessageProps) => {
@@ -140,6 +187,70 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
             {projectsError && <ErrorMessage msg="Erro ao carregar áreas."/>}
             {!projectsLoading && projectOptions.length === 0 && <ErrorMessage msg="Nenhuma área disponível. Crie uma área primeiro."/>}
             <ErrorMessage msg={errors.projectId?.message?.toString()} />
+          </div>
+
+          <div className="relative grid gap-1 pb-4">
+            <Label className="text-sm font-medium" htmlFor="assignedToIds">
+              Usuários Responsáveis
+            </Label>
+            <Controller
+              control={control}
+              name="assignedToIds"
+              defaultValue={task.assignedToIds || []}
+              render={({ field }) => (
+                <CustomizedMultSelect
+                  value={field.value || []}
+                  onChange={field.onChange}
+                  placeholder="Selecione usuários responsáveis"
+                  options={userOptions.map(user => user.title)}
+                />
+              )}
+            />
+            {usersError && <ErrorMessage msg="Erro ao carregar usuários."/>}
+            {!usersLoading && userOptions.length === 0 && <ErrorMessage msg="Nenhum usuário disponível."/>}
+            <ErrorMessage msg={errors.assignedToIds?.message?.toString()} />
+          </div>
+
+          <div className="relative grid gap-1 pb-4">
+            <Label className="text-sm font-medium" htmlFor="parentId">
+              Card Pai (Hierárquico)
+            </Label>
+            <Controller
+              control={control}
+              name="parentId"
+              defaultValue={task.parentId || ""}
+              render={({ field }) => (
+                <CustomizedSelect
+                  options={[{ value: "", title: "Nenhum" }, ...todoOptions]}
+                  placeholder="Selecione um card pai"
+                  onChange={field.onChange}
+                  value={field.value || ""}
+                />
+              )}
+            />
+            {todosError && <ErrorMessage msg="Erro ao carregar cards."/>}
+            <ErrorMessage msg={errors.parentId?.message?.toString()} />
+          </div>
+
+          <div className="relative grid gap-1 pb-4">
+            <Label className="text-sm font-medium" htmlFor="linkedCardIds">
+              Cards Relacionados (Irmãos)
+            </Label>
+            <Controller
+              control={control}
+              name="linkedCardIds"
+              defaultValue={task.linkedCardIds || []}
+              render={({ field }) => (
+                <CustomizedMultSelect
+                  value={field.value || []}
+                  onChange={field.onChange}
+                  placeholder="Selecione cards relacionados"
+                  options={todoOptions.map(todo => todo.title)}
+                />
+              )}
+            />
+            {todosError && <ErrorMessage msg="Erro ao carregar cards."/>}
+            <ErrorMessage msg={errors.linkedCardIds?.message?.toString()} />
           </div>
 
           <div className="relative grid gap-1 pb-4">

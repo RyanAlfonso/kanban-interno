@@ -1,45 +1,31 @@
-import { NextResponse } from 'next/server';
-import prisma from '@/lib/prismadb';
-import bcrypt from 'bcrypt';
+import { getAuthSession } from "@/lib/nextAuthOptions";
+import prisma from "@/lib/prismadb";
+import { getLogger } from "@/logger";
 
-export async function POST(req: Request) {
+export async function GET(req: Request) {
+  const logger = getLogger("info");
   try {
-    const body = await req.json();
-    const { name, email, password, type, areaIds } = body;
+    const session = await getAuthSession();
 
-    if (!name || !email || !password || !type || !areaIds) {
-      return new NextResponse('Missing fields', { status: 400 });
-    }
+    if (!session?.user) return new Response("Unauthorized", { status: 401 });
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    const user = await prisma.user.create({
-      data: {
-        name,
-        email,
-        password: hashedPassword,
-        type,
-        areaIds,
-      },
-    });
-
-    return NextResponse.json(user);
-  } catch (error) {
-    console.error(error);
-    return new NextResponse('Internal Server Error', { status: 500 });
-  }
-}
-
-export async function GET() {
-  try {
     const users = await prisma.user.findMany({
-      include: {
-        areas: true,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        image: true,
+        type: true,
+      },
+      orderBy: {
+        name: "asc",
       },
     });
-    return NextResponse.json(users);
+
+    return new Response(JSON.stringify(users), { status: 200 });
   } catch (error) {
-    console.error(error);
-    return new NextResponse('Internal Server Error', { status: 500 });
+    logger.error(error);
+    return new Response("Internal Server Error", { status: 500 });
   }
 }
+
