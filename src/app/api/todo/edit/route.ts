@@ -1,84 +1,115 @@
 import { getAuthSession } from "@/lib/nextAuthOptions";
+import prisma from "@/lib/prismadb";
 import { TodoEditValidator } from "@/lib/validators/todo";
 import { getLogger } from "@/logger";
-import prisma from "@/lib/prismadb";
+import { revalidatePath } from "next/cache";
 
 export async function PATCH(req) {
   const logger = getLogger("info");
   try {
     const session = await getAuthSession();
 
-    if (!session || !session?.user)
-      return new Response("Unauthorized", { status: 401 });
+    if (!session?.user) return new Response("Unauthorized", { status: 401 });
 
     const body = await req.json();
-    logger.info("--- Backend API (PATCH /edit): Received request body ---", JSON.stringify(body, null, 2));
+    const { id, title, description, deadline, label, tags, columnId, assignedToIds, parentId, linkedCardIds } = TodoEditValidator.parse(body);
 
-    const { id, title, description, deadline, label, tags, order, columnId, projectId } = // Added columnId, projectId AND tags
-      TodoEditValidator.parse(body);
-
-    logger.info("--- Backend API (PATCH /edit): Destructured tags from body ---", JSON.stringify(tags, null, 2));
-
-    // Fetch the existing record to compare
-    const record = await prisma.todo.findUnique({
-      where: {
-        id,
-        ownerId: session!.user!.id,
-        // isDeleted: false, // No need to check isDeleted here, as we're updating, not selecting for display
-      },
+    // Fetch the current todo to check ownership and get current column
+    const currentTodo = await prisma.todo.findUnique({
+      where: { id },
+      include: { column: true }
     });
 
-    if (!record) {
-      return new Response("Record Not Found", { status: 404 });
+    if (!currentTodo) {
+      return new Response("Todo not found", { status: 404 });
     }
 
-    // --- SIMPLIFIED LOGIC ---
-    // The complex reordering logic for other items based on `state` is removed for now.
-    // We will focus on updating the target item's columnId and order.
-    // A robust multi-item reordering solution would typically involve Prisma transactions
-    // and more complex logic to adjust orders in both source and destination columns.
+    if (currentTodo.ownerId !== session.user.id) {
+      return new Response("Unauthorized", { status: 401 });
+    }
 
-    const dataToUpdate: any = {};
+    // Prepare the update data
+    const dataToUpdate: any = {
+      title,
+      description,
+      deadline,
+      label,
+      tags,
+      assignedToIds, // Added assignedToIds
+      linkedCardIds, // Added linkedCardIds
+    };
 
-    if (title !== undefined) dataToUpdate.title = title;
-    if (description !== undefined) dataToUpdate.description = description;
-    if (deadline !== undefined) dataToUpdate.deadline = deadline;
-    if (label !== undefined) dataToUpdate.label = label;
-    if (tags !== undefined) dataToUpdate.tags = tags; // Added tags to dataToUpdate
-    if (order !== undefined) dataToUpdate.order = order;
-    if (columnId !== undefined) dataToUpdate.columnId = columnId;
-    if (projectId !== undefined) dataToUpdate.projectId = projectId;
+    // Handle parent connection/disconnection
+    if (parentId !== undefined) {
+      if (parentId === null) {
+        dataToUpdate.parent = { disconnect: true };
+      } else {
+        dataToUpdate.parent = { connect: { id: parentId } };
+      }
+    }
 
-    // Note: The 'state' field is being ignored here.
+    // Handle column change and movement history
+    if (columnId && columnId !== currentTodo.columnId) {
+      dataToUpdate.column = { connect: { id: columnId } };
+      
+      // Create movement history entry
+      dataToUpdate.movementHistory = {
+        create: {
+          movedBy: { connect: { id: session.user.id } },
+          fromColumn: { connect: { id: currentTodo.columnId } },
+          toColumn: { connect: { id: columnId } },
+          movedAt: new Date(),
+        }
+      };
+    }
 
     logger.info("--- Backend API (PATCH /edit): Data being sent to Prisma update ---", JSON.stringify(dataToUpdate, null, 2));
 
     // Perform the update for the single item
     const updatedTodo = await prisma.todo.update({
       where: {
-        id: record.id
+        id: id
       },
       data: dataToUpdate,
       include: {
         project: true,
         column: true,
         owner: true,
+        movementHistory: { // Include movement history
+          include: {
+            movedBy: { select: { id: true, name: true } },
+            fromColumn: { select: { id: true, name: true } },
+            toColumn: { select: { id: true, name: true } },
+          },
+          orderBy: { movedAt: "asc" },
+        },
+        parent: { select: { id: true, title: true } }, // Include parent
+        childTodos: { select: { id: true, title: true } }, // Include childTodos
+        // linkedCards: { select: { id: true, title: true } }, // Include linkedCards (if needed for display)
       }
     });
 
-    logger.info("--- Backend API (PATCH /edit): Todo returned from Prisma update ---", JSON.stringify(updatedTodo, null, 2));
+    // Fetch assigned users separately since we can\'t use direct relation
+    const assignedUsers = await prisma.user.findMany({
+      where: {
+        id: { in: updatedTodo.assignedToIds },
+      },
+      select: { id: true, name: true, email: true, image: true },
+    });
 
-    if (!updatedTodo) {
-      logger.error(`--- Backend API (PATCH /edit): Failed to fetch updated todo with id: ${record.id} after update operation.`);
-      return new Response("Failed to retrieve updated record after update.", { status: 500 });
-    }
+    const resultWithAssignedUsers = {
+      ...updatedTodo,
+      assignedTo: assignedUsers,
+    };
 
-    // Log the updated item that will be returned - this is already covered by the logger.info above.
-    // logger.info(`Successfully updated todo with id: ${updatedTodo.id}. Returning updated record.`);
+    // Revalidate the cache for the dashboard and board pages
+    revalidatePath("/dashboard");
+    revalidatePath("/");
 
-    return new Response(JSON.stringify(updatedTodo), { status: 200 });
+    return new Response(JSON.stringify(resultWithAssignedUsers), { status: 200 });
   } catch (error) {
-    logger.error("--- Backend API (PATCH /edit): Error in PATCH handler ---", error); // Enhanced error logging
+    logger.error(error);
     return new Response("Internal Server Error", { status: 500 });
   }
 }
+

@@ -60,3 +60,10 @@ export async function DELETE(req: NextRequest) {
     return new Response("Internal Server Error", { status: 500 });
   }
 }
+
+
+
+// Invalidate cache for todos query
+export const revalidate = 0;
+
+

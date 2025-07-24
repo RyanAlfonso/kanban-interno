@@ -4,12 +4,15 @@ import useDraggable from "@/hooks/useDraggable";
 import { getTagColor, PredefinedTag, TagColor } from "@/lib/tags";
 import { cn } from "@/lib/utils";
 import { openTodoEditor } from "@/redux/actions/todoEditorAction";
-import { Todo } from "@prisma/client";
+import { Todo, User } from "@prisma/client";
 import dayjs from "dayjs";
-import { Clock, Folder } from "lucide-react";
-import { FC, useCallback } from "react";
+import { Clock, Folder, Users, History, ArrowUp, ArrowDown, Link } from "lucide-react";
+import { FC, useCallback, useState } from "react";
 import { useDispatch } from "react-redux";
 import { useSearchParams } from "next/navigation";
+import { Badge } from "../ui/badge";
+import { Button } from "../ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@radix-ui/react-popover";
 
 interface ExtendedTodo extends Todo {
   project?: {
@@ -17,6 +20,35 @@ interface ExtendedTodo extends Todo {
     name: string;
   } | null;
   tags: string[];
+  assignedTo?: User[];
+  movementHistory?: {
+    id: string;
+    movedAt: Date;
+    movedBy: {
+      id: string;
+      name: string;
+    };
+    fromColumn: {
+      id: string;
+      name: string;
+    };
+    toColumn: {
+      id: string;
+      name: string;
+    };
+  }[];
+  parent?: {
+    id: string;
+    title: string;
+  } | null;
+  childTodos?: {
+    id: string;
+    title: string;
+  }[];
+  linkedCards?: {
+    id: string;
+    title: string;
+  }[];
 }
 
 type TodoProps = {
@@ -27,6 +59,7 @@ const TodoCard: FC<TodoProps> = ({ todo }) => {
   const dispatch = useDispatch();
   const searchParams = useSearchParams();
   const currentProjectId = searchParams.get("projectId") || "all";
+  const [showHistory, setShowHistory] = useState(false);
 
   const handleClick = useCallback(
     (e: MouseEvent) => {
@@ -62,11 +95,134 @@ const TodoCard: FC<TodoProps> = ({ todo }) => {
             </span>
           </div>
         )}
+
+        {todo.assignedTo && todo.assignedTo.length > 0 && (
+          <div className="mb-2 text-xs text-gray-600 dark:text-gray-300 flex items-center">
+            <Users className="h-3 w-3 mr-1" />
+            <span className="truncate">
+              {todo.assignedTo.map(user => user.name || user.email).join(", ")}
+            </span>
+          </div>
+        )}
+
+        {/* Card Parent (Hierárquico) */}
+        {todo.parent && (
+          <div className="mb-2 text-xs text-blue-600 dark:text-blue-400 flex items-center">
+            <ArrowUp className="h-3 w-3 mr-1" />
+            <span className="truncate" title={`Card pai: ${todo.parent.title}`}>
+              Pai: {todo.parent.title}
+            </span>
+          </div>
+        )}
+
+        {/* Child Cards (Hierárquico) */}
+        {todo.childTodos && todo.childTodos.length > 0 && (
+          <div className="mb-2 text-xs text-green-600 dark:text-green-400 flex items-center">
+            <ArrowDown className="h-3 w-3 mr-1" />
+            <span className="truncate">
+              Filhos: {todo.childTodos.length} card(s)
+            </span>
+          </div>
+        )}
+
+        {/* Linked Cards (Irmãos) */}
+        {todo.linkedCards && todo.linkedCards.length > 0 && (
+          <div className="mb-2 text-xs text-purple-600 dark:text-purple-400 flex items-center">
+            <Link className="h-3 w-3 mr-1" />
+            <span className="truncate">
+              Relacionados: {todo.linkedCards.length} card(s)
+            </span>
+          </div>
+        )}
         
         {todo.deadline && (
           <div className="mt-2 mb-2 text-xs text-gray-500 dark:text-gray-400 flex items-center">
             <Clock className="h-3 w-3 mr-1" />
             {dayjs(todo.deadline).format("DD/MM/YYYY")}
+          </div>
+        )}
+
+        {todo.movementHistory && todo.movementHistory.length > 0 && (
+          <div className="mt-2 mb-2">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-6 p-1 text-xs">
+                  <History className="h-3 w-3 mr-1" />
+                  Histórico ({todo.movementHistory.length})
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80 p-3 bg-white dark:bg-gray-900 border rounded-md shadow-md z-50">
+                <div className="space-y-2">
+                  <h4 className="font-medium text-sm">Histórico de Movimentação</h4>
+                  <div className="max-h-40 overflow-y-auto space-y-2">
+                    {todo.movementHistory.map((movement) => (
+                      <div key={movement.id} className="text-xs border-l-2 border-gray-200 pl-2">
+                        <div className="font-medium">
+                          {movement.movedBy.name} moveu de "{movement.fromColumn.name}" para "{movement.toColumn.name}"
+                        </div>
+                        <div className="text-gray-500">
+                          {dayjs(movement.movedAt).format("DD/MM/YYYY HH:mm")}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
+        )}
+
+        {/* Popover para mostrar detalhes das vinculações */}
+        {((todo.parent) || (todo.childTodos && todo.childTodos.length > 0) || (todo.linkedCards && todo.linkedCards.length > 0)) && (
+          <div className="mt-2 mb-2">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-6 p-1 text-xs">
+                  <Link className="h-3 w-3 mr-1" />
+                  Vinculações
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80 p-3 bg-white dark:bg-gray-900 border rounded-md shadow-md z-50">
+                <div className="space-y-3">
+                  <h4 className="font-medium text-sm">Vinculações do Card</h4>
+                  
+                  {todo.parent && (
+                    <div>
+                      <h5 className="text-xs font-medium text-blue-600 dark:text-blue-400 mb-1">Card Pai:</h5>
+                      <div className="text-xs bg-blue-50 dark:bg-blue-900/20 p-2 rounded">
+                        {todo.parent.title}
+                      </div>
+                    </div>
+                  )}
+
+                  {todo.childTodos && todo.childTodos.length > 0 && (
+                    <div>
+                      <h5 className="text-xs font-medium text-green-600 dark:text-green-400 mb-1">Cards Filhos:</h5>
+                      <div className="space-y-1">
+                        {todo.childTodos.map((child) => (
+                          <div key={child.id} className="text-xs bg-green-50 dark:bg-green-900/20 p-2 rounded">
+                            {child.title}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {todo.linkedCards && todo.linkedCards.length > 0 && (
+                    <div>
+                      <h5 className="text-xs font-medium text-purple-600 dark:text-purple-400 mb-1">Cards Relacionados:</h5>
+                      <div className="space-y-1">
+                        {todo.linkedCards.map((linked) => (
+                          <div key={linked.id} className="text-xs bg-purple-50 dark:bg-purple-900/20 p-2 rounded">
+                            {linked.title}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
         )}
       </div>

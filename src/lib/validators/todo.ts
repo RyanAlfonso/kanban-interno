@@ -10,6 +10,9 @@ export const TodoCreateValidator = z.object({
   tags: z.array(z.enum(PREDEFINED_TAGS)).optional(), // Added tags
   projectId: z.string().optional().nullable(),
   order: z.number().int().min(0, { message: "Order must be a non-negative integer." }).optional(), // Added order, optional as backend might set it
+  assignedToIds: z.array(z.string()).optional(), // Added assignedToIds
+  parentId: z.string().optional().nullable(), // Added parentId
+  linkedCardIds: z.array(z.string()).optional(), // Added linkedCardIds
 });
 
 export const TodoEditValidator = z.object({
@@ -23,6 +26,9 @@ export const TodoEditValidator = z.object({
   order: z.number().int().min(0, { message: "Order must be a non-negative integer." }).optional(),
   projectId: z.string().optional().nullable(),
   isDeleted: z.boolean().optional(), // Added isDeleted
+  assignedToIds: z.array(z.string()).optional(), // Added assignedToIds
+  parentId: z.string().optional().nullable(), // Added parentId
+  linkedCardIds: z.array(z.string()).optional(), // Added linkedCardIds
 });
 
 export const TodoDeleteValidator = z.object({
@@ -32,4 +38,8 @@ export const TodoDeleteValidator = z.object({
 export type TodoCreateRequest = z.infer<typeof TodoCreateValidator>;
 export type TodoEditRequest = z.infer<typeof TodoEditValidator>;
 export type TodoDeleteRequest = z.infer<typeof TodoDeleteValidator>;
+
+
+
+
 

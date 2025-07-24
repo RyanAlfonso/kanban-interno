@@ -48,12 +48,46 @@ export async function GET(req: NextRequest) {
         },
         column: { // Include column information
             select: { id: true, name: true, order: true }
-        }
-        // Add other relations like assignee, labels here when implemented
+        },
+        movementHistory: { // Include movement history
+          include: {
+            movedBy: { select: { id: true, name: true } },
+            fromColumn: { select: { id: true, name: true } },
+            toColumn: { select: { id: true, name: true } },
+          },
+          orderBy: { movedAt: "asc" },
+        },
+        parent: { select: { id: true, title: true } }, // Include parent
+        childTodos: { select: { id: true, title: true } }, // Include childTodos
       }
     });
 
-    return new Response(JSON.stringify(todos), { status: 200 });
+    // Fetch assigned users and linked cards separately since we can't use direct relation
+    const todosWithRelations = await Promise.all(
+      todos.map(async (todo) => {
+        const assignedUsers = await prisma.user.findMany({
+          where: {
+            id: { in: todo.assignedToIds },
+          },
+          select: { id: true, name: true, email: true, image: true },
+        });
+
+        const linkedCards = await prisma.todo.findMany({
+          where: {
+            id: { in: todo.linkedCardIds },
+          },
+          select: { id: true, title: true },
+        });
+
+        return {
+          ...todo,
+          assignedTo: assignedUsers,
+          linkedCards: linkedCards,
+        };
+      })
+    );
+
+    return new Response(JSON.stringify(todosWithRelations), { status: 200 });
   } catch (error) {
     logger.error("Error fetching todos:", error);
     return new Response("Internal Server Error", { status: 500 });
@@ -71,7 +105,7 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
     // Destructure columnId, remove state, add tags
-    const { title, description, columnId, label, tags, deadline, projectId, order } = body;
+    const { title, description, columnId, label, tags, deadline, projectId, order, assignedToIds, parentId, linkedCardIds } = body;
 
     if (!title || !columnId || order === undefined) {
       return new Response("Missing required fields: title, columnId, order", { status: 400 });
@@ -115,6 +149,9 @@ export async function POST(req: NextRequest) {
         projectId: projectId || null, // projectId can still be set directly if needed, or inferred later
         order,
         ownerId: session.user.id,
+        assignedToIds: assignedToIds || [], // Add assignedToIds
+        parentId: parentId || null, // Add parentId
+        linkedCardIds: linkedCardIds || [], // Add linkedCardIds
       },
     });
 
@@ -137,7 +174,7 @@ export async function PUT(req: NextRequest) {
 
     const body = await req.json();
     // Destructure columnId, remove state, add tags
-    const { id, title, description, columnId, label, tags, deadline, projectId, order, isDeleted } = body;
+    const { id, title, description, columnId, label, tags, deadline, projectId, order, isDeleted, assignedToIds, parentId, linkedCardIds } = body;
 
     // SERVER-SIDE LOGGING START
     const loggerForContext = getLogger("info"); // Use your existing logger or console.log
@@ -171,9 +208,22 @@ export async function PUT(req: NextRequest) {
             });
             if (!column || column.projectId !== projectId) {
                 return new Response("New column does not belong to the specified project", { status: 400 });
-            }
-        }
-    }
+            };
+        };
+    };
+
+    // Handle card movement history
+    const currentTodo = await prisma.todo.findUnique({ where: { id } });
+    if (currentTodo && columnId && currentTodo.columnId !== columnId) {
+      await prisma.cardMovementHistory.create({
+        data: {
+          todoId: id,
+          movedById: session.user.id,
+          fromColumnId: currentTodo.columnId,
+          toColumnId: columnId,
+        },
+      });
+    };
 
     // SERVER-SIDE LOGGING START
     const dataForPrismaUpdate = {
@@ -186,6 +236,9 @@ export async function PUT(req: NextRequest) {
       projectId: projectId || undefined,
       order: order !== undefined ? order : undefined,
       isDeleted: isDeleted !== undefined ? isDeleted : undefined,
+      assignedToIds: assignedToIds !== undefined ? assignedToIds : undefined, // Add assignedToIds
+      parentId: parentId !== undefined ? parentId : undefined, // Add parentId
+      linkedCardIds: linkedCardIds !== undefined ? linkedCardIds : undefined, // Add linkedCardIds
     };
     loggerForContext.info("--- Backend API (PUT): Data being sent to Prisma update ---", JSON.stringify(dataForPrismaUpdate, null, 2));
     // SERVER-SIDE LOGGING END
@@ -193,13 +246,54 @@ export async function PUT(req: NextRequest) {
     const updatedTodo = await prisma.todo.update({
       where: { id: id },
       data: dataForPrismaUpdate, // Use the constructed object
+      include: {
+        project: true,
+        column: true,
+        owner: true,
+        movementHistory: { // Include movement history
+          include: {
+            movedBy: { select: { id: true, name: true } },
+            fromColumn: { select: { id: true, name: true } },
+            toColumn: { select: { id: true, name: true } },
+          },
+          orderBy: { movedAt: "asc" },
+        },
+        parent: { select: { id: true, title: true } }, // Include parent
+        childTodos: { select: { id: true, title: true } }, // Include childTodos
+      }
     });
 
+    // Fetch assigned users and linked cards separately since we can't use direct relation
+    const assignedUsers = await prisma.user.findMany({
+      where: {
+        id: { in: updatedTodo.assignedToIds },
+      },
+      select: { id: true, name: true, email: true, image: true },
+    });
+
+    const linkedCards = await prisma.todo.findMany({
+      where: {
+        id: { in: updatedTodo.linkedCardIds },
+      },
+      select: { id: true, title: true },
+    });
+
+    const resultWithRelations = {
+      ...updatedTodo,
+      assignedTo: assignedUsers,
+      linkedCards: linkedCards,
+    };
+
     // SERVER-SIDE LOGGING START
-    loggerForContext.info("--- Backend API (PUT): Todo returned from Prisma update ---", JSON.stringify(updatedTodo, null, 2));
+    loggerForContext.info("--- Backend API (PUT): Todo returned from Prisma update ---", JSON.stringify(resultWithRelations, null, 2));
     // SERVER-SIDE LOGGING END
 
-    return new Response(JSON.stringify(updatedTodo), { status: 200 });
+    if (!updatedTodo) {
+      logger.error(`--- Backend API (PUT): Failed to fetch updated todo with id: ${record.id} after update operation.`);
+      return new Response("Failed to retrieve updated record after update.", { status: 500 });
+    }
+
+    return new Response(JSON.stringify(resultWithRelations), { status: 200 });
   } catch (error) {
     // SERVER-SIDE LOGGING START
     const loggerForCatch = getLogger("error"); // Use your existing logger or console.error
@@ -234,5 +328,8 @@ export async function DELETE(req: NextRequest) {
     return new Response("Internal Server Error", { status: 500 });
   }
 }
+
+
+
 
 
