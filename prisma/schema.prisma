@@ -46,35 +46,57 @@ model Todo {
   id          String   @id @default(auto()) @map("_id") @db.ObjectId
   title       String
   description String?
-  label       String[] @default([]) // This \"label\" field seems to be the old one. We\"ll add a new \"tags\" field.
-  tags        String[] @default([]) // New field for tags
-  deadline    Int? // Considerar mudar para DateTime?
+  label       String[] @default([])
+  tags        String[] @default([])
+  deadline    DateTime // Tornando Prazo obrigatório
   isDeleted   Boolean  @default(false)
-  order       Int // Order of the card within its column
+  order       Int
 
   ownerId String @db.ObjectId
   owner   User?  @relation(fields: [ownerId], references: [id])
 
-  // Adicionando campo para usuários responsáveis (apenas IDs)
-  assignedToIds String[] @db.ObjectId // IDs dos usuários responsáveis
+  assignedToIds String[] @db.ObjectId // Usuários Responsáveis (obrigatório)
 
-  // Adicionando relação com Projeto
-  projectId String? @db.ObjectId // Keep this for project-level association
+  projectId String? @db.ObjectId
   project   Project? @relation(fields: [projectId], references: [id])
 
-  columnId    String?   @db.ObjectId // ID of the ProjectColumn this Todo belongs to
-  column      ProjectColumn? @relation(fields: [columnId], references: [id], onDelete: SetNull) // If column is deleted, set Todo\"s columnId to null
+  columnId    String?   @db.ObjectId
+  column      ProjectColumn? @relation(fields: [columnId], references: [id], onDelete: SetNull)
 
-  // Histórico de movimentação do card
   movementHistory CardMovementHistory[]
 
-  // Vinculação entre cards - usando apenas IDs para simplificar
-  parentId      String? @db.ObjectId // Para cards hierárquicos (pai)
+  parentId      String? @db.ObjectId
   parent        Todo?   @relation("ChildTodos", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   childTodos    Todo[]  @relation("ChildTodos")
 
-  linkedCardIds String[] @db.ObjectId // Para cards irmãos ou relacionados (apenas IDs)
+  linkedCardIds String[] @db.ObjectId
 
+  comments      Comment[] // Novo campo para comentários
+  attachments   Attachment[] // Novo campo para anexos
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Comment {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  content   String
+  todoId    String   @db.ObjectId
+  todo      Todo     @relation(fields: [todoId], references: [id], onDelete: Cascade)
+  authorId  String   @db.ObjectId
+  author    User     @relation(fields: [authorId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Attachment {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  filename  String
+  url       String
+  todoId    String   @db.ObjectId
+  todo      Todo     @relation(fields: [todoId], references: [id], onDelete: Cascade)
+  uploadedById String @db.ObjectId
+  uploadedBy User   @relation(fields: [uploadedById], references: [id])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -90,6 +112,8 @@ model User {
   sessions      Session[]
 
   todos Todo[] // Todos criados pelo usuário (owner)
+  comments Comment[] // Relação inversa para comentários
+  attachments Attachment[] // Relação inversa para anexos
 
   // Histórico de movimentação que o usuário realizou
   cardMovements CardMovementHistory[]

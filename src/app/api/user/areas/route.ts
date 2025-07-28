@@ -1,3 +1,4 @@
+// Path: kanban-interno/src/app/api/user/areas/route.ts
 import { NextResponse } from "next/server";
 import { getAuthSession } from "@/lib/nextAuthOptions";
 import { Area } from "@prisma/client";

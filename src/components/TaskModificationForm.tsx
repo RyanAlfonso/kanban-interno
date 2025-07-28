@@ -191,7 +191,7 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
 
           <div className="relative grid gap-1 pb-4">
             <Label className="text-sm font-medium" htmlFor="assignedToIds">
-              Usuários Responsáveis
+              Usuários Responsáveis *
             </Label>
             <Controller
               control={control}
@@ -255,7 +255,7 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
 
           <div className="relative grid gap-1 pb-4">
             <Label className="text-sm font-medium" htmlFor="deadline">
-              Prazo
+              Prazo *
             </Label>
             <Controller
               control={control}
@@ -284,8 +284,8 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
                       mode="single"
                       selected={field.value ? new Date(field.value) : undefined}
                       onSelect={(date) => {
-                        const timestamp = date instanceof Date ? date.getTime() : null;
-                        field.onChange(timestamp);
+                        const isoString = date instanceof Date ? date.toISOString() : "";
+                        field.onChange(isoString);
                       }}
                       initialFocus
                       register={register("deadline")}
@@ -412,4 +412,3 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
 };
 
 export default TaskModificationForm;
-

@@ -1,8 +1,10 @@
+// Path: kanban-interno/src/app/api/todo/route.ts
 import { getAuthSession } from "@/lib/nextAuthOptions";
 import { getLogger } from "@/logger";
 import prisma from "@/lib/prismadb";
-import { NextRequest } from 'next/server';
-import { isValidTag, PREDEFINED_TAGS } from '@/lib/tags';
+import { NextRequest } from "next/server";
+import { isValidTag, PREDEFINED_TAGS } from "@/lib/tags";
+import { canMoveCard } from "@/lib/permissions";
 
 export async function GET(req: NextRequest) {
   const logger = getLogger("info");
@@ -26,7 +28,7 @@ export async function GET(req: NextRequest) {
 
     // Conditionally add projectId filter if provided
     // If projectId is 'all' or null/undefined, don't filter by project
-    if (projectId && projectId !== 'all') {
+    if (projectId && projectId !== "all") {
         whereClause.projectId = projectId;
     } else if (!projectId) {
         // Default behavior if no projectId is specified: maybe fetch only todos without a project?
@@ -96,7 +98,6 @@ export async function GET(req: NextRequest) {
 
 
 
-// POST /api/todo - Create a new todo
 export async function POST(req: NextRequest) {
   const logger = getLogger("info");
   try {
@@ -104,14 +105,25 @@ export async function POST(req: NextRequest) {
     if (!session?.user) return new Response("Unauthorized", { status: 401 });
 
     const body = await req.json();
-    // Destructure columnId, remove state, add tags
     const { title, description, columnId, label, tags, deadline, projectId, order, assignedToIds, parentId, linkedCardIds } = body;
 
     if (!title || !columnId || order === undefined) {
       return new Response("Missing required fields: title, columnId, order", { status: 400 });
     }
 
-    // Validate tags if provided
+    if (!assignedToIds || !Array.isArray(assignedToIds) || assignedToIds.length === 0) {
+      return new Response("Missing required field: assignedToIds (must be a non-empty array)", { status: 400 });
+    }
+
+    if (!deadline) {
+      return new Response("Missing required field: deadline", { status: 400 });
+    }
+
+    const parsedDeadline = new Date(deadline);
+    if (isNaN(parsedDeadline.getTime())) {
+      return new Response("Invalid deadline format. Must be a valid date.", { status: 400 });
+    }
+
     if (tags && Array.isArray(tags)) {
       for (const tag of tags) {
         if (!isValidTag(tag)) {
@@ -122,7 +134,6 @@ export async function POST(req: NextRequest) {
       return new Response("Tags must be an array of strings.", { status: 400 });
     }
 
-    // Optional: Validate that the columnId belongs to the projectId if both are provided
     if (columnId && projectId) {
       const column = await prisma.projectColumn.findUnique({
         where: { id: columnId },
@@ -131,22 +142,26 @@ export async function POST(req: NextRequest) {
       if (!column || column.projectId !== projectId) {
         return new Response("Column does not belong to the specified project", { status: 400 });
       }
-    } else if (columnId && !projectId) {
-        // If only columnId is given, we might want to infer projectId from the column
-        // For now, this is not strictly enforced here but could be a future enhancement.
-        // The schema ensures a column always has a projectId.
     }
 
+    const validUsers = await prisma.user.findMany({
+      where: { id: { in: assignedToIds } },
+      select: { id: true }
+    });
+
+    if (validUsers.length !== assignedToIds.length) {
+      return new Response("One or more assigned user IDs are invalid", { status: 400 });
+    }
 
     const newTodo = await prisma.todo.create({
       data: {
         title,
         description: description || null,
-        columnId, // Use columnId
-        label: label || [], // Keep existing label field behavior if necessary
-        tags: tags || [], // Add new tags field
-        deadline: deadline || null,
-        projectId: projectId || null, // projectId can still be set directly if needed, or inferred later
+        columnId,
+        label: label || [],
+        tags: tags || [],
+        deadline: parsedDeadline,
+        projectId: projectId || null,
         order,
         ownerId: session.user.id,
         assignedToIds: assignedToIds || [], // Add assignedToIds
@@ -212,9 +227,43 @@ export async function PUT(req: NextRequest) {
         };
     };
 
-    // Handle card movement history
-    const currentTodo = await prisma.todo.findUnique({ where: { id } });
+    // Handle card movement history and permissions
+    const currentTodo = await prisma.todo.findUnique({ 
+      where: { id },
+      include: {
+        column: { select: { name: true } }
+      }
+    });
+    
     if (currentTodo && columnId && currentTodo.columnId !== columnId) {
+      // Get user data with type
+      const user = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { type: true }
+      });
+
+      if (!user) {
+        return new Response("User not found", { status: 404 });
+      }
+
+      // Get column names for permission check
+      const fromColumn = currentTodo.column;
+      const toColumn = await prisma.projectColumn.findUnique({
+        where: { id: columnId },
+        select: { name: true }
+      });
+
+      if (!fromColumn || !toColumn) {
+        return new Response("Column not found", { status: 404 });
+      }
+
+      // Check if movement is allowed
+      const permissionCheck = canMoveCard(fromColumn.name, toColumn.name, user.type);
+      
+      if (!permissionCheck.allowed) {
+        return new Response(permissionCheck.error || "Movement not allowed", { status: 403 });
+      }
+
       await prisma.cardMovementHistory.create({
         data: {
           todoId: id,
@@ -328,8 +377,4 @@ export async function DELETE(req: NextRequest) {
     return new Response("Internal Server Error", { status: 500 });
   }
 }
-
-
-
-
 

@@ -1,7 +1,8 @@
+// Path: kanban-interno/src/app/api/attachments/route.ts
 import { getAuthSession } from "@/lib/nextAuthOptions";
 import { getLogger } from "@/logger";
 import prisma from "@/lib/prismadb";
-import { NextRequest } from 'next/server';
+import { NextRequest } from "next/server";
 
 export async function GET(req: NextRequest) {
   const logger = getLogger("info");
@@ -98,7 +99,7 @@ export async function DELETE(req: NextRequest) {
       return new Response("Attachment not found", { status: 404 });
     }
 
-    if (attachment.uploadedById !== session.user.id && session.user.role !== 'ADMIN') {
+    if (attachment.uploadedById !== session.user.id && session.user.role !== "ADMIN") {
       return new Response("Forbidden: You can only delete your own attachments", { status: 403 });
     }
 

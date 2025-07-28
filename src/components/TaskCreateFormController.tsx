@@ -37,11 +37,12 @@ const TaskCreateFormController: FC<TaskCreateFormProps> = ({
       title: "",
       description: "",
       columnId: task.columnId || undefined,
-      deadline: task.deadline || null,
+      deadline: "",
       label: [],
       tags: [],
       projectId: task.projectId || (searchParams.get("projectId") !== "all" ? searchParams.get("projectId") : null) || undefined,
       order: undefined,
+      assignedToIds: [],
     },
   });
 
@@ -96,4 +97,3 @@ const TaskCreateFormController: FC<TaskCreateFormProps> = ({
 };
 
 export default TaskCreateFormController;
-
