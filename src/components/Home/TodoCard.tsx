@@ -6,13 +6,14 @@ import { cn } from "@/lib/utils";
 import { openTodoEditor } from "@/redux/actions/todoEditorAction";
 import { Todo, User } from "@prisma/client";
 import dayjs from "dayjs";
-import { Clock, Folder, Users, History, ArrowUp, ArrowDown, Link } from "lucide-react";
+import { Clock, Folder, Users, History, ArrowUp, ArrowDown, Link, Share2 } from "lucide-react";
 import { FC, useCallback, useState } from "react";
 import { useDispatch } from "react-redux";
 import { useSearchParams } from "next/navigation";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@radix-ui/react-popover";
+import { useToast } from "../ui/use-toast";
 
 interface ExtendedTodo extends Todo {
   project?: {
@@ -60,6 +61,7 @@ const TodoCard: FC<TodoProps> = ({ todo }) => {
   const searchParams = useSearchParams();
   const currentProjectId = searchParams.get("projectId") || "all";
   const [showHistory, setShowHistory] = useState(false);
+  const { toast } = useToast();
 
   const handleClick = useCallback(
     (e: MouseEvent) => {
@@ -67,6 +69,32 @@ const TodoCard: FC<TodoProps> = ({ todo }) => {
       dispatch(openTodoEditor(todo, "/", "edit"));
     },
     [dispatch, todo],
+  );
+
+  const handleShare = useCallback(
+    async (e: React.MouseEvent) => {
+      e.stopPropagation();
+      try {
+        const response = await fetch(`/api/share/${todo.id}`);
+        if (!response.ok) {
+          throw new Error("Failed to generate share link");
+        }
+        const data = await response.json();
+        
+        await navigator.clipboard.writeText(data.shareableLink);
+        toast({
+          title: "Link copiado!",
+          description: "O link da tarefa foi copiado para a área de transferência.",
+        });
+      } catch (error) {
+        toast({
+          title: "Erro",
+          description: "Não foi possível gerar o link de compartilhamento.",
+          variant: "destructive",
+        });
+      }
+    },
+    [todo.id, toast],
   );
 
   const { setNodeRef, attributes } = useDraggable({
@@ -78,10 +106,19 @@ const TodoCard: FC<TodoProps> = ({ todo }) => {
 
   return (
     <div
-      className="border-zinc-100 hover:shadow-md rounded-md mb-2 mx-auto p-3 flex flex-col cursor-pointer bg-white dark:bg-gray-900 relative" // Added relative positioning
+      className="border-zinc-100 hover:shadow-md rounded-md mb-2 mx-auto p-3 flex flex-col cursor-pointer bg-white dark:bg-gray-900 relative group"
       ref={setNodeRef}
       {...attributes}
     >
+      <Button
+        variant="ghost"
+        size="sm"
+        className="absolute top-2 right-2 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+        onClick={handleShare}
+        title="Compartilhar tarefa"
+      >
+        <Share2 className="h-3 w-3" />
+      </Button>
       <div className="px-2 py-1 flex-grow">
         <div className="pb-2 font-bold overflow-hidden whitespace-nowrap text-ellipsis text-card-foreground">
           {todo.title}
@@ -252,4 +289,3 @@ const TodoCard: FC<TodoProps> = ({ todo }) => {
 };
 
 export default TodoCard;
-

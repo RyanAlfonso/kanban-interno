@@ -1,3 +1,4 @@
+// Path: kanban-interno/src/app/api/todo/create/route.ts
 import { getAuthSession } from "@/lib/nextAuthOptions";
 import prisma from "@/lib/prismadb";
 import { TodoCreateValidator } from "@/lib/validators/todo";
@@ -121,7 +122,7 @@ export async function POST(req) {
       }
     });
 
-    // Fetch assigned users separately since we can\'t use direct relation
+    // Fetch assigned users separately since we can\"t use direct relation
     const assignedUsers = await prisma.user.findMany({
       where: {
         id: { in: result.assignedToIds },
@@ -144,4 +145,3 @@ export async function POST(req) {
     return new Response("Internal Server Error", { status: 500 });
   }
 }
-

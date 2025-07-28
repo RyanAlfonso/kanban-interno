@@ -1,6 +1,7 @@
-import { NextResponse } from 'next/server';
-import prisma from '@/lib/prismadb';
-import bcrypt from 'bcrypt';
+// Path: kanban-interno/src/app/api/users/[id]/route.ts
+import { NextResponse } from "next/server";
+import prisma from "@/lib/prismadb";
+import bcrypt from "bcrypt";
 
 export async function PUT(req: Request, { params }: { params: { id: string } }) {
   try {
@@ -27,7 +28,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
     return NextResponse.json(user);
   } catch (error) {
     console.error(error);
-    return new NextResponse('Internal Server Error', { status: 500 });
+    return new NextResponse("Internal Server Error", { status: 500 });
   }
 }
 
@@ -41,6 +42,6 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
     return new NextResponse(null, { status: 204 });
   } catch (error) {
     console.error(error);
-    return new NextResponse('Internal Server Error', { status: 500 });
+    return new NextResponse("Internal Server Error", { status: 500 });
   }
 }

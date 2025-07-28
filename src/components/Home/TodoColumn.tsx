@@ -3,12 +3,13 @@
 import useDroppable from "@/hooks/useDroppable";
 import { cn } from "@/lib/utils";
 import { openTodoEditor } from "@/redux/actions/todoEditorAction";
+import { canCreateTaskInColumn } from "@/lib/columnPermissions";
 import { Todo } from "@prisma/client";
 import { PlusCircle, Trash2 } from "lucide-react";
 import { FC } from "react";
 import { useDispatch } from "react-redux";
 import { Badge } from "../ui/badge";
-import { useSession } from 'next-auth/react'; // Import useSession
+import { useSession } from 'next-auth/react';
 import { Button } from "../ui/button";
 import HomeTaskCreator from "./HomeTaskCreator";
 import TodoCard from "./TodoCard";
@@ -23,12 +24,14 @@ type TodoColumnProp = {
 
 const TodoColumn: FC<TodoColumnProp> = ({ title, todos, columnId, projectId, onDeleteColumn }) => {
   const dispatch = useDispatch();
-  const { data: session } = useSession(); // Get session
+  const { data: session } = useSession();
 
   const { setNodeRef } = useDroppable({ id: columnId });
 
   const genericColumnColor = "bg-slate-100 dark:bg-slate-800";
   const genericColumnHeaderColor = "text-slate-600 dark:text-slate-300";
+
+  const canCreateTask = canCreateTaskInColumn(title);
 
   const handleOpenDialog = () => {
     dispatch(openTodoEditor({ columnId: columnId, projectId: projectId }, "/", "create"));
@@ -64,14 +67,16 @@ const TodoColumn: FC<TodoColumnProp> = ({ title, todos, columnId, projectId, onD
               <Trash2 className="h-4 w-4" />
             </Button>
           )}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7"
-            onClick={() => handleOpenDialog()}
-          >
-            <PlusCircle className="h-4 w-4" />
-          </Button>
+          {canCreateTask && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => handleOpenDialog()}
+            >
+              <PlusCircle className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       </div>
       <div className="relative p-2 overflow-auto min-h-[50px]" ref={setNodeRef}>
@@ -81,7 +86,7 @@ const TodoColumn: FC<TodoColumnProp> = ({ title, todos, columnId, projectId, onD
             return <TodoCard todo={todo} key={todo.id.toString()} />;
           })}
       </div>
-      <HomeTaskCreator columnId={columnId} projectId={projectId} />
+      {canCreateTask && <HomeTaskCreator columnId={columnId} projectId={projectId} />}
     </div>
   );
 };
