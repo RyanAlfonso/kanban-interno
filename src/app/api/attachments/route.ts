@@ -1,4 +1,3 @@
-// Path: kanban-interno/src/app/api/attachments/route.ts
 import { getAuthSession } from "@/lib/nextAuthOptions";
 import { getLogger } from "@/logger";
 import prisma from "@/lib/prismadb";
