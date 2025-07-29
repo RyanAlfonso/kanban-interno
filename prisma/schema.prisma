@@ -51,6 +51,7 @@ model Todo {
   deadline    DateTime // Tornando Prazo obrigatório
   isDeleted   Boolean  @default(false)
   order       Int
+  referenceDocument String? // Novo campo: Documento de Referência (não obrigatório)
 
   ownerId String @db.ObjectId
   owner   User?  @relation(fields: [ownerId], references: [id])

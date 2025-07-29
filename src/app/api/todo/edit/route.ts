@@ -13,7 +13,7 @@ export async function PATCH(req: Request) {
     if (!session?.user) return new Response("Não autorizado", { status: 401 });
 
     const body = await req.json();
-    const { id, title, description, deadline, label, tags, columnId, assignedToIds, parentId, linkedCardIds } = TodoEditValidator.parse(body);
+    const { id, title, description, deadline, label, tags, columnId, assignedToIds, parentId, linkedCardIds, referenceDocument } = TodoEditValidator.parse(body);
 
     // Busca o 'todo' atual para verificar a propriedade e obter a coluna atual
     const currentTodo = await prisma.todo.findUnique({
@@ -38,6 +38,7 @@ export async function PATCH(req: Request) {
       tags,
       assignedToIds, // Adiciona os IDs dos usuários atribuídos
       linkedCardIds, // Adiciona os IDs dos cards vinculados
+      referenceDocument, // Adiciona o documento de referência
     };
 
     // Lida com a conexão/desconexão do 'parent' (tarefa-pai)

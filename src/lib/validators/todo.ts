@@ -17,6 +17,7 @@ export const TodoCreateValidator = z.object({
   assignedToIds: z.array(z.string()).optional(), // Tornando opcional, já que o min(1) foi removido em outro ponto
   parentId: z.string().optional().nullable(),
   linkedCardIds: z.array(z.string()).optional(),
+  referenceDocument: z.string().max(500, { message: "O documento de referência não pode exceder 500 caracteres." }).optional().nullable(),
 });
 
 export const TodoEditValidator = z.object({
@@ -33,6 +34,7 @@ export const TodoEditValidator = z.object({
   assignedToIds: z.array(z.string()).optional(),
   parentId: z.string().optional().nullable(),
   linkedCardIds: z.array(z.string()).optional(),
+  referenceDocument: z.string().max(500, { message: "O documento de referência não pode exceder 500 caracteres." }).optional().nullable(),
 });
 
 export const TodoDeleteValidator = z.object({

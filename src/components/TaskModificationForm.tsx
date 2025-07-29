@@ -11,8 +11,8 @@ import {
 } from "@radix-ui/react-popover";
 import { AxiosError } from "axios";
 import dayjs from "dayjs";
-import { CalendarIcon, X } from "lucide-react";
-import { FC, lazy } from "react";
+import { CalendarIcon, X, PaperclipIcon } from "lucide-react";
+import { FC, lazy, useState } from "react";
 import { Controller, UseFormReturn } from "react-hook-form";
 import { UseMutationResult, useQuery } from "@tanstack/react-query";
 import "react-quill/dist/quill.snow.css";
@@ -51,7 +51,8 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
   formFunctionReturn,
 }) => {
   const { md } = useBreakpoint();
-  useToast();
+  const { toast } = useToast();
+  const [isUploading, setIsUploading] = useState(false);
   const {
     handleSubmit,
     register,
@@ -109,6 +110,54 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
 
   const ErrorMessage = ({ msg }: ErrorMessageProps) => {
     return msg ? <span className="text-red-500 text-xs">{msg}</span> : null;
+  };
+
+  const handleAttachmentChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!event.target.files || event.target.files.length === 0) {
+      return;
+    }
+
+    if (!task.id) {
+      toast({
+        title: "Erro",
+        description: "Por favor, crie ou salve a tarefa antes de adicionar anexos.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsUploading(true);
+    const formData = new FormData();
+    for (const file of Array.from(event.target.files)) {
+      formData.append("files", file);
+    }
+
+    try {
+      const response = await fetch(`/api/attachments/upload/${task.id}`, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error("Falha ao fazer upload do anexo.");
+      }
+
+      const result = await response.json();
+      toast({
+        title: "Sucesso!",
+        description: `${result.uploadedCount} anexo(s) enviado(s) com sucesso.`, 
+      });
+      // Opcional: Atualizar o estado da tarefa ou recarregar dados para mostrar o novo anexo
+    } catch (error: any) {
+      toast({
+        title: "Erro",
+        description: error.message || "Não foi possível enviar o anexo.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploading(false);
+      event.target.value = ""; // Limpa o input para permitir o upload do mesmo arquivo novamente
+    }
   };
 
   const ExtraInfoField = () => {
@@ -297,6 +346,19 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
                 <ErrorMessage msg={errors.title?.message?.toString()} />
               </div>
 
+              <div className="relative grid gap-1">
+                <Label className="text-sm font-medium" htmlFor="referenceDocument">
+                  Documento de Referência
+                </Label>
+                <Input
+                  id="referenceDocument"
+                  className="w-full h-9 px-3 py-2 text-sm"
+                  placeholder="URL ou nome do documento (opcional)"
+                  {...register("referenceDocument")}
+                />
+                <ErrorMessage msg={errors.referenceDocument?.message?.toString()} />
+              </div>
+
               {!md && <ExtraInfoField />}
 
               <div className="relative grid gap-1 h-80">
@@ -333,6 +395,24 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
                     Excluir Tarefa
                   </Button>
                 )}
+                <input
+                  id="attachment-upload"
+                  type="file"
+                  multiple
+                  className="hidden"
+                  onChange={handleAttachmentChange}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => document.getElementById("attachment-upload")?.click()}
+                  className="ml-auto"
+                  isLoading={isUploading}
+                  disabled={isUploading}
+                >
+                  <PaperclipIcon className="mr-2 h-4 w-4" />
+                  Anexar
+                </Button>
               </div>
             </div>
 
