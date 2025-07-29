@@ -1,59 +1,63 @@
-// Path: kanban-interno/src/app/api/todo/edit/route.ts
+// Caminho: kanban-interno/src/app/api/todo/edit/route.ts
 import { getAuthSession } from "@/lib/nextAuthOptions";
 import prisma from "@/lib/prismadb";
 import { TodoEditValidator } from "@/lib/validators/todo";
 import { getLogger } from "@/logger";
 import { revalidatePath } from "next/cache";
 
-export async function PATCH(req) {
+export async function PATCH(req: Request) {
   const logger = getLogger("info");
   try {
     const session = await getAuthSession();
 
-    if (!session?.user) return new Response("Unauthorized", { status: 401 });
+    if (!session?.user) return new Response("Não autorizado", { status: 401 });
 
     const body = await req.json();
     const { id, title, description, deadline, label, tags, columnId, assignedToIds, parentId, linkedCardIds } = TodoEditValidator.parse(body);
 
-    // Fetch the current todo to check ownership and get current column
+    // Busca o 'todo' atual para verificar a propriedade e obter a coluna atual
     const currentTodo = await prisma.todo.findUnique({
       where: { id },
       include: { column: true }
     });
 
     if (!currentTodo) {
-      return new Response("Todo not found", { status: 404 });
+      return new Response("Tarefa não encontrada", { status: 404 });
     }
 
     if (currentTodo.ownerId !== session.user.id) {
-      return new Response("Unauthorized", { status: 401 });
+      return new Response("Não autorizado", { status: 401 });
     }
 
-    // Prepare the update data
+    // Prepara os dados para a atualização
     const dataToUpdate: any = {
       title,
       description,
       deadline,
       label,
       tags,
-      assignedToIds, // Added assignedToIds
-      linkedCardIds, // Added linkedCardIds
+      assignedToIds, // Adiciona os IDs dos usuários atribuídos
+      linkedCardIds, // Adiciona os IDs dos cards vinculados
     };
 
-    // Handle parent connection/disconnection
+    // Lida com a conexão/desconexão do 'parent' (tarefa-pai)
     if (parentId !== undefined) {
-      if (parentId === null) {
-        dataToUpdate.parent = { disconnect: true };
-      } else {
+      // Se parentId for uma string não vazia, conecta a relação.
+      if (parentId) {
         dataToUpdate.parent = { connect: { id: parentId } };
+      }
+      // Caso contrário (se parentId for nulo ou uma string vazia), 
+      // desconecta o 'parent' atual, se ele existir.
+      else if (currentTodo.parentId) {
+        dataToUpdate.parent = { disconnect: true };
       }
     }
 
-    // Handle column change and movement history
+    // Lida com a mudança de coluna e o histórico de movimentação
     if (columnId && columnId !== currentTodo.columnId) {
       dataToUpdate.column = { connect: { id: columnId } };
       
-      // Create movement history entry
+      // Cria uma entrada no histórico de movimentação
       dataToUpdate.movementHistory = {
         create: {
           movedBy: { connect: { id: session.user.id } },
@@ -64,9 +68,9 @@ export async function PATCH(req) {
       };
     }
 
-    logger.info("--- Backend API (PATCH /edit): Data being sent to Prisma update ---", JSON.stringify(dataToUpdate, null, 2));
+    logger.info("--- API Backend (PATCH /edit): Dados sendo enviados para o Prisma update ---", JSON.stringify(dataToUpdate, null, 2));
 
-    // Perform the update for the single item
+    // Executa a atualização para o item individual
     const updatedTodo = await prisma.todo.update({
       where: {
         id: id
@@ -76,7 +80,7 @@ export async function PATCH(req) {
         project: true,
         column: true,
         owner: true,
-        movementHistory: { // Include movement history
+        movementHistory: { // Inclui o histórico de movimentação
           include: {
             movedBy: { select: { id: true, name: true } },
             fromColumn: { select: { id: true, name: true } },
@@ -84,13 +88,12 @@ export async function PATCH(req) {
           },
           orderBy: { movedAt: "asc" },
         },
-        parent: { select: { id: true, title: true } }, // Include parent
-        childTodos: { select: { id: true, title: true } }, // Include childTodos
-        // linkedCards: { select: { id: true, title: true } }, // Include linkedCards (if needed for display)
+        parent: { select: { id: true, title: true } },     // Inclui o 'parent'
+        childTodos: { select: { id: true, title: true } }, // Inclui os 'childTodos'
       }
     });
 
-    // Fetch assigned users separately since we can\"t use direct relation
+    // Busca os usuários atribuídos separadamente, pois não podemos usar a relação direta
     const assignedUsers = await prisma.user.findMany({
       where: {
         id: { in: updatedTodo.assignedToIds },
@@ -103,13 +106,16 @@ export async function PATCH(req) {
       assignedTo: assignedUsers,
     };
 
-    // Revalidate the cache for the dashboard and board pages
+    // Revalida o cache para as páginas do dashboard e do board
     revalidatePath("/dashboard");
     revalidatePath("/");
 
     return new Response(JSON.stringify(resultWithAssignedUsers), { status: 200 });
   } catch (error) {
     logger.error(error);
-    return new Response("Internal Server Error", { status: 500 });
+    if (error instanceof z.ZodError) {
+        return new Response(JSON.stringify(error.issues), { status: 400 });
+    }
+    return new Response("Erro Interno do Servidor", { status: 500 });
   }
 }
