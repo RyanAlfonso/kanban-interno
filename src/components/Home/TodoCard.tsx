@@ -142,6 +142,16 @@ const TodoCard: FC<TodoProps> = ({ todo }) => {
           </div>
         )}
 
+        {/* Documento de Referência */}
+        {todo.referenceDocument && (
+          <div className="mb-2 text-xs text-gray-600 dark:text-gray-300 flex items-center">
+            <Folder className="h-3 w-3 mr-1" />
+            <span className="truncate" title={`Documento: ${todo.referenceDocument}`}>
+              Doc: {todo.referenceDocument}
+            </span>
+          </div>
+        )}
+
         {/* Card Parent (Hierárquico) */}
         {todo.parent && (
           <div className="mb-2 text-xs text-blue-600 dark:text-blue-400 flex items-center">

@@ -1,35 +1,45 @@
 import { getAuthSession } from "@/lib/nextAuthOptions";
 import { getLogger } from "@/logger";
 import prisma from "@/lib/prismadb";
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server"; // Importar NextResponse para facilitar
+
+// Função helper para criar respostas de erro padronizadas
+const createErrorResponse = (message: string, status: number) => {
+  return new NextResponse(JSON.stringify({ message }), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+};
 
 export async function GET(req: NextRequest) {
   const logger = getLogger("info");
   try {
     const session = await getAuthSession();
-    if (!session?.user) return new Response("Unauthorized", { status: 401 });
+    if (!session?.user) {
+      return createErrorResponse("Unauthorized", 401);
+    }
 
     const url = new URL(req.url);
     const todoId = url.searchParams.get("todoId");
 
     if (!todoId) {
-      return new Response("Missing required parameter: todoId", { status: 400 });
+      return createErrorResponse("Missing required parameter: todoId", 400);
     }
 
     const attachments = await prisma.attachment.findMany({
       where: { todoId },
       include: {
         uploadedBy: {
-          select: { id: true, name: true, image: true }
-        }
+          select: { id: true, name: true, image: true },
+        },
       },
-      orderBy: { createdAt: "desc" }
+      orderBy: { createdAt: "desc" },
     });
 
-    return new Response(JSON.stringify(attachments), { status: 200 });
+    return NextResponse.json(attachments, { status: 200 });
   } catch (error) {
     logger.error("Error fetching attachments:", error);
-    return new Response("Internal Server Error", { status: 500 });
+    return createErrorResponse("Internal Server Error", 500);
   }
 }
 
@@ -37,22 +47,24 @@ export async function POST(req: NextRequest) {
   const logger = getLogger("info");
   try {
     const session = await getAuthSession();
-    if (!session?.user) return new Response("Unauthorized", { status: 401 });
+    if (!session?.user) {
+      return createErrorResponse("Unauthorized", 401);
+    }
 
     const body = await req.json();
     const { filename, url, todoId } = body;
 
     if (!filename || !url || !todoId) {
-      return new Response("Missing required fields: filename, url, todoId", { status: 400 });
+      return createErrorResponse("Missing required fields: filename, url, todoId", 400);
     }
 
     const todo = await prisma.todo.findUnique({
       where: { id: todoId },
-      select: { id: true }
+      select: { id: true },
     });
 
     if (!todo) {
-      return new Response("Todo not found", { status: 404 });
+      return createErrorResponse("Todo not found", 404);
     }
 
     const newAttachment = await prisma.attachment.create({
@@ -60,19 +72,23 @@ export async function POST(req: NextRequest) {
         filename,
         url,
         todoId,
-        uploadedById: session.user.id
+        uploadedById: session.user.id,
       },
       include: {
         uploadedBy: {
-          select: { id: true, name: true, image: true }
-        }
-      }
+          select: { id: true, name: true, image: true },
+        },
+      },
     });
 
-    return new Response(JSON.stringify(newAttachment), { status: 201 });
+    return NextResponse.json(newAttachment, { status: 201 });
   } catch (error) {
+    // Adiciona verificação para erros de parse do JSON no corpo da requisição
+    if (error instanceof SyntaxError) {
+      return createErrorResponse("Invalid JSON in request body", 400);
+    }
     logger.error("Error creating attachment:", error);
-    return new Response("Internal Server Error", { status: 500 });
+    return createErrorResponse("Internal Server Error", 500);
   }
 }
 
@@ -80,35 +96,39 @@ export async function DELETE(req: NextRequest) {
   const logger = getLogger("info");
   try {
     const session = await getAuthSession();
-    if (!session?.user) return new Response("Unauthorized", { status: 401 });
+    if (!session?.user) {
+      return createErrorResponse("Unauthorized", 401);
+    }
 
     const url = new URL(req.url);
     const attachmentId = url.searchParams.get("id");
 
     if (!attachmentId) {
-      return new Response("Missing required parameter: id", { status: 400 });
+      return createErrorResponse("Missing required parameter: id", 400);
     }
 
     const attachment = await prisma.attachment.findUnique({
       where: { id: attachmentId },
-      select: { uploadedById: true }
+      select: { uploadedById: true },
     });
 
     if (!attachment) {
-      return new Response("Attachment not found", { status: 404 });
+      return createErrorResponse("Attachment not found", 404);
     }
 
+    // Verifica se o usuário é admin ou o dono do anexo
     if (attachment.uploadedById !== session.user.id && session.user.role !== "ADMIN") {
-      return new Response("Forbidden: You can only delete your own attachments", { status: 403 });
+      return createErrorResponse("Forbidden: You can only delete your own attachments", 403);
     }
 
     await prisma.attachment.delete({
-      where: { id: attachmentId }
+      where: { id: attachmentId },
     });
 
-    return new Response("Attachment deleted successfully", { status: 200 });
+    // Retorna uma resposta de sucesso com uma mensagem JSON
+    return NextResponse.json({ message: "Attachment deleted successfully" }, { status: 200 });
   } catch (error) {
     logger.error("Error deleting attachment:", error);
-    return new Response("Internal Server Error", { status: 500 });
+    return createErrorResponse("Internal Server Error", 500);
   }
 }

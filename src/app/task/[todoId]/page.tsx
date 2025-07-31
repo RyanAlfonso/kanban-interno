@@ -14,6 +14,7 @@ interface SharedTodo {
   description?: string;
   deadline: string;
   tags: string[];
+  referenceDocument?: string;
   owner: {
     id: string;
     name: string;
@@ -140,6 +141,21 @@ export default function SharedTaskPage() {
               <h3 className="font-semibold mb-2">Descrição</h3>
               <div className="prose prose-sm max-w-none">
                 <div dangerouslySetInnerHTML={{ __html: todo.description }} />
+              </div>
+            </div>
+          )}
+
+          {todo.referenceDocument && (
+            <div>
+              <h3 className="font-semibold mb-2">Documento de Referência</h3>
+              <div className="text-sm text-blue-600 hover:underline">
+                {todo.referenceDocument.startsWith('http') ? (
+                  <a href={todo.referenceDocument} target="_blank" rel="noopener noreferrer">
+                    {todo.referenceDocument}
+                  </a>
+                ) : (
+                  <span>{todo.referenceDocument}</span>
+                )}
               </div>
             </div>
           )}
