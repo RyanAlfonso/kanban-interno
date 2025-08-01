@@ -4,11 +4,11 @@ import { UserType } from "@prisma/client";
 
 // Usar constantes para os nomes das colunas.
 export const COLUMNS = {
-  BACKLOG: "Backlog",
-  EM_EXECUCAO: "Em Execução",
+  BACKLOG: "BackLog",
+  EM_EXECUCAO: "Em execução",
   EM_APROVACAO: "Em Aprovação",
   MONITORAMENTO: "Monitoramento",
-  CONCLUIDO: "Concluído",
+  CONCLUIDA: "Concluída",
 };
 
 // ================== A CORREÇÃO ESTÁ AQUI ==================
@@ -52,7 +52,7 @@ export function canMoveCard(
       USER_TYPES.SERVIDOR,
     ],
     // 3.2 - Aprovar demanda (Apenas Servidores)
-    [`${COLUMNS.EM_APROVACAO} -> ${COLUMNS.CONCLUIDO}`]: [USER_TYPES.SERVIDOR],
+    [`${COLUMNS.EM_APROVACAO} -> ${COLUMNS.CONCLUIDA}`]: [USER_TYPES.SERVIDOR],
     // 3.3 - Revisar demanda (Apenas Servidores)
     [`${COLUMNS.EM_APROVACAO} -> ${COLUMNS.EM_EXECUCAO}`]: [
       USER_TYPES.SERVIDOR,
@@ -60,7 +60,7 @@ export function canMoveCard(
     // 4.1 - Retomar demanda (Todos)
     [`${COLUMNS.MONITORAMENTO} -> ${COLUMNS.EM_EXECUCAO}`]: "ALL",
     // 4.2 - Finalizar demanda (Apenas Servidores)
-    [`${COLUMNS.MONITORAMENTO} -> ${COLUMNS.CONCLUIDO}`]: [USER_TYPES.SERVIDOR],
+    [`${COLUMNS.MONITORAMENTO} -> ${COLUMNS.CONCLUIDA}`]: "ALL",
   };
 
   const permission = allowedMovements[movement];
@@ -101,12 +101,12 @@ export function getAvailableMovements(
     [`${COLUMNS.EM_APROVACAO} -> ${COLUMNS.MONITORAMENTO}`]: [
       USER_TYPES.SERVIDOR,
     ],
-    [`${COLUMNS.EM_APROVACAO} -> ${COLUMNS.CONCLUIDO}`]: [USER_TYPES.SERVIDOR],
+    [`${COLUMNS.EM_APROVACAO} -> ${COLUMNS.CONCLUIDA}`]: [USER_TYPES.SERVIDOR],
     [`${COLUMNS.EM_APROVACAO} -> ${COLUMNS.EM_EXECUCAO}`]: [
       USER_TYPES.SERVIDOR,
     ],
     [`${COLUMNS.MONITORAMENTO} -> ${COLUMNS.EM_EXECUCAO}`]: "ALL",
-    [`${COLUMNS.MONITORAMENTO} -> ${COLUMNS.CONCLUIDO}`]: [USER_TYPES.SERVIDOR],
+    [`${COLUMNS.MONITORAMENTO} -> ${COLUMNS.CONCLUIDA}`]: [USER_TYPES.SERVIDOR],
   };
 
   Object.entries(allowedMovements).forEach(([movement, permission]) => {

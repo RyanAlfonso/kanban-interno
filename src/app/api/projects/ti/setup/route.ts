@@ -3,14 +3,19 @@ import { getAuthSession } from "@/lib/nextAuthOptions";
 import { getLogger } from "@/logger";
 import prisma from "@/lib/prismadb";
 import { NextRequest } from "next/server";
+// ================== CORREÇÃO APLICADA AQUI ==================
+// 1. Importe as constantes do seu arquivo de permissões.
+import { COLUMNS } from "@/lib/permissions";
 
+// 2. Use as constantes importadas para definir as colunas.
 const TI_COLUMNS = [
-  { name: "BackLog", order: 1 },
-  { name: "Em execução", order: 2 },
-  { name: "Em Aprovação", order: 3 },
-  { name: "Monitoramento", order: 4 },
-  { name: "Concluída", order: 5 }
+  { name: COLUMNS.BACKLOG, order: 1 },
+  { name: COLUMNS.EM_EXECUCAO, order: 2 },
+  { name: COLUMNS.EM_APROVACAO, order: 3 },
+  { name: COLUMNS.MONITORAMENTO, order: 4 },
+  { name: COLUMNS.CONCLUIDA, order: 5 }
 ];
+// ============================================================
 
 export async function POST(req: NextRequest) {
   const logger = getLogger("info");
