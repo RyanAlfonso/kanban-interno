@@ -7,7 +7,6 @@ import { NextRequest } from "next/server";
 import { isValidTag, PREDEFINED_TAGS } from "@/lib/tags";
 import { canMoveCard } from "@/lib/permissions";
 
-// A função GET permanece a mesma que na resposta anterior (já está correta)
 export async function GET(req: NextRequest) {
   const logger = getLogger("info");
   try {
@@ -81,12 +80,11 @@ export async function GET(req: NextRequest) {
 
     return new Response(JSON.stringify(todosWithRelations), { status: 200 });
   } catch (error) {
-    logger.error("Error fetching todos:", error);
+    logger.error("Error fetching todos:", { error });
     return new Response("Internal Server Error", { status: 500 });
   }
 }
 
-// A função POST permanece a mesma
 export async function POST(req: NextRequest) {
   const logger = getLogger("info");
   try {
@@ -184,17 +182,18 @@ export async function POST(req: NextRequest) {
     });
     return new Response(JSON.stringify(newTodo), { status: 201 });
   } catch (error) {
-    logger.error("Error creating todo:", error);
+    logger.error("Error creating todo:", { error });
     return new Response("Internal Server Error", { status: 500 });
   }
 }
 
-// A função PUT é a que recebe as alterações na lógica de permissão
 export async function PUT(req: NextRequest) {
   const logger = getLogger("info");
   try {
     const session = await getAuthSession();
-    if (!session?.user) return new Response("Unauthorized", { status: 401 });
+    if (!session?.user) {
+      return new Response("Unauthorized", { status: 401 });
+    }
 
     const body = await req.json();
     const { id, columnId, ...otherData } = body;
@@ -213,15 +212,18 @@ export async function PUT(req: NextRequest) {
     }
 
     const dataForPrismaUpdate: any = { ...otherData };
+    const isMovingCard =
+      columnId && currentTodo.columnId && currentTodo.columnId !== columnId;
 
-    // Lógica de movimentação de card
-    if (columnId && currentTodo.columnId && currentTodo.columnId !== columnId) {
-      // ================== LÓGICA DE PERMISSÃO CORRIGIDA ==================
+    if (isMovingCard) {
+      let hasPermission = false;
+      let permissionError = "Você não tem permissão para realizar esta ação.";
 
-      // 1. Se o usuário for ADMIN, permite o movimento sem verificar as regras.
-      if (session.user.role !== "ADMIN") {
+      if (session.user.role === "ADMIN") {
+        hasPermission = true;
+      } else {
         const fromColumn = await prisma.projectColumn.findUnique({
-          where: { id: currentTodo.columnId },
+          where: { id: currentTodo.columnId! },
           select: { name: true },
         });
         const toColumn = await prisma.projectColumn.findUnique({
@@ -235,32 +237,34 @@ export async function PUT(req: NextRequest) {
           });
         }
 
-        // 2. Chama a função de verificação centralizada.
         const permissionCheck = canMoveCard(
           fromColumn.name,
           toColumn.name,
           session.user.type
         );
-
-        if (!permissionCheck.allowed) {
-          return new Response(permissionCheck.error, { status: 403 });
+        
+        if (permissionCheck.allowed) {
+          hasPermission = true;
+        } else {
+          // CORREÇÃO APLICADA AQUI
+          permissionError = permissionCheck.error || "Movimento não permitido pelas regras do projeto.";
         }
       }
 
-      // ======================================================================
+      if (!hasPermission) {
+        return new Response(permissionError, { status: 403 });
+      }
 
-      // Se a permissão foi concedida, aninha a criação do histórico na atualização
+      dataForPrismaUpdate.columnId = columnId;
       dataForPrismaUpdate.movementHistory = {
         create: {
           movedById: session.user.id,
-          fromColumnId: currentTodo.columnId,
+          fromColumnId: currentTodo.columnId!,
           toColumnId: columnId,
         },
       };
-      dataForPrismaUpdate.columnId = columnId;
     }
 
-    // Atualiza o restante dos dados
     const updatedTodo = await prisma.todo.update({
       where: { id: id },
       data: dataForPrismaUpdate,
@@ -291,7 +295,6 @@ export async function PUT(req: NextRequest) {
       },
     });
 
-    // Busca relações indiretas
     const assignedUsers = await prisma.user.findMany({
       where: { id: { in: updatedTodo.assignedToIds } },
       select: { id: true, name: true, email: true, image: true },
@@ -309,32 +312,7 @@ export async function PUT(req: NextRequest) {
 
     return new Response(JSON.stringify(resultWithRelations), { status: 200 });
   } catch (error) {
-    logger.error("Error updating todo:", error);
-    return new Response("Internal Server Error", { status: 500 });
-  }
-}
-
-// A função DELETE permanece a mesma
-export async function DELETE(req: NextRequest) {
-  const logger = getLogger("info");
-  try {
-    const session = await getAuthSession();
-    if (!session?.user) return new Response("Unauthorized", { status: 401 });
-
-    const body = await req.json();
-    const { id } = body;
-
-    if (!id) {
-      return new Response("Todo ID is required", { status: 400 });
-    }
-
-    const deletedTodo = await prisma.todo.delete({
-      where: { id: id },
-    });
-
-    return new Response(JSON.stringify(deletedTodo), { status: 200 });
-  } catch (error) {
-    logger.error("Error deleting todo:", error);
+    logger.error("Error updating todo:", { error });
     return new Response("Internal Server Error", { status: 500 });
   }
 }

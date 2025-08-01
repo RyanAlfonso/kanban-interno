@@ -1,55 +1,33 @@
-import { Todo } from "@prisma/client";
-
-export const TASK_STATE_OPTIONS: Readonly<
-  {
-    value: Todo["state"];
-    title: string;
-  }[]
-> = Object.freeze([
-  {
-    value: "687fcbd4ae88c19be04bc09d",
-    title: "Backlog",
+// Path: kanban-interno/src/lib/const.ts
+export const COLUMN_COLORS: Record<string, { bg: string; header: string }> = Object.freeze({
+  "Backlog": {
+    bg: "bg-slate-50 dark:bg-slate-950",
+    header: "bg-slate-200 dark:bg-slate-800",
   },
-  {
-    value: "687fcbdfae88c19be04bc09f",
-    title: "Em Execução",
-  },
-  {
-    value: "687fcbe1ae88c19be04bc0a0",
-    title: "Em Aprovação",
-  },
-  {
-    value: "687fcbe4ae88c19be04bc0a1",
-    title: "Monitoramento",
-  },
-  {
-    value: "687fcbe7ae88c19be04bc0a2",
-    title: "Concluído",
-  },
-]);
-
-export const COLUMN_COLORS: Record<
-  Todo["state"],
-  { bg: string; header: string }
-> = Object.freeze({
-  TODO: {
+  "Em Execução": {
     bg: "bg-blue-50 dark:bg-blue-950",
-    header: "bg-blue-100 dark:bg-blue-900",
+    header: "bg-blue-200 dark:bg-blue-900",
   },
-  IN_PROGRESS: {
+  "Em Aprovação": {
     bg: "bg-amber-50 dark:bg-amber-950",
-    header: "bg-amber-100 dark:bg-amber-900",
+    header: "bg-amber-200 dark:bg-amber-900",
   },
-  REVIEW: {
+  "Monitoramento": {
     bg: "bg-purple-50 dark:bg-purple-950",
-    header: "bg-purple-100 dark:bg-purple-900",
+    header: "bg-purple-200 dark:bg-purple-900",
   },
-  DONE: {
+  "Concluída": {
     bg: "bg-green-50 dark:bg-green-950",
-    header: "bg-green-100 dark:bg-green-900",
+    header: "bg-green-200 dark:bg-green-900",
   },
+  // Cor padrão para colunas que não correspondem a nenhuma das chaves acima.
+  "default": {
+    bg: "bg-gray-50 dark:bg-gray-950",
+    header: "bg-gray-200 dark:bg-gray-800",
+  }
 });
 
+// As constantes abaixo não apresentavam erro e foram mantidas.
 export const PROJECT_COLORS = [
   {
     bg: "bg-blue-500",
@@ -110,10 +88,10 @@ export const CLOCK_COLOR = [
 ];
 
 export const TIMEFRAMECOLOR: Record<string, string> = {
-  Hoje: "bg-blue-500/10 text-blue-500 border-blue-500/20", // Blue for Today
-  Ontem: "bg-purple-500/10 text-purple-500 border-purple-500/20", // Purple for Yesterday
-  "Última Semana": "bg-green-500/10 text-green-500 border-green-500/20", // Green for Last Week
-  "Últimos 15 dias": "bg-amber-500/10 text-amber-500 border-amber-500/20", // Amber for Last 15 days
-  "Últimos 30 dias": "bg-orange-500/10 text-orange-500 border-orange-500/20", // Orange for Last 30 days
-  "Mais Antigo": "bg-gray-500/10 text-gray-500 border-gray-500/20", // Gray for Older
+  "Hoje": "bg-blue-500/10 text-blue-500 border-blue-500/20",
+  "Ontem": "bg-purple-500/10 text-purple-500 border-purple-500/20",
+  "Última Semana": "bg-green-500/10 text-green-500 border-green-500/20",
+  "Últimos 15 dias": "bg-amber-500/10 text-amber-500 border-amber-500/20",
+  "Últimos 30 dias": "bg-orange-500/10 text-orange-500 border-orange-500/20",
+  "Mais Antigo": "bg-gray-500/10 text-gray-500 border-gray-500/20",
 };

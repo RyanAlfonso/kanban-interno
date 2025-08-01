@@ -8,34 +8,54 @@ export async function GET(req: NextRequest) {
   const logger = getLogger("info");
   try {
     const session = await getAuthSession();
-    if (!session?.user) return new Response("Unauthorized", { status: 401 });
+    // Verificação de segurança para garantir que a sessão e o email do usuário existem
+    if (!session?.user?.email) {
+      return new Response("Unauthorized", { status: 401 });
+    }
 
-    // @ts-ignore
-    if (session.user.role === "ADMIN") {
+    // Assumindo que você configurou next-auth.d.ts para incluir 'role'
+    const userRole = session.user.role;
+
+    // Se o usuário for ADMIN, retorna todos os projetos
+    if (userRole === "ADMIN") {
       const projects = await prisma.project.findMany({
         orderBy: {
-          createdAt: "asc",
+          name: "asc", // Ordenar por nome é geralmente mais útil
         },
       });
       return new Response(JSON.stringify(projects), { status: 200 });
     }
 
-    // @ts-ignore
-    const user = await prisma.user.findUnique({ where: { email: session.user.email } });
-    // @ts-ignore
-    if (user.areaIds.length > 0) {
+    // Lógica corrigida para usuários não-administradores
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email },
+      include: {
+        areas: { // Inclui os dados completos das áreas do usuário
+          select: {
+            name: true // Seleciona apenas o nome de cada área
+          }
+        }
+      }
+    });
+
+    // Se o usuário for encontrado e pertencer a alguma área
+    if (user && user.areas.length > 0) {
+      // Extrai os nomes das áreas do usuário para um array
+      const userAreaNames = user.areas.map(area => area.name);
+
+      // Busca projetos cujos nomes correspondem aos nomes das áreas do usuário
       const projects = await prisma.project.findMany({
         where: {
-          // @ts-ignore
-          id: { in: user.areaIds },
+          name: { in: userAreaNames },
         },
         orderBy: {
-          createdAt: "asc",
+          name: "asc",
         },
       });
       return new Response(JSON.stringify(projects), { status: 200 });
     }
 
+    // Se o usuário não for admin e não tiver áreas, retorna uma lista vazia
     return new Response(JSON.stringify([]), { status: 200 });
   } catch (error) {
     logger.error("Error fetching projects:", error);
@@ -43,14 +63,15 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// POST /api/projects - Create a new project
+// POST /api/projects - Cria um novo projeto
 export async function POST(req: NextRequest) {
   const logger = getLogger("info");
   try {
     const session = await getAuthSession();
-    if (!session?.user) return new Response("Unauthorized", { status: 401 });
+    if (!session?.user) {
+      return new Response("Unauthorized", { status: 401 });
+    }
 
-    // @ts-ignore // session.user.role will exist due to next-auth.d.ts and callback updates
     if (session.user.role !== "ADMIN") {
       return new Response("Forbidden: User is not an Admin", { status: 403 });
     }
@@ -69,24 +90,22 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    return new Response(JSON.stringify(newProject), { status: 201 }); // 201 Created
+    return new Response(JSON.stringify(newProject), { status: 201 });
   } catch (error) {
     logger.error("Error creating project:", error);
-    // Handle potential unique constraint errors if needed
     return new Response("Internal Server Error", { status: 500 });
   }
 }
 
-
-
-// PUT /api/projects - Update an existing project
+// PUT /api/projects - Atualiza um projeto existente
 export async function PUT(req: NextRequest) {
   const logger = getLogger("info");
   try {
     const session = await getAuthSession();
-    if (!session?.user) return new Response("Unauthorized", { status: 401 });
+    if (!session?.user) {
+      return new Response("Unauthorized", { status: 401 });
+    }
 
-    // @ts-ignore // session.user.role will exist due to next-auth.d.ts and callback updates
     if (session.user.role !== "ADMIN") {
       return new Response("Forbidden: User is not an Admin", { status: 403 });
     }
@@ -102,7 +121,7 @@ export async function PUT(req: NextRequest) {
       where: { id: id },
       data: {
         name: name || undefined,
-        description: description || null,
+        description: description || undefined,
       },
     });
 
@@ -113,14 +132,15 @@ export async function PUT(req: NextRequest) {
   }
 }
 
-// DELETE /api/projects - Delete a project
+// DELETE /api/projects - Deleta um projeto
 export async function DELETE(req: NextRequest) {
   const logger = getLogger("info");
   try {
     const session = await getAuthSession();
-    if (!session?.user) return new Response("Unauthorized", { status: 401 });
+    if (!session?.user) {
+      return new Response("Unauthorized", { status: 401 });
+    }
 
-    // @ts-ignore
     if (session.user.role !== "ADMIN") {
       return new Response("Forbidden: User is not an Admin", { status: 403 });
     }
@@ -132,8 +152,6 @@ export async function DELETE(req: NextRequest) {
       return new Response("Project ID is required", { status: 400 });
     }
 
-    // Optionally, handle associated todos (e.g., set projectId to null or delete them)
-    // For now, let's just delete the project. Prisma will handle cascading deletes if configured.
     const deletedProject = await prisma.project.delete({
       where: { id: id },
     });
