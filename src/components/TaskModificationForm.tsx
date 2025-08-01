@@ -20,6 +20,9 @@ import {
   UserCircle,
   MessageSquare,
   Send,
+  History, // NOVO: Ícone de histórico
+  ChevronDown, // NOVO: Ícone de seta
+  ChevronUp, // NOVO: Ícone de seta
 } from "lucide-react";
 import { FC, lazy, useState } from "react";
 import { Controller, UseFormReturn } from "react-hook-form";
@@ -39,6 +42,24 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { useToast } from "./ui/use-toast";
 import axios from "axios";
+
+// NOVO: Tipagem para o histórico de movimentação, para garantir consistência.
+type MovementHistoryItem = {
+  id: string;
+  movedAt: Date;
+  movedBy: { name: string | null };
+  fromColumn: { name: string };
+  toColumn: { name: string };
+};
+
+// NOVO: Tipagem estendida para a tarefa, incluindo o histórico.
+type ExtendedTask = Partial<Todo> & {
+  attachments?: AttachmentWithUploader[];
+  comments?: CommentWithAuthor[];
+  assignedToIds?: string[];
+  linkedCardIds?: string[];
+  movementHistory?: MovementHistoryItem[]; // Adicionando o histórico aqui
+};
 
 // Tipos e Componente para Anexos
 type AttachmentWithUploader = Attachment & {
@@ -144,15 +165,53 @@ const CommentItem: FC<CommentItemProps> = ({ comment }) => {
   );
 };
 
+// NOVO: Componente para exibir o histórico de movimentação
+const MovementHistory: FC<{ history: MovementHistoryItem[] }> = ({ history }) => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  if (!history || history.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="relative grid gap-2 pt-4">
+      <Label
+        className="text-sm font-medium flex items-center gap-2 cursor-pointer"
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        <History className="h-4 w-4" />
+        Histórico de Movimentação ({history.length})
+        {isOpen ? (
+          <ChevronUp className="h-4 w-4 ml-auto" />
+        ) : (
+          <ChevronDown className="h-4 w-4 ml-auto" />
+        )}
+      </Label>
+      {isOpen && (
+        <div className="flex flex-col gap-1 rounded-lg border bg-slate-50 dark:bg-slate-800 p-2 max-h-60 overflow-y-auto">
+          {history.map((movement) => (
+            <div key={movement.id} className="text-xs p-2 border-l-2 border-gray-300 dark:border-gray-600 ml-1">
+              <p className="font-medium text-gray-800 dark:text-gray-200">
+                <span className="font-bold">{movement.movedBy?.name || "Usuário desconhecido"}</span> moveu de 
+                <span className="font-semibold"> "{movement.fromColumn.name}"</span> para 
+                <span className="font-semibold"> "{movement.toColumn.name}"</span>.
+              </p>
+              <p className="text-gray-500 dark:text-gray-400 mt-1">
+                {dayjs(movement.movedAt).format("DD/MM/YYYY [às] HH:mm")}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+
 // Props do Formulário Principal
 type TaskEditFormProps = {
   handleOnClose: () => void;
-  task: Partial<Todo> & {
-    attachments?: AttachmentWithUploader[];
-    comments?: CommentWithAuthor[];
-    assignedToIds?: string[];
-    linkedCardIds?: string[];
-  };
+  task: ExtendedTask; // NOVO: Usando a tipagem estendida
   title: string;
   enableDelete?: boolean;
   deleteMutationFunctionReturn?: UseMutationResult<
@@ -653,6 +712,11 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
                     </Button>
                   </div>
                 </div>
+              )}
+              
+              {/* NOVO: Renderiza o componente de histórico aqui */}
+              {task.id && task.movementHistory && (
+                <MovementHistory history={task.movementHistory} />
               )}
 
               <div className="relative flex gap-2 pt-4">
