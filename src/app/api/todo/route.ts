@@ -17,10 +17,11 @@ export async function GET(req: NextRequest) {
     const url = new URL(req.url);
     const view = url.searchParams.get("view");
     const projectId = url.searchParams.get("projectId");
-    
-    // Novos filtros avançados
-    const tagIds = url.searchParams.get("tagIds")?.split(",").filter(Boolean) || [];
-    const assignedToIds = url.searchParams.get("assignedToIds")?.split(",").filter(Boolean) || [];
+
+    const tagIds =
+      url.searchParams.get("tagIds")?.split(",").filter(Boolean) || [];
+    const assignedToIds =
+      url.searchParams.get("assignedToIds")?.split(",").filter(Boolean) || [];
     const startDate = url.searchParams.get("startDate");
     const endDate = url.searchParams.get("endDate");
 
@@ -36,23 +37,20 @@ export async function GET(req: NextRequest) {
       whereClause.projectId = projectId;
     }
 
-    // Filtro por tags
     if (tagIds.length > 0) {
       whereClause.tags = {
         some: {
-          id: { in: tagIds }
-        }
+          id: { in: tagIds },
+        },
       };
     }
 
-    // Filtro por responsáveis
     if (assignedToIds.length > 0) {
       whereClause.assignedToIds = {
-        hasSome: assignedToIds
+        hasSome: assignedToIds,
       };
     }
 
-    // Filtro por período (deadline)
     if (startDate || endDate) {
       whereClause.deadline = {};
       if (startDate) {
@@ -72,7 +70,7 @@ export async function GET(req: NextRequest) {
         owner: { select: { id: true, name: true, image: true } },
         project: { select: { id: true, name: true } },
         column: { select: { id: true, name: true, order: true } },
-        tags: { select: { id: true, name: true, color: true } }, // Incluindo tags
+        tags: { select: { id: true, name: true, color: true } },
         movementHistory: {
           include: {
             movedBy: { select: { id: true, name: true } },
@@ -204,7 +202,11 @@ export async function POST(req: NextRequest) {
         description: description || null,
         columnId,
         label: label || [],
-        tags: tags || [],
+        // Na criação, a lógica para tags pode precisar ser ajustada também
+        // se as tags não forem criadas automaticamente.
+        tags: {
+          connect: tags.map((tagName: string) => ({ id: tagName })),
+        },
         deadline: parsedDeadline,
         projectId: projectId || null,
         order,
@@ -223,6 +225,8 @@ export async function POST(req: NextRequest) {
 
 export async function PUT(req: NextRequest) {
   const logger = getLogger("info");
+  const clonedReq = req.clone();
+
   try {
     const session = await getAuthSession();
     if (!session?.user) {
@@ -230,7 +234,7 @@ export async function PUT(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { id, columnId, ...otherData } = body;
+    const { id, columnId } = body;
 
     if (!id) {
       return new Response("Todo ID is required", { status: 400 });
@@ -245,7 +249,49 @@ export async function PUT(req: NextRequest) {
       return new Response("Tarefa não encontrada.", { status: 404 });
     }
 
-    const dataForPrismaUpdate: any = { ...otherData };
+    const dataForPrismaUpdate: { [key: string]: any } = {};
+
+    // Lista de campos que podem ser atualizados diretamente
+    const directUpdateFields = [
+      "title",
+      "description",
+      "label",
+      "deadline",
+      "projectId",
+      "order",
+      "assignedToIds",
+      "parentId",
+      "linkedCardIds",
+      "referenceDocument",
+    ];
+
+    directUpdateFields.forEach((field) => {
+      if (body[field] !== undefined) {
+        if (field === "deadline" && body[field]) {
+          dataForPrismaUpdate[field] = new Date(body[field]);
+        } else {
+          dataForPrismaUpdate[field] = body[field];
+        }
+      }
+    });
+
+    // ================== CORREÇÃO FINAL APLICADA ==================
+    // Tratamento especial para a relação many-to-many `tags`
+    if (body.tags && Array.isArray(body.tags)) {
+      // Usamos a operação `set` do Prisma. Ela desconecta todas as tags
+      // antigas e conecta apenas as novas que estão no array.
+      // Assumimos que o nome da tag é o seu ID.
+      dataForPrismaUpdate.tags = {
+        set: body.tags.map((tagName: string) => ({ id: tagName })),
+      };
+    } else if (body.tags !== undefined) {
+      // Se um array vazio for passado, remove todas as conexões
+      dataForPrismaUpdate.tags = {
+        set: [],
+      };
+    }
+    // =============================================================
+
     const isMovingCard =
       columnId && currentTodo.columnId && currentTodo.columnId !== columnId;
 
@@ -258,11 +304,9 @@ export async function PUT(req: NextRequest) {
       } else {
         const fromColumn = await prisma.projectColumn.findUnique({
           where: { id: currentTodo.columnId! },
-          select: { name: true },
         });
         const toColumn = await prisma.projectColumn.findUnique({
           where: { id: columnId },
-          select: { name: true },
         });
 
         if (!fromColumn || !toColumn) {
@@ -276,12 +320,10 @@ export async function PUT(req: NextRequest) {
           toColumn.name,
           session.user.type
         );
-        
         if (permissionCheck.allowed) {
           hasPermission = true;
         } else {
-          // CORREÇÃO APLICADA AQUI
-          permissionError = permissionCheck.error || "Movimento não permitido pelas regras do projeto.";
+          permissionError = permissionCheck.error || "Movimento não permitido.";
         }
       }
 
@@ -306,6 +348,7 @@ export async function PUT(req: NextRequest) {
         project: true,
         column: true,
         owner: true,
+        tags: true,
         movementHistory: {
           include: {
             movedBy: { select: { id: true, name: true } },
@@ -329,24 +372,47 @@ export async function PUT(req: NextRequest) {
       },
     });
 
-    const assignedUsers = await prisma.user.findMany({
+    const finalAssignedUsers = await prisma.user.findMany({
       where: { id: { in: updatedTodo.assignedToIds } },
       select: { id: true, name: true, email: true, image: true },
     });
-    const linkedCards = await prisma.todo.findMany({
+    const finalLinkedCards = await prisma.todo.findMany({
       where: { id: { in: updatedTodo.linkedCardIds } },
       select: { id: true, title: true },
     });
 
     const resultWithRelations = {
       ...updatedTodo,
-      assignedTo: assignedUsers,
-      linkedCards: linkedCards,
+      assignedTo: finalAssignedUsers,
+      linkedCards: finalLinkedCards,
     };
 
     return new Response(JSON.stringify(resultWithRelations), { status: 200 });
-  } catch (error) {
-    logger.error("Error updating todo:", { error });
-    return new Response("Internal Server Error", { status: 500 });
+  } catch (error: any) {
+    const requestBody = await clonedReq
+      .json()
+      .catch(() => "Could not parse request body");
+    logger.error("DETAILED ERROR in PUT /api/todo:", {
+      message: error.message,
+      code: error.code,
+      meta: error.meta,
+      stack: error.stack,
+      requestBody: requestBody,
+    });
+
+    return new Response(
+      JSON.stringify({
+        message: "Internal Server Error",
+        error: {
+          message: error.message,
+          code: error.code,
+          meta: error.meta,
+        },
+      }),
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
   }
 }
