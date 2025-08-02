@@ -14,12 +14,14 @@ export interface TagColor {
   text: string;
 }
 
+// Simple consistent color generation based on tag name
+// More sophisticated color palettes can be added later
 const tagColorPalette: TagColor[] = [
-  { bg: "bg-purple-500", text: "text-white" },
+  { bg: "bg-red-500", text: "text-white" },
   { bg: "bg-blue-500", text: "text-white" },
   { bg: "bg-green-500", text: "text-white" },
   { bg: "bg-yellow-500", text: "text-black" },
-  { bg: "bg-red-500", text: "text-white" },
+  { bg: "bg-purple-500", text: "text-white" },
   { bg: "bg-pink-500", text: "text-white" },
   { bg: "bg-indigo-500", text: "text-white" },
   { bg: "bg-teal-500", text: "text-white" },
@@ -42,6 +44,7 @@ export const getTagColor = (tagName: PredefinedTag): TagColor => {
   return color;
 };
 
+// Function to validate if a tag is one of the predefined tags
 export const isValidTag = (tag: string): tag is PredefinedTag => {
   return PREDEFINED_TAGS.includes(tag as PredefinedTag);
 };

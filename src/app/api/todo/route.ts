@@ -17,6 +17,12 @@ export async function GET(req: NextRequest) {
     const url = new URL(req.url);
     const view = url.searchParams.get("view");
     const projectId = url.searchParams.get("projectId");
+    
+    // Novos filtros avançados
+    const tagIds = url.searchParams.get("tagIds")?.split(",").filter(Boolean) || [];
+    const assignedToIds = url.searchParams.get("assignedToIds")?.split(",").filter(Boolean) || [];
+    const startDate = url.searchParams.get("startDate");
+    const endDate = url.searchParams.get("endDate");
 
     let whereClause: any = {
       isDeleted: false,
@@ -30,6 +36,33 @@ export async function GET(req: NextRequest) {
       whereClause.projectId = projectId;
     }
 
+    // Filtro por tags
+    if (tagIds.length > 0) {
+      whereClause.tags = {
+        some: {
+          id: { in: tagIds }
+        }
+      };
+    }
+
+    // Filtro por responsáveis
+    if (assignedToIds.length > 0) {
+      whereClause.assignedToIds = {
+        hasSome: assignedToIds
+      };
+    }
+
+    // Filtro por período (deadline)
+    if (startDate || endDate) {
+      whereClause.deadline = {};
+      if (startDate) {
+        whereClause.deadline.gte = new Date(startDate);
+      }
+      if (endDate) {
+        whereClause.deadline.lte = new Date(endDate);
+      }
+    }
+
     const todos = await prisma.todo.findMany({
       where: whereClause,
       orderBy: {
@@ -39,6 +72,7 @@ export async function GET(req: NextRequest) {
         owner: { select: { id: true, name: true, image: true } },
         project: { select: { id: true, name: true } },
         column: { select: { id: true, name: true, order: true } },
+        tags: { select: { id: true, name: true, color: true } }, // Incluindo tags
         movementHistory: {
           include: {
             movedBy: { select: { id: true, name: true } },

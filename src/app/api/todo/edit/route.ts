@@ -22,7 +22,13 @@ export async function PATCH(req: Request) {
 
     const currentTodo = await prisma.todo.findUnique({
       where: { id },
-      select: { ownerId: true, columnId: true, parentId: true }
+      select: { 
+        ownerId: true, 
+        columnId: true, 
+        parentId: true,
+        projectId: true,
+        tags: { select: { id: true } }
+      }
     });
 
     if (!currentTodo) {
@@ -38,10 +44,36 @@ export async function PATCH(req: Request) {
     if (updateData.title) dataToUpdate.title = updateData.title;
     if (updateData.description !== undefined) dataToUpdate.description = updateData.description;
     if (updateData.label) dataToUpdate.label = updateData.label;
-    if (updateData.tags) dataToUpdate.tags = updateData.tags;
     if (updateData.assignedToIds) dataToUpdate.assignedToIds = updateData.assignedToIds;
     if (updateData.linkedCardIds) dataToUpdate.linkedCardIds = updateData.linkedCardIds;
     if (updateData.referenceDocument !== undefined) dataToUpdate.referenceDocument = updateData.referenceDocument;
+
+    // Tratamento para tagIds
+    if (updateData.tagIds !== undefined) {
+      // Verificar se as tags existem e pertencem ao projeto
+      if (updateData.tagIds.length > 0 && currentTodo.projectId) {
+        const tags = await prisma.tag.findMany({
+          where: {
+            id: { in: updateData.tagIds },
+            projectId: currentTodo.projectId
+          }
+        });
+
+        if (tags.length !== updateData.tagIds.length) {
+          return new Response("One or more tags not found or don't belong to this project", { status: 400 });
+        }
+      }
+
+      // Desconectar todas as tags atuais e conectar as novas
+      const currentTagIds = currentTodo.tags.map(tag => tag.id);
+      
+      dataToUpdate.tags = {
+        disconnect: currentTagIds.map(id => ({ id })),
+        ...(updateData.tagIds.length > 0 && {
+          connect: updateData.tagIds.map(id => ({ id }))
+        })
+      };
+    }
 
     // Tratamento para o campo 'deadline'
     if (updateData.deadline) {
@@ -78,7 +110,6 @@ export async function PATCH(req: Request) {
       dataToUpdate.column = { connect: { id: updateData.columnId } };
     }
 
-
     logger.info("--- API Backend (PATCH /edit): Dados sendo enviados para o Prisma update ---", JSON.stringify(dataToUpdate, null, 2));
 
     const updatedTodo = await prisma.todo.update({
@@ -88,6 +119,7 @@ export async function PATCH(req: Request) {
         project: true,
         column: true,
         owner: true,
+        tags: true,
         movementHistory: {
           include: {
             movedBy: { select: { id: true, name: true } },
