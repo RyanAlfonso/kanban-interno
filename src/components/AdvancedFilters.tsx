@@ -3,13 +3,8 @@
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "./ui/button";
-import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "./ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import {
   Select,
   SelectContent,
@@ -19,10 +14,23 @@ import {
 } from "./ui/select";
 import { Badge } from "./ui/badge";
 import { Calendar } from "./ui/calendar";
-import { CalendarIcon, Filter, X, Tag, Users, Clock } from "lucide-react";
+import {
+  CalendarIcon,
+  Filter,
+  Users,
+  Clock,
+  Tag as TagIcon,
+  Briefcase,
+} from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
+
+// Tipos para os dados da API
+interface Project {
+  id: string;
+  name: string;
+}
 
 interface Tag {
   id: string;
@@ -37,24 +45,18 @@ interface User {
   image?: string;
 }
 
-interface Project {
-  id: string;
-  name: string;
-}
-
 const AdvancedFilters = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
-  
-  // Estados dos filtros
+
   const [isOpen, setIsOpen] = useState(false);
+  const [selectedProject, setSelectedProject] = useState("");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [startDate, setStartDate] = useState<Date | undefined>();
   const [endDate, setEndDate] = useState<Date | undefined>();
-  const [selectedProject, setSelectedProject] = useState<string>("");
 
-  // Buscar projetos
+  // Buscar todos os projetos para o seletor
   const { data: projects = [] } = useQuery<Project[]>({
     queryKey: ["projects"],
     queryFn: async () => {
@@ -64,8 +66,8 @@ const AdvancedFilters = () => {
     },
   });
 
-  // Buscar tags do projeto selecionado
-  const { data: tags = [] } = useQuery<Tag[]>({
+  // Buscar tags APENAS quando um projeto for selecionado
+  const { data: tags = [], isLoading: isLoadingTags } = useQuery<Tag[]>({
     queryKey: ["tags", selectedProject],
     queryFn: async () => {
       if (!selectedProject) return [];
@@ -76,7 +78,7 @@ const AdvancedFilters = () => {
     enabled: !!selectedProject,
   });
 
-  // Buscar usuários
+  // Buscar todos os usuários
   const { data: users = [] } = useQuery<User[]>({
     queryKey: ["users"],
     queryFn: async () => {
@@ -86,55 +88,44 @@ const AdvancedFilters = () => {
     },
   });
 
-  // Carregar filtros dos parâmetros da URL
+  // Carregar filtros da URL
   useEffect(() => {
-    const projectId = searchParams.get("projectId");
+    const projectId = searchParams.get("projectId") || "";
     const tagIds = searchParams.get("tagIds")?.split(",").filter(Boolean) || [];
-    const assignedToIds = searchParams.get("assignedToIds")?.split(",").filter(Boolean) || [];
+    const assignedToIds =
+      searchParams.get("assignedToIds")?.split(",").filter(Boolean) || [];
     const startDateParam = searchParams.get("startDate");
     const endDateParam = searchParams.get("endDate");
 
-    if (projectId) setSelectedProject(projectId);
+    setSelectedProject(projectId);
     setSelectedTags(tagIds);
     setSelectedUsers(assignedToIds);
     if (startDateParam) setStartDate(new Date(startDateParam));
     if (endDateParam) setEndDate(new Date(endDateParam));
   }, [searchParams]);
 
+  // Limpar tags selecionadas se o projeto mudar
+  useEffect(() => {
+    setSelectedTags([]);
+  }, [selectedProject]);
+
   // Aplicar filtros
   const applyFilters = () => {
     const params = new URLSearchParams(Array.from(searchParams.entries()));
-    
-    // Manter parâmetros existentes como 'q' (busca)
-    if (selectedProject) {
-      params.set("projectId", selectedProject);
-    } else {
-      params.delete("projectId");
-    }
 
-    if (selectedTags.length > 0) {
-      params.set("tagIds", selectedTags.join(","));
-    } else {
-      params.delete("tagIds");
-    }
+    const setOrDeleteParam = (key: string, value: string) => {
+      if (value) params.set(key, value);
+      else params.delete(key);
+    };
 
-    if (selectedUsers.length > 0) {
-      params.set("assignedToIds", selectedUsers.join(","));
-    } else {
-      params.delete("assignedToIds");
-    }
-
-    if (startDate) {
-      params.set("startDate", format(startDate, "yyyy-MM-dd"));
-    } else {
-      params.delete("startDate");
-    }
-
-    if (endDate) {
-      params.set("endDate", format(endDate, "yyyy-MM-dd"));
-    } else {
-      params.delete("endDate");
-    }
+    setOrDeleteParam("projectId", selectedProject);
+    setOrDeleteParam("tagIds", selectedTags.join(","));
+    setOrDeleteParam("assignedToIds", selectedUsers.join(","));
+    setOrDeleteParam(
+      "startDate",
+      startDate ? format(startDate, "yyyy-MM-dd") : ""
+    );
+    setOrDeleteParam("endDate", endDate ? format(endDate, "yyyy-MM-dd") : "");
 
     router.replace(`/?${params.toString()}`);
     setIsOpen(false);
@@ -143,8 +134,6 @@ const AdvancedFilters = () => {
   // Limpar filtros
   const clearFilters = () => {
     const params = new URLSearchParams(Array.from(searchParams.entries()));
-    
-    // Remover apenas os parâmetros de filtro, manter outros como 'q'
     params.delete("projectId");
     params.delete("tagIds");
     params.delete("assignedToIds");
@@ -160,16 +149,12 @@ const AdvancedFilters = () => {
     router.replace(`/?${params.toString()}`);
   };
 
-  // Verificar se há filtros ativos
-  const hasActiveFilters = selectedProject || selectedTags.length > 0 || selectedUsers.length > 0 || startDate || endDate;
-
-  // Contar filtros ativos
   const activeFiltersCount = [
     selectedProject,
     selectedTags.length > 0,
     selectedUsers.length > 0,
     startDate,
-    endDate
+    endDate,
   ].filter(Boolean).length;
 
   return (
@@ -180,7 +165,8 @@ const AdvancedFilters = () => {
           size="sm"
           className={cn(
             "relative",
-            hasActiveFilters && "border-blue-500 bg-blue-50 dark:bg-blue-950"
+            activeFiltersCount > 0 &&
+              "border-blue-500 bg-blue-50 dark:bg-blue-950"
           )}
         >
           <Filter className="h-4 w-4 mr-2" />
@@ -199,14 +185,14 @@ const AdvancedFilters = () => {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h4 className="font-medium">Filtros Avançados</h4>
-            {hasActiveFilters && (
+            {activeFiltersCount > 0 && (
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={clearFilters}
                 className="h-8 px-2 text-xs"
               >
-                Limpar
+                Limpar Filtros
               </Button>
             )}
           </div>
@@ -214,7 +200,7 @@ const AdvancedFilters = () => {
           {/* Filtro por Projeto */}
           <div className="space-y-2">
             <Label className="text-sm font-medium flex items-center">
-              <Tag className="h-4 w-4 mr-2" />
+              <Briefcase className="h-4 w-4 mr-2" />
               Projeto
             </Label>
             <Select value={selectedProject} onValueChange={setSelectedProject}>
@@ -232,55 +218,60 @@ const AdvancedFilters = () => {
             </Select>
           </div>
 
-          {/* Filtro por Tags */}
+          {/* Filtro por Tags (condicional) */}
           {selectedProject && (
             <div className="space-y-2">
               <Label className="text-sm font-medium flex items-center">
-                <Tag className="h-4 w-4 mr-2" />
-                Tags
+                <TagIcon className="h-4 w-4 mr-2" />
+                Tags do Projeto
               </Label>
-              <div className="space-y-2">
-                {tags.map((tag) => (
-                  <div key={tag.id} className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      id={`tag-${tag.id}`}
-                      checked={selectedTags.includes(tag.id)}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setSelectedTags([...selectedTags, tag.id]);
-                        } else {
-                          setSelectedTags(selectedTags.filter(id => id !== tag.id));
+              <div className="space-y-2 max-h-32 overflow-y-auto pr-2">
+                {isLoadingTags ? (
+                  <p className="text-sm text-gray-500">Carregando tags...</p>
+                ) : tags.length > 0 ? (
+                  tags.map((tag) => (
+                    <div key={tag.id} className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id={`tag-${tag.id}`}
+                        checked={selectedTags.includes(tag.id)}
+                        onChange={(e) =>
+                          setSelectedTags(
+                            e.target.checked
+                              ? [...selectedTags, tag.id]
+                              : selectedTags.filter((id) => id !== tag.id)
+                          )
                         }
-                      }}
-                      className="rounded border-gray-300"
-                    />
-                    <label
-                      htmlFor={`tag-${tag.id}`}
-                      className="flex items-center space-x-2 text-sm cursor-pointer"
-                    >
-                      <div
-                        className="w-3 h-3 rounded-full"
-                        style={{ backgroundColor: tag.color }}
+                        className="rounded border-gray-300"
                       />
-                      <span>{tag.name}</span>
-                    </label>
-                  </div>
-                ))}
-                {tags.length === 0 && (
-                  <p className="text-sm text-gray-500">Nenhuma tag encontrada</p>
+                      <label
+                        htmlFor={`tag-${tag.id}`}
+                        className="flex items-center space-x-2 text-sm cursor-pointer"
+                      >
+                        <div
+                          className="w-3 h-3 rounded-full"
+                          style={{ backgroundColor: tag.color || "#ccc" }}
+                        />
+                        <span>{tag.name}</span>
+                      </label>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-gray-500">
+                    Nenhuma tag encontrada para este projeto.
+                  </p>
                 )}
               </div>
             </div>
           )}
 
-          {/* Filtro por Responsáveis */}
+          {/* ================== FILTRO DE RESPONSÁVEIS RESTAURADO ================== */}
           <div className="space-y-2">
             <Label className="text-sm font-medium flex items-center">
               <Users className="h-4 w-4 mr-2" />
               Responsáveis
             </Label>
-            <div className="space-y-2 max-h-32 overflow-y-auto">
+            <div className="space-y-2 max-h-32 overflow-y-auto pr-2">
               {users.map((user) => (
                 <div key={user.id} className="flex items-center space-x-2">
                   <input
@@ -288,11 +279,11 @@ const AdvancedFilters = () => {
                     id={`user-${user.id}`}
                     checked={selectedUsers.includes(user.id)}
                     onChange={(e) => {
-                      if (e.target.checked) {
-                        setSelectedUsers([...selectedUsers, user.id]);
-                      } else {
-                        setSelectedUsers(selectedUsers.filter(id => id !== user.id));
-                      }
+                      setSelectedUsers(
+                        e.target.checked
+                          ? [...selectedUsers, user.id]
+                          : selectedUsers.filter((id) => id !== user.id)
+                      );
                     }}
                     className="rounded border-gray-300"
                   />
@@ -313,8 +304,9 @@ const AdvancedFilters = () => {
               ))}
             </div>
           </div>
+          {/* ====================================================================== */}
 
-          {/* Filtro por Período */}
+          {/* ================== FILTRO DE PERÍODO RESTAURADO ================== */}
           <div className="space-y-2">
             <Label className="text-sm font-medium flex items-center">
               <Clock className="h-4 w-4 mr-2" />
@@ -333,7 +325,9 @@ const AdvancedFilters = () => {
                       )}
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
-                      {startDate ? format(startDate, "dd/MM/yyyy") : "Selecionar"}
+                      {startDate
+                        ? format(startDate, "dd/MM/yyyy")
+                        : "Selecionar"}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
@@ -373,8 +367,8 @@ const AdvancedFilters = () => {
               </div>
             </div>
           </div>
+          {/* ====================================================================== */}
 
-          {/* Botões de ação */}
           <div className="flex space-x-2 pt-2">
             <Button onClick={applyFilters} className="flex-1">
               Aplicar Filtros

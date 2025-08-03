@@ -15,7 +15,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react"; // Import useSession
 import UserAccountNav from "./UserAccountNav"; // Import UserAccountNav
-import AdvancedFilters from "./AvancedFilters";
+import AdvancedFilters from "./AdvancedFilters";
 import { cn } from "@/lib/utils"; // Import cn for conditional classes
 
 const AppHeader = () => {
