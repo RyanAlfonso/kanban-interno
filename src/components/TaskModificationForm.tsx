@@ -1,9 +1,8 @@
 "use client";
 
 import useBreakpoint from "@/hooks/useBreakpoint";
-import { PREDEFINED_TAGS } from "@/lib/tags";
 import { cn } from "@/lib/utils";
-import { Attachment, Comment, Project, Todo, User } from "@prisma/client";
+import { Attachment, Comment, Project, Todo, User, Tag } from "@prisma/client";
 import {
   Popover,
   PopoverContent,
@@ -20,12 +19,13 @@ import {
   UserCircle,
   MessageSquare,
   Send,
-  History, // NOVO: Ícone de histórico
-  ChevronDown, // NOVO: Ícone de seta
-  ChevronUp, // NOVO: Ícone de seta
+  History,
+  ChevronDown,
+  ChevronUp,
+  PlusCircle,
 } from "lucide-react";
-import { FC, lazy, useState } from "react";
-import { Controller, UseFormReturn } from "react-hook-form";
+import { FC, lazy, useState, useEffect } from "react";
+import { Controller, UseFormReturn, useWatch } from "react-hook-form";
 import {
   UseMutationResult,
   useQuery,
@@ -43,7 +43,7 @@ import { Label } from "./ui/label";
 import { useToast } from "./ui/use-toast";
 import axios from "axios";
 
-// NOVO: Tipagem para o histórico de movimentação, para garantir consistência.
+// Tipagens
 type MovementHistoryItem = {
   id: string;
   movedAt: Date;
@@ -51,32 +51,37 @@ type MovementHistoryItem = {
   fromColumn: { name: string };
   toColumn: { name: string };
 };
-
-// NOVO: Tipagem estendida para a tarefa, incluindo o histórico.
+type AttachmentWithUploader = Attachment & {
+  uploadedBy: Pick<User, "id" | "name" | "image">;
+};
+type CommentWithAuthor = Comment & {
+  author: Pick<User, "id" | "name" | "image">;
+};
 type ExtendedTask = Partial<Todo> & {
   attachments?: AttachmentWithUploader[];
   comments?: CommentWithAuthor[];
   assignedToIds?: string[];
   linkedCardIds?: string[];
-  movementHistory?: MovementHistoryItem[]; // Adicionando o histórico aqui
+  movementHistory?: MovementHistoryItem[];
+  tags?: Tag[];
 };
 
-// Tipos e Componente para Anexos
-type AttachmentWithUploader = Attachment & {
-  uploadedBy: Pick<User, "id" | "name" | "image">;
+type TaskEditFormProps = {
+  handleOnClose: () => void;
+  task: ExtendedTask;
+  title: string;
+  enableDelete?: boolean;
+  deleteMutationFunctionReturn?: UseMutationResult<any, AxiosError, any, any>;
+  editMutationFunctionReturn: UseMutationResult<any, AxiosError, any, any>;
+  formFunctionReturn: UseFormReturn<any>;
 };
 
-type AttachmentItemProps = {
+// Componentes auxiliares
+const AttachmentItem: FC<{
   attachment: AttachmentWithUploader;
   onDelete: (id: string) => void;
   isDeleting: boolean;
-};
-
-const AttachmentItem: FC<AttachmentItemProps> = ({
-  attachment,
-  onDelete,
-  isDeleting,
-}) => {
+}> = ({ attachment, onDelete, isDeleting }) => {
   return (
     <div className="flex items-center justify-between p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
       <div className="flex items-center gap-3 overflow-hidden">
@@ -127,16 +132,7 @@ const AttachmentItem: FC<AttachmentItemProps> = ({
   );
 };
 
-// Tipos e Componente para Comentários
-type CommentWithAuthor = Comment & {
-  author: Pick<User, "id" | "name" | "image">;
-};
-
-type CommentItemProps = {
-  comment: CommentWithAuthor;
-};
-
-const CommentItem: FC<CommentItemProps> = ({ comment }) => {
+const CommentItem: FC<{ comment: CommentWithAuthor }> = ({ comment }) => {
   return (
     <div className="flex items-start gap-3 p-2">
       {comment.author.image ? (
@@ -165,22 +161,19 @@ const CommentItem: FC<CommentItemProps> = ({ comment }) => {
   );
 };
 
-// NOVO: Componente para exibir o histórico de movimentação
-const MovementHistory: FC<{ history: MovementHistoryItem[] }> = ({ history }) => {
+const MovementHistory: FC<{ history: MovementHistoryItem[] }> = ({
+  history,
+}) => {
   const [isOpen, setIsOpen] = useState(false);
-
-  if (!history || history.length === 0) {
-    return null;
-  }
-
+  if (!history || history.length === 0) return null;
   return (
     <div className="relative grid gap-2 pt-4">
       <Label
         className="text-sm font-medium flex items-center gap-2 cursor-pointer"
         onClick={() => setIsOpen(!isOpen)}
       >
-        <History className="h-4 w-4" />
-        Histórico de Movimentação ({history.length})
+        <History className="h-4 w-4" /> Histórico de Movimentação (
+        {history.length}){" "}
         {isOpen ? (
           <ChevronUp className="h-4 w-4 ml-auto" />
         ) : (
@@ -190,11 +183,25 @@ const MovementHistory: FC<{ history: MovementHistoryItem[] }> = ({ history }) =>
       {isOpen && (
         <div className="flex flex-col gap-1 rounded-lg border bg-slate-50 dark:bg-slate-800 p-2 max-h-60 overflow-y-auto">
           {history.map((movement) => (
-            <div key={movement.id} className="text-xs p-2 border-l-2 border-gray-300 dark:border-gray-600 ml-1">
+            <div
+              key={movement.id}
+              className="text-xs p-2 border-l-2 border-gray-300 dark:border-gray-600 ml-1"
+            >
               <p className="font-medium text-gray-800 dark:text-gray-200">
-                <span className="font-bold">{movement.movedBy?.name || "Usuário desconhecido"}</span> moveu de 
-                <span className="font-semibold"> "{movement.fromColumn.name}"</span> para 
-                <span className="font-semibold"> "{movement.toColumn.name}"</span>.
+                <span className="font-bold">
+                  {movement.movedBy?.name || "Usuário desconhecido"}
+                </span>{" "}
+                moveu de{" "}
+                <span className="font-semibold">
+                  {" "}
+                  "{movement.fromColumn.name}"
+                </span>{" "}
+                para{" "}
+                <span className="font-semibold">
+                  {" "}
+                  "{movement.toColumn.name}"
+                </span>
+                .
               </p>
               <p className="text-gray-500 dark:text-gray-400 mt-1">
                 {dayjs(movement.movedAt).format("DD/MM/YYYY [às] HH:mm")}
@@ -207,45 +214,17 @@ const MovementHistory: FC<{ history: MovementHistoryItem[] }> = ({ history }) =>
   );
 };
 
-
-// Props do Formulário Principal
-type TaskEditFormProps = {
-  handleOnClose: () => void;
-  task: ExtendedTask; // NOVO: Usando a tipagem estendida
-  title: string;
-  enableDelete?: boolean;
-  deleteMutationFunctionReturn?: UseMutationResult<
-    Todo[],
-    AxiosError,
-    { id: string },
-    any
-  >;
-  editMutationFunctionReturn: UseMutationResult<
-    Todo | Todo[],
-    AxiosError,
-    any,
-    any
-  >;
-  formFunctionReturn: UseFormReturn<any>;
-};
-
 const CustomizedReactQuill = lazy(() => import("./CustomizedReactQuill"));
-
-type ErrorMessageProps = {
-  msg?: string;
-};
-
+type ErrorMessageProps = { msg?: string };
 async function robustFetcher<T>(url: string): Promise<T> {
   const response = await fetch(url);
   if (!response.ok) {
-    let errorData = {
+    const errorData = {
       message: `Erro ${response.status}: ${response.statusText}`,
     };
     try {
       const jsonError = await response.json();
-      if (jsonError && jsonError.message) {
-        errorData.message = jsonError.message;
-      }
+      if (jsonError && jsonError.message) errorData.message = jsonError.message;
     } catch (e) {
       console.error("A resposta de erro não era JSON:", e);
     }
@@ -273,12 +252,129 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
     register,
     formState: { errors },
     control,
+    setValue,
   } = formFunctionReturn;
+
+  const [showNewTagForm, setShowNewTagForm] = useState(false);
+  const [newTagName, setNewTagName] = useState("");
+  const [newTagColor, setNewTagColor] = useState("#3B82F6");
 
   const { mutate: submitEditTodoTask, isPending: isEditLoading } =
     editMutationFunctionReturn;
   const { mutate: deleteFunc, isPending: isDeleteLoading } =
     deleteMutationFunctionReturn ?? { mutate: () => {}, isPending: false };
+
+  const watchedProjectId = useWatch({
+    control,
+    name: "projectId",
+    defaultValue: task.projectId,
+  });
+
+  const {
+    data: projects,
+    isLoading: projectsLoading,
+    error: projectsError,
+  } = useQuery<Project[], Error>({
+    queryKey: ["projects"],
+    queryFn: () => robustFetcher<Project[]>("/api/projects"),
+  });
+
+  const {
+    data: users,
+    isLoading: usersLoading,
+    error: usersError,
+  } = useQuery<User[], Error>({
+    queryKey: ["users"],
+    queryFn: () => robustFetcher<User[]>("/api/users"),
+  });
+
+  const {
+    data: todos,
+    isLoading: todosLoading,
+    error: todosError,
+  } = useQuery<Todo[], Error>({
+    queryKey: ["todos"],
+    queryFn: () => robustFetcher<Todo[]>("/api/todo"),
+  });
+
+  const { data: availableTags = [], isLoading: tagsLoading } = useQuery<Tag[]>({
+    queryKey: ["tags", watchedProjectId],
+    queryFn: async () => {
+      if (!watchedProjectId) return [];
+      return robustFetcher<Tag[]>(`/api/tags?projectId=${watchedProjectId}`);
+    },
+    enabled: !!watchedProjectId,
+  });
+
+  const { mutate: createTag, isPending: isCreatingTag } = useMutation<
+    Tag,
+    AxiosError,
+    { name: string; color: string; projectId: string }
+  >({
+    mutationFn: async (variables) => {
+      const { data } = await axios.post("/api/tags", variables);
+      return data;
+    },
+    onSuccess: (newTag) => {
+      toast({ title: "Sucesso!", description: `Tag "${newTag.name}" criada.` });
+      queryClient.invalidateQueries({ queryKey: ["tags", watchedProjectId] });
+
+      const currentTags = control._getWatch("tags") || [];
+      setValue("tags", [...currentTags, newTag]);
+
+      setNewTagName("");
+      setNewTagColor("#3B82F6");
+      setShowNewTagForm(false);
+    },
+    onError: (error) => {
+      const errorData = error.response?.data as { message?: string };
+      toast({
+        title: "Erro ao criar tag",
+        description: errorData?.message || "Não foi possível criar a tag.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleCreateTag = () => {
+    if (!newTagName.trim() || !watchedProjectId) return;
+    createTag({
+      name: newTagName.trim(),
+      color: newTagColor,
+      projectId: watchedProjectId,
+    });
+  };
+
+  useEffect(() => {
+    if (formFunctionReturn.formState.isSubmitSuccessful === false) {
+      setValue("tags", []);
+    }
+  }, [
+    watchedProjectId,
+    setValue,
+    formFunctionReturn.formState.isSubmitSuccessful,
+  ]);
+
+  const tagOptions = availableTags.map((tag) => ({
+    value: tag.id,
+    title: tag.name,
+  }));
+
+  const projectOptions =
+    projects?.map((project) => ({ value: project.id, title: project.name })) ||
+    [];
+  const userOptions =
+    users?.map((user) => ({
+      value: user.id,
+      title: user.name || user.email || "Usuário sem nome",
+    })) || [];
+  const todoOptions =
+    todos
+      ?.filter((t) => t.id !== task.id)
+      .map((todo) => ({ value: todo.id, title: todo.title })) || [];
+
+  const ErrorMessage = ({ msg }: ErrorMessageProps) =>
+    msg ? <span className="text-red-500 text-xs">{msg}</span> : null;
 
   const { mutate: deleteAttachment, isPending: isDeletingAttachment } =
     useMutation({
@@ -332,51 +428,6 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
     }
   };
 
-  const tagOptions = [...PREDEFINED_TAGS];
-
-  const {
-    data: projects,
-    isLoading: projectsLoading,
-    error: projectsError,
-  } = useQuery<Project[], Error>({
-    queryKey: ["projects"],
-    queryFn: () => robustFetcher<Project[]>("/api/projects"),
-  });
-
-  const {
-    data: users,
-    isLoading: usersLoading,
-    error: usersError,
-  } = useQuery<User[], Error>({
-    queryKey: ["users"],
-    queryFn: () => robustFetcher<User[]>("/api/users"),
-  });
-
-  const {
-    data: todos,
-    isLoading: todosLoading,
-    error: todosError,
-  } = useQuery<Todo[], Error>({
-    queryKey: ["todos"],
-    queryFn: () => robustFetcher<Todo[]>("/api/todo"),
-  });
-
-  const projectOptions =
-    projects?.map((project) => ({ value: project.id, title: project.name })) ||
-    [];
-  const userOptions =
-    users?.map((user) => ({
-      value: user.id,
-      title: user.name || user.email || "Usuário sem nome",
-    })) || [];
-  const todoOptions =
-    todos
-      ?.filter((t) => t.id !== task.id)
-      .map((todo) => ({ value: todo.id, title: todo.title })) || [];
-
-  const ErrorMessage = ({ msg }: ErrorMessageProps) =>
-    msg ? <span className="text-red-500 text-xs">{msg}</span> : null;
-
   const handleAttachmentChange = async (
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
@@ -425,7 +476,6 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
       event.target.value = "";
     }
   };
-
   const ExtraInfoField = () => (
     <>
       <div className="relative grid gap-1 pb-4">
@@ -435,20 +485,15 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
         <Controller
           control={control}
           name="projectId"
-          defaultValue={task.projectId?.toString() || ""}
           render={({ field }) => (
             <CustomizedSelect
               options={projectOptions}
               placeholder="Selecione a área"
               onChange={field.onChange}
-              value={field.value?.toString() || ""}
+              value={field.value || ""}
             />
           )}
         />
-        {projectsError && <ErrorMessage msg={projectsError.message} />}
-        {!projectsLoading && projectOptions.length === 0 && (
-          <ErrorMessage msg="Nenhuma área disponível." />
-        )}
         <ErrorMessage msg={errors.projectId?.message?.toString()} />
       </div>
       <div className="relative grid gap-1 pb-4">
@@ -468,10 +513,6 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
             />
           )}
         />
-        {usersError && <ErrorMessage msg={usersError.message} />}
-        {!usersLoading && userOptions.length === 0 && (
-          <ErrorMessage msg="Nenhum usuário disponível." />
-        )}
         <ErrorMessage msg={errors.assignedToIds?.message?.toString()} />
       </div>
       <div className="relative grid gap-1 pb-4">
@@ -491,7 +532,6 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
             />
           )}
         />
-        {todosError && <ErrorMessage msg={todosError.message} />}
         <ErrorMessage msg={errors.parentId?.message?.toString()} />
       </div>
       <div className="relative grid gap-1 pb-4">
@@ -511,7 +551,6 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
             />
           )}
         />
-        {todosError && <ErrorMessage msg={todosError.message} />}
         <ErrorMessage msg={errors.linkedCardIds?.message?.toString()} />
       </div>
       <div className="relative grid gap-1 pb-4">
@@ -553,33 +592,89 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
         />
         <ErrorMessage msg={errors.deadline?.message?.toString()} />
       </div>
+
+      {/* ================== CAMPO DE TAGS ATUALIZADO ================== */}
       <div className="relative grid gap-1 pb-4">
-        <Label className="text-sm font-medium" htmlFor="tags">
-          Tags
-        </Label>
+        <div className="flex items-center justify-between">
+          <Label className="text-sm font-medium" htmlFor="tags">
+            Tags
+          </Label>
+          {watchedProjectId && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-6 px-1"
+              onClick={() => setShowNewTagForm(!showNewTagForm)}
+            >
+              <PlusCircle className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+
+        {showNewTagForm && (
+          <div className="flex items-center gap-2 p-2 border rounded-md bg-slate-50 dark:bg-slate-800">
+            <Input
+              type="color"
+              value={newTagColor}
+              onChange={(e) => setNewTagColor(e.target.value)}
+              className="p-1 h-8 w-10"
+            />
+            <Input
+              type="text"
+              placeholder="Nome da nova tag"
+              value={newTagName}
+              onChange={(e) => setNewTagName(e.target.value)}
+              className="h-8"
+            />
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleCreateTag}
+              disabled={isCreatingTag || !newTagName.trim()}
+              isLoading={isCreatingTag}
+            >
+              Criar
+            </Button>
+          </div>
+        )}
+
         <Controller
           control={control}
           name="tags"
           defaultValue={task.tags || []}
           render={({ field }) => (
             <CustomizedMultSelect
-              value={field.value || []}
-              onChange={field.onChange}
+              // ================== CORREÇÃO FINAL APLICADA ==================
+              // Garante que o valor passado para o seletor seja sempre um array de strings (IDs),
+              // mesmo que o cache do React Query contenha objetos.
+              value={(field.value || []).map((tag: any) => tag.id || tag)}
+              // =============================================================
+              onChange={(selectedIds: string[]) => {
+                const selectedObjects = availableTags.filter((tag) =>
+                  selectedIds.includes(tag.id)
+                );
+                field.onChange(selectedObjects);
+              }}
               placeholder="Selecione tags"
-              options={tagOptions.map((tag) => ({ value: tag, title: tag }))}
+              options={tagOptions}
+              disabled={tagsLoading || !watchedProjectId}
             />
           )}
         />
+        {!watchedProjectId && (
+          <ErrorMessage msg="Selecione um projeto para ver as tags." />
+        )}
         <ErrorMessage msg={errors.tags?.message?.toString()} />
       </div>
+      {/* ============================================================= */}
     </>
   );
 
   return (
     <form
       onSubmit={handleSubmit((data) => {
-        const payload =
-          title === "Edit Task" && task.id ? { ...data, id: task.id } : data;
+        const payload = { ...data, id: task.id };
         submitEditTodoTask(payload);
       })}
     >
@@ -713,8 +808,7 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
                   </div>
                 </div>
               )}
-              
-              {/* NOVO: Renderiza o componente de histórico aqui */}
+
               {task.id && task.movementHistory && (
                 <MovementHistory history={task.movementHistory} />
               )}

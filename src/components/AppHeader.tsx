@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Menu, Search, Settings, User } from "lucide-react"; // Added User icon, removed Users
@@ -16,6 +15,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react"; // Import useSession
 import UserAccountNav from "./UserAccountNav"; // Import UserAccountNav
+import AdvancedFilters from "./AdvancedFilters";
 import { cn } from "@/lib/utils"; // Import cn for conditional classes
 
 const AppHeader = () => {
@@ -58,9 +58,9 @@ const AppHeader = () => {
           <Menu className="h-5 w-5" />
         </Button>
         
-        {/* Search Input */}
-        <div className="flex items-center w-full max-w-md">
-          <div className="relative w-full">
+        {/* Search Input and Filters */}
+        <div className="flex items-center w-full max-w-2xl space-x-3">
+          <div className="relative flex-1">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500 dark:text-gray-400" />
             <Input
               type="search"
@@ -70,6 +70,9 @@ const AppHeader = () => {
               onChange={handleSearchChange}
             />
           </div>
+          
+          {/* Advanced Filters Component */}
+          <AdvancedFilters />
         </div>
 
         {/* Right side controls */}
@@ -115,4 +118,3 @@ const AppHeader = () => {
 };
 
 export default AppHeader;
-

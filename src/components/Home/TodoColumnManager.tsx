@@ -55,8 +55,8 @@ const TodoColumnManager = () => {
   const [newColumnName, setNewColumnName] = useState("");
 
   const { data: todos, isLoading: isLoadingTodos, error: errorTodos } = useQuery<TodoWithRelations[], Error>({
-    queryKey: ["todos", { projectId: currentProjectId, viewMode }],
-    queryFn: () => todoFetchRequest(currentProjectId === "all" ? null : currentProjectId) as Promise<TodoWithRelations[]>,
+    queryKey: ["todos", { projectId: currentProjectId, viewMode }, searchParams.toString()],
+    queryFn: () => todoFetchRequest(currentProjectId === "all" ? null : currentProjectId, viewMode, searchParams) as Promise<TodoWithRelations[]>,
     onError: (err) => {
       toast({ title: "Erro", description: "Falha ao buscar tarefas.", variant: "destructive" });
     },

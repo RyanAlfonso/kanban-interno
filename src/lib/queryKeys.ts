@@ -1,0 +1,1 @@
+export const getTodosQueryKey = (projectId: string | null) => ["todos", { projectId }];

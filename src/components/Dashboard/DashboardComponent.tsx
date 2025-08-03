@@ -46,9 +46,9 @@ const DashboardComponent = () => {
   const view = searchParams.get("view") || "all";
 
   const { data: todos = [], isLoading, error } = useQuery<ExtendedTodo[], Error>({
-    queryKey: ["todos", { projectId, view }],
+    queryKey: ["todos", { projectId, view }, searchParams.toString()],
     queryFn: async () => {
-      const todos = await todoFetchRequest(projectId, view);
+      const todos = await todoFetchRequest(projectId, view, searchParams);
       return todos.map((todo: any) => ({
         ...todo,
         state: todo.state ?? "TODO",
@@ -378,4 +378,3 @@ const DashboardSkeleton = () => (
 );
 
 export default DashboardComponent;
-
