@@ -44,7 +44,6 @@ export const getTagColor = (tagName: PredefinedTag): TagColor => {
   return color;
 };
 
-// Function to validate if a tag is one of the predefined tags
 export const isValidTag = (tag: string): tag is PredefinedTag => {
   return PREDEFINED_TAGS.includes(tag as PredefinedTag);
 };

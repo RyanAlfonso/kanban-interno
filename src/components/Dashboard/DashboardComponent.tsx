@@ -4,8 +4,6 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { getClockColor } from "@/lib/color";
-// Importe a função centralizada de queryKey
-import { getTodosQueryKey } from "@/lib/queryKeys";
 import { PREDEFINED_TAGS, getTagColor, PredefinedTag, TagColor } from "@/lib/tags";
 import { cn } from "@/lib/utils";
 import todoFetchRequest from "@/requests/todoFetchRequest";
@@ -42,17 +40,15 @@ interface ExtendedTodo extends Todo {
 
 
 const DashboardComponent = () => {
+  console.log("Rendering DashboardComponent...");
   const searchParams = useSearchParams();
   const projectId = searchParams.get("projectId") || null;
   const view = searchParams.get("view") || "all";
 
-  // ================== CORREÇÃO APLICADA AQUI ==================
-  // Usando a função centralizada `getTodosQueryKey` para garantir consistência
-  // com o local onde a query é invalidada (TaskEditFormController).
   const { data: todos = [], isLoading, error } = useQuery<ExtendedTodo[], Error>({
-    queryKey: getTodosQueryKey(projectId, view),
+    queryKey: ["todos", { projectId, view }, searchParams.toString()],
     queryFn: async () => {
-      const todos = await todoFetchRequest(projectId, view);
+      const todos = await todoFetchRequest(projectId, view, searchParams);
       return todos.map((todo: any) => ({
         ...todo,
         state: todo.state ?? "TODO",
@@ -61,7 +57,6 @@ const DashboardComponent = () => {
     },
     staleTime: 1000 * 60,
   });
-  // ==========================================================
 
   const sortedTodos = useMemo(
     () =>
@@ -132,7 +127,7 @@ const DashboardComponent = () => {
     ) as ExtendedTodo | undefined;
 
   const upcomingTasks = Array.isArray(todos) ? (todos as ExtendedTodo[])
-    .filter((todo) => todo.deadline && dayjs(todo.deadline).isAfter(dayjs()))
+    .filter((todo) => todo.deadline && dayjs(todo.deadline).isAfter(dayjs())) // Check if deadline exists
     .slice().sort((a, b) => dayjs(a.deadline).unix() - dayjs(b.deadline).unix()) : [];
   const nextDueTask = upcomingTasks?.[0];
 
@@ -157,9 +152,28 @@ const DashboardComponent = () => {
 
 
   if (isLoading) {
-    return <DashboardSkeleton />;
+    console.log("DashboardComponent loading...");
+    return (
+      <div className="p-6 space-y-6">
+        <div className="text-sm text-muted-foreground mb-8">
+          <Skeleton className="h-4 w-64" />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-32 rounded-lg" />
+          ))}
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+          <Skeleton className="h-96 lg:col-span-4 rounded-lg" />
+          <Skeleton className="h-96 lg:col-span-3 rounded-lg" />
+        </div>
+      </div>
+    );
   }
   
+  console.log("DashboardComponent rendering content...");
   try {
     return (
       <div className="p-6 space-y-6">
@@ -275,7 +289,7 @@ const DashboardComponent = () => {
                       </div>
                       <Progress
                         value={ (data.total > 0 ? (data.completed / data.total) * 100 : 0)}
-                        className={cn("h-2", data.colors.bg, data.colors.text === "text-white" ? "progress-indicator-white" : "progress-indicator-dark")}
+                        className={cn("h-2", data.colors.bg, data.colors.text === "text-white" ? "progress-indicator-white" : "progress-indicator-dark")} // Custom class for indicator if needed
                       />
                     </div>
                   ))
