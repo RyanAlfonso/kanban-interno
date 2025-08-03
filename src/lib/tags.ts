@@ -7,7 +7,7 @@ export const PREDEFINED_TAGS = [
   "Documentação",
 ] as const;
 
-export type PredefinedTag = typeof PREDEFINED_TAGS[number];
+export type PredefinedTag = (typeof PREDEFINED_TAGS)[number];
 
 export interface TagColor {
   bg: string;
@@ -38,7 +38,8 @@ export const getTagColor = (tagName: PredefinedTag): TagColor => {
   }
 
   const index = PREDEFINED_TAGS.indexOf(tagName);
-  const color = tagColorPalette[index % tagColorPalette.length] || defaultTagColor;
+  const color =
+    tagColorPalette[index % tagColorPalette.length] || defaultTagColor;
 
   tagColorCache.set(tagName, color);
   return color;
@@ -48,8 +49,11 @@ export const isValidTag = (tag: string): tag is PredefinedTag => {
   return PREDEFINED_TAGS.includes(tag as PredefinedTag);
 };
 
-export const getAllTagsWithColors = (): { name: PredefinedTag; colors: TagColor }[] => {
-  return PREDEFINED_TAGS.map(tag => ({
+export const getAllTagsWithColors = (): {
+  name: PredefinedTag;
+  colors: TagColor;
+}[] => {
+  return PREDEFINED_TAGS.map((tag) => ({
     name: tag,
     colors: getTagColor(tag),
   }));
