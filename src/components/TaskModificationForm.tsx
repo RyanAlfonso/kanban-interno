@@ -76,7 +76,6 @@ type TaskEditFormProps = {
   formFunctionReturn: UseFormReturn<any>;
 };
 
-// Componentes auxiliares
 const AttachmentItem: FC<{
   attachment: AttachmentWithUploader;
   onDelete: (id: string) => void;

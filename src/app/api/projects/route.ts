@@ -1,4 +1,3 @@
-// Path: kanban-interno/src/app/api/projects/route.ts
 import { getAuthSession } from "@/lib/nextAuthOptions";
 import { getLogger } from "@/logger";
 import prisma from "@/lib/prismadb";
@@ -122,6 +121,7 @@ export async function PUT(req: NextRequest) {
   }
 }
 
+// DELETE /api/projects - Deleta um projeto
 export async function DELETE(req: NextRequest) {
   const logger = getLogger("info");
   try {

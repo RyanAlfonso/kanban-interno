@@ -15,6 +15,7 @@ import {
 import { Skeleton } from "../ui/skeleton";
 import { useToast } from "../ui/use-toast";
 
+// Função para buscar projetos da API
 const fetchProjects = async (): Promise<Project[]> => {
   const response = await fetch("/api/projects");
   if (!response.ok) {
