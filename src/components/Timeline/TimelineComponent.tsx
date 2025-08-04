@@ -4,30 +4,26 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { categorizeDate, getTimeframeSortOrder } from "@/lib/date-util";
 import todoFetchRequest from "@/requests/todoFetchRequest";
-import { TodoWithColumn } from "@/types/todo"; // Import TodoWithColumn
+import { TodoWithColumn } from "@/types/todo";
 import dayjs from "dayjs";
-// Update import from react-query to @tanstack/react-query
 import { useQuery } from "@tanstack/react-query";
 import VerticalTimelineSection from "./VerticalTimelineSection";
 import { VerticalTimelineSkeleton } from "./VerticalTimelineSkeleton";
-import { useToast } from "../ui/use-toast"; // Import useToast
-import { useSearchParams } from "next/navigation"; // Import useSearchParams
+import { useToast } from "../ui/use-toast";
+import { useSearchParams } from "next/navigation"; 
 
 const TimelineComponent = () => {
-  console.log("Rendering TimelineComponent..."); // Added log
-  const { toast } = useToast(); // Initialize toast
-  const searchParams = useSearchParams(); // Get search params
-  const projectId = searchParams.get("projectId") || null; // Get current projectId
-  const view = searchParams.get("view") || "all"; // Get current view
+  console.log("Rendering TimelineComponent..."); 
+  const { toast } = useToast();
+  const searchParams = useSearchParams();
+  const projectId = searchParams.get("projectId") || null;
+  const view = searchParams.get("view") || "all";
 
-  // Update useQuery syntax for v4+
-  // Include projectId and view in the queryKey to refetch when they change
-  const { data: todos, isLoading, error } = useQuery<TodoWithColumn[], Error>({ // Use TodoWithColumn[]
-    queryKey: ["todos", { projectId, view }], // Query key includes projectId and view
-    queryFn: () => todoFetchRequest(projectId, view) as Promise<TodoWithColumn[]>, // Assert type here
+  const { data: todos, isLoading, error } = useQuery<TodoWithColumn[], Error>({
+    queryKey: ["todos", { projectId, view }],
+    queryFn: () => todoFetchRequest(projectId, view) as Promise<TodoWithColumn[]>,
     onError: (err) => {
       console.error("Error fetching todos for timeline:", err);
-      // Show toast on error
       toast({
         title: "Erro ao Carregar Tarefas",
         description: err.message || "Não foi possível buscar as tarefas para a linha do tempo.",
@@ -36,22 +32,20 @@ const TimelineComponent = () => {
     }
   });
 
-  // Group tasks only if todos exist and are not empty
   const groupedTasks =
     todos && todos.length > 0
-      ? todos.reduce((groups: Record<string, TodoWithColumn[]>, task) => { // Use TodoWithColumn[] for groups
+      ? todos.reduce((groups: Record<string, TodoWithColumn[]>, task) => {
           const date = dayjs(task.createdAt);
           const timeframe = categorizeDate(date);
 
           if (!groups[timeframe]) {
             groups[timeframe] = [];
           }
-          // Sort tasks within each group by creation date (newest first)
-          groups[timeframe].push(task); // task is TodoWithColumn
+          groups[timeframe].push(task);
           groups[timeframe].sort((a, b) => dayjs(b.createdAt).unix() - dayjs(a.createdAt).unix());
           return groups;
-        }, {} as Record<string, TodoWithColumn[]>) // Initialize with correct type
-      : {}; // Default to empty object if no todos
+        }, {} as Record<string, TodoWithColumn[]>)
+      : {};
 
   if (isLoading) {
     console.log("TimelineComponent loading...");
@@ -64,7 +58,6 @@ const TimelineComponent = () => {
 
   if (error) {
     console.error("TimelineComponent render error:", error);
-    // Error toast is shown by useQuery's onError
     return <div className="container mx-auto py-8 px-4 md:px-6 text-red-500">Erro ao carregar a linha do tempo. Tente recarregar a página.</div>;
   }
 
@@ -90,7 +83,7 @@ const TimelineComponent = () => {
               <VerticalTimelineSection
                 key={timeframe}
                 title={timeframe}
-                todos={groupedTasks[timeframe]} // Already sorted within the reduce step
+                todos={groupedTasks[timeframe]}
               />
             ))}
           </div>

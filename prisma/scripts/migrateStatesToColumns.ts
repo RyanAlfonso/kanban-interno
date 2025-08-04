@@ -2,7 +2,6 @@ import { PrismaClient, Project, Todo, State as OldState } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-// Define the desired order of columns based on the old State enum
 const stateOrder: OldState[] = [OldState.TODO, OldState.IN_PROGRESS, OldState.REVIEW, OldState.DONE];
 
 async function main() {
@@ -11,12 +10,9 @@ async function main() {
   const projects = await prisma.project.findMany({
     include: {
       todos: {
-        // Only fetch todos that might need migration (have a state, no columnId yet)
-        // However, prisma.projectColumn.create below needs to know all states used in a project
-        // So, fetch all todos for state analysis, then filter for update later.
         select: {
           id: true,
-          state: true, // This is the old state field
+          state: true,
           projectId: true,
         },
       },
@@ -52,7 +48,6 @@ async function main() {
 
     console.log(`  Distinct states found in project ${project.name}: ${distinctStatesInProject.join(', ')}`);
 
-    // Sort distinct states according to the predefined order
     const sortedDistinctStates = distinctStatesInProject.sort((a, b) => {
         return stateOrder.indexOf(a) - stateOrder.indexOf(b);
     });
@@ -64,7 +59,6 @@ async function main() {
       const columnName = stateValue.toString(); // e.g., "TODO", "IN_PROGRESS"
       const columnOrder = i;
 
-      // Check if a column with this name already exists for this project
       let column = await prisma.projectColumn.findUnique({
         where: {
           projectId_name: {
@@ -100,14 +94,13 @@ async function main() {
     // Now update todos in this project
     let updatedTodosCount = 0;
     for (const todo of todosInProject) {
-      if (todo.state && !await prisma.todo.findUnique({where: {id: todo.id}})?.columnId) { // Check columnId again in case script is re-run
+      if (todo.state && !await prisma.todo.findUnique({where: {id: todo.id}})?.columnId) {
         const targetColumnId = stateToColumnIdMap.get(todo.state);
         if (targetColumnId) {
           await prisma.todo.update({
             where: { id: todo.id },
             data: {
               columnId: targetColumnId,
-              // state: null, // If you want to explicitly nullify the old state field if it still exists in DB schema
             },
           });
           updatedTodosCount++;

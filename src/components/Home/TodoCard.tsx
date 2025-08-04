@@ -1,7 +1,6 @@
 "use client";
 
 import useDraggable from "@/hooks/useDraggable";
-import { cn } from "@/lib/utils";
 import { openTodoEditor } from "@/redux/actions/todoEditorAction";
 import { Todo, User } from "@prisma/client";
 import dayjs from "dayjs";
@@ -18,7 +17,6 @@ import {
 import { FC, useCallback, useState } from "react";
 import { useDispatch } from "react-redux";
 import { useSearchParams } from "next/navigation";
-import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import {
   Popover,
@@ -174,7 +172,6 @@ const TodoCard: FC<TodoProps> = ({ todo }) => {
           </div>
         )}
 
-        {/* Card Parent (Hierárquico) */}
         {todo.parent && (
           <div className="mb-2 text-xs text-blue-600 dark:text-blue-400 flex items-center">
             <ArrowUp className="h-3 w-3 mr-1" />
@@ -184,7 +181,6 @@ const TodoCard: FC<TodoProps> = ({ todo }) => {
           </div>
         )}
 
-        {/* Child Cards (Hierárquico) */}
         {todo.childTodos && todo.childTodos.length > 0 && (
           <div className="mb-2 text-xs text-green-600 dark:text-green-400 flex items-center">
             <ArrowDown className="h-3 w-3 mr-1" />
@@ -194,7 +190,6 @@ const TodoCard: FC<TodoProps> = ({ todo }) => {
           </div>
         )}
 
-        {/* Linked Cards (Irmãos) */}
         {todo.linkedCards && todo.linkedCards.length > 0 && (
           <div className="mb-2 text-xs text-purple-600 dark:text-purple-400 flex items-center">
             <Link className="h-3 w-3 mr-1" />
@@ -248,7 +243,6 @@ const TodoCard: FC<TodoProps> = ({ todo }) => {
           </div>
         )}
 
-        {/* Popover para mostrar detalhes das vinculações */}
         {(todo.parent ||
           (todo.childTodos && todo.childTodos.length > 0) ||
           (todo.linkedCards && todo.linkedCards.length > 0)) && (

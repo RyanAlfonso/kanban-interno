@@ -1,13 +1,9 @@
-// Path: kanban-interno/src/app/api/projects/ti/setup/route.ts
 import { getAuthSession } from "@/lib/nextAuthOptions";
 import { getLogger } from "@/logger";
 import prisma from "@/lib/prismadb";
 import { NextRequest } from "next/server";
-// ================== CORREÇÃO APLICADA AQUI ==================
-// 1. Importe as constantes do seu arquivo de permissões.
 import { COLUMNS } from "@/lib/permissions";
 
-// 2. Use as constantes importadas para definir as colunas.
 const TI_COLUMNS = [
   { name: COLUMNS.BACKLOG, order: 1 },
   { name: COLUMNS.EM_EXECUCAO, order: 2 },

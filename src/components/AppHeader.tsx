@@ -1,6 +1,6 @@
 "use client";
 
-import { Menu, Search, Settings, User } from "lucide-react"; // Added User icon, removed Users
+import { Menu, Search, Settings } from "lucide-react";
 import { ThemeSwitcher } from "./ThemeSwitcher";
 import { Button, buttonVariants } from "./ui/button";
 import { Input } from "./ui/input";
@@ -13,18 +13,16 @@ import {
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect } from "react";
-import { useSession } from "next-auth/react"; // Import useSession
-import UserAccountNav from "./UserAccountNav"; // Import UserAccountNav
+import { useSession } from "next-auth/react";
+import UserAccountNav from "./UserAccountNav";
 import AdvancedFilters from "./AdvancedFilters";
-import { cn } from "@/lib/utils"; // Import cn for conditional classes
 
 const AppHeader = () => {
-  console.log("Rendering AppHeader..."); // Added log
-  const { data: session } = useSession(); // Get session data
+  console.log("Rendering AppHeader...");
+  const { data: session } = useSession(); 
   const [search, setSearch] = useState("");
   const router = useRouter();
   const searchParams = useSearchParams();
-  // Removed currentView
 
   useEffect(() => {
     console.log("AppHeader useEffect for searchParams running...");
@@ -43,12 +41,10 @@ const AppHeader = () => {
     router.replace(`/?${params.toString()}`);
   };
 
-  // Removed handleViewChange function
 
   try {
     return (
       <header className="bg-white dark:bg-gray-900 border-b dark:border-gray-800 py-3 px-4 flex items-center justify-between">
-        {/* Placeholder for sidebar toggle button on mobile - kept invisible */}
         <Button
           variant="ghost"
           size="icon"
@@ -58,7 +54,6 @@ const AppHeader = () => {
           <Menu className="h-5 w-5" />
         </Button>
         
-        {/* Search Input and Filters */}
         <div className="flex items-center w-full max-w-2xl space-x-3">
           <div className="relative flex-1">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500 dark:text-gray-400" />
@@ -71,14 +66,10 @@ const AppHeader = () => {
             />
           </div>
           
-          {/* Advanced Filters Component */}
           <AdvancedFilters />
         </div>
 
-        {/* Right side controls */}
         <div className="flex items-center space-x-2">
-          {/* View Filter Buttons */}
-          {/* End View Filter Buttons */}
 
           <ThemeSwitcher />
 
@@ -99,7 +90,6 @@ const AppHeader = () => {
             </Tooltip>
           </TooltipProvider>
 
-          {/* Conditional rendering based on session */}
           {session?.user ? (
              <UserAccountNav user={session.user} />
           ) : (
@@ -111,8 +101,7 @@ const AppHeader = () => {
       </header>
     );
   } catch (error) {
-    console.error("Error rendering AppHeader:", error); // Added try-catch
-    // Optionally render an error message or fallback UI
+    console.error("Error rendering AppHeader:", error);
     return <div>Ocorreu um erro no cabeçalho.</div>;
   }
 };

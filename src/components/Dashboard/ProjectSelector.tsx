@@ -15,7 +15,6 @@ import {
 import { Skeleton } from "../ui/skeleton";
 import { useToast } from "../ui/use-toast";
 
-// Função para buscar projetos da API
 const fetchProjects = async (): Promise<Project[]> => {
   const response = await fetch("/api/projects");
   if (!response.ok) {
@@ -34,7 +33,6 @@ const DashboardProjectSelector: FC<DashboardProjectSelectorProps> = ({ className
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
 
-  // Buscar projetos
   const { data: projects, isLoading, error } = useQuery<Project[], Error>({
     queryKey: ["projects"],
     queryFn: fetchProjects,
@@ -47,16 +45,13 @@ const DashboardProjectSelector: FC<DashboardProjectSelectorProps> = ({ className
     },
   });
 
-  // Obter o projectId atual da URL
   const currentProjectId = searchParams.get("projectId") || "all";
 
-  // Encontrar o Nome da área atual
   const currentProjectName = 
       isLoading ? "Carregando..." 
     : currentProjectId === "all" ? "Todas as áreas" 
     : projects?.find(p => p.id === currentProjectId)?.name || "Projeto não encontrado";
 
-  // Função para mudar o projeto selecionado
   const handleProjectChange = (projectId: string) => {
     const params = new URLSearchParams(Array.from(searchParams.entries()));
     
@@ -66,7 +61,6 @@ const DashboardProjectSelector: FC<DashboardProjectSelectorProps> = ({ className
       params.set("projectId", projectId);
     }
     
-    // Navegar para a página de dashboard com os parâmetros atualizados
     router.push(`/dashboard?${params.toString()}`);
     setOpen(false);
   };
@@ -94,7 +88,6 @@ const DashboardProjectSelector: FC<DashboardProjectSelectorProps> = ({ className
         <PopoverContent
           align="start"
         >
-          {/* Loading state */}
           {isLoading && (
             <div className="p-2">
               <Skeleton className="h-8 w-full mb-1" />
@@ -102,15 +95,12 @@ const DashboardProjectSelector: FC<DashboardProjectSelectorProps> = ({ className
             </div>
           )}
           
-          {/* Error state */}
           {error && !isLoading && (
             <div className="p-2 text-sm text-red-500">Erro ao carregar projetos.</div>
           )}
           
-          {/* Project list */}
           {!isLoading && !error && (
             <div className="max-h-60 overflow-auto p-1">
-              {/* "All Projects" Option */}
               <Button
                 variant={currentProjectId === "all" ? "secondary" : "ghost"}
                 className="w-full justify-start font-normal h-8 px-2 text-sm"
@@ -119,7 +109,6 @@ const DashboardProjectSelector: FC<DashboardProjectSelectorProps> = ({ className
                 Todas as áreas
               </Button>
               
-              {/* Individual Projects */}
               {projects?.map((project) => (
                 <Button
                   key={project.id}

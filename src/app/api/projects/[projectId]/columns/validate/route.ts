@@ -1,4 +1,3 @@
-// Path: kanban-interno/src/app/api/projects/[projectId]/columns/validate/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthSession } from '@/lib/nextAuthOptions';
 import { getLogger } from '@/logger';
@@ -33,15 +32,10 @@ export async function GET(
       return new NextResponse(`Project with ID ${projectId} not found.`, { status: 404 });
     }
 
-    // @ts-ignore
     const isAdmin = session.user.role === 'ADMIN';
     
-    // Verifica se existe uma coluna Backlog (order = 1)
     const backlogColumn = project.columns.find(col => col.order === 1);
     
-    // Só permite criação se:
-    // 1. Usuário é admin
-    // 2. E existe um Backlog (para inserir novas colunas nele)
     const canCreateColumn = isAdmin && !!backlogColumn;
     
     const response = {

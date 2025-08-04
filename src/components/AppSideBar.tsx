@@ -1,6 +1,6 @@
 "use client";
 
-import { getLabelColor } from "@/lib/color"; // Keep for potential future use or remove if labels are fully replaced
+import { getLabelColor } from "@/lib/color";
 import { cn } from "@/lib/utils";
 import { BarChart2, Clock, Folder, Menu, Plus, Tag } from "lucide-react";
 import Link from "next/link";
@@ -15,13 +15,12 @@ import {
   openSidebar,
   toggleSidebar,
 } from "@/redux/actions/sidebarAction";
-// Update import from react-query to @tanstack/react-query
 import { useQuery, useQueryClient } from "@tanstack/react-query"; 
 import { Project } from "@prisma/client";
 import { useToast } from "./ui/use-toast";
-import { useSession } from 'next-auth/react'; // Import useSession
-import { Skeleton } from "./ui/skeleton"; // Import Skeleton for loading state
-import ProjectForm from "./ProjectForm"; // Import ProjectForm
+import { useSession } from 'next-auth/react';
+import { Skeleton } from "./ui/skeleton";
+import ProjectForm from "./ProjectForm";
 
 const fetchUserAreas = async (): Promise<any[]> => {
   const response = await fetch("/api/user/areas");
@@ -60,11 +59,6 @@ const NAV_CONTENT: NavContent[] = [
     icon: BarChart2,
     link: "/dashboard",
   },
-  // {
-  //   title: "List",
-  //   icon: ListIcon,
-  //   link: "/list",
-  // },
   {
     title: "Timeline",
     icon: Clock,
@@ -73,13 +67,11 @@ const NAV_CONTENT: NavContent[] = [
 ];
 
 const AppSideBar = () => {
-  // console.log("Rendering AppSideBar..."); // Log removido
   const sidebarRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { toast } = useToast();
-  const queryClient = useQueryClient(); // Initialize queryClient
+  const queryClient = useQueryClient();
 
   const { md, lg } = useBreakpoint();
   const isSidebarOpen = useSelector<ReduxState, boolean>(
@@ -106,58 +98,42 @@ const AppSideBar = () => {
     return userAreas.some(area => area.name === project.name);
   });
 
-  // Get current project ID from URL for highlighting
   const currentProjectId = searchParams.get("projectId");
-  // console.log("Current Project ID from URL:", currentProjectId); // Log removido
 
   useEffect(() => {
-    // console.log("AppSideBar useEffect for resize running..."); // Log removido
     const handleResize = () => {
       if (lg && !isSidebarOpen) {
-        // console.log("Opening sidebar due to resize (lg)"); // Log removido
         dispatch(openSidebar());
       }
     };
 
     window.addEventListener("resize", handleResize);
     return () => {
-      // console.log("Cleaning up AppSideBar resize listener..."); // Log removido
       window.removeEventListener("resize", handleResize);
     };
   }, [isSidebarOpen, lg, dispatch]);
 
   const handleToggleSidebar = () => {
-    // console.log("Toggling sidebar"); // Log removido
     dispatch(toggleSidebar());
   };
 
   const handleNavigate = (link: string) => {
-    // console.log("Navigating to:", link); // Log removido
     router.push(link);
-    // Close sidebar on navigation on smaller screens
     if (md) return;
-    // console.log("Closing sidebar due to navigation (small screen)"); // Log removido
     dispatch(closeSidebar());
   };
 
-  // Function to handle project selection
   const handleProjectSelect = (projectId: string | null) => {
-    // console.log("Selecting project:", projectId); // Log removido
     const params = new URLSearchParams(Array.from(searchParams.entries()));
     if (projectId) {
       params.set("projectId", projectId);
     } else {
-      // If null, go to "All Projects" view (remove projectId)
       params.delete("projectId");
     }
-    // Navigate to the main board page with the new filter
     handleNavigate(`/?${params.toString()}`);
   };
 
-  // Callback function for successful project creation
   const handleProjectCreated = () => {
-    // console.log("Project created, invalidating projects query..."); // Log removido
-    // Update invalidateQueries syntax for v4+
     queryClient.invalidateQueries({ queryKey: ["projects"] }); 
   };
 
@@ -184,7 +160,6 @@ const AppSideBar = () => {
               : "-translate-x-full md:w-16 md:-translate-x-0",
           )}
         >
-          {/* Header */} 
           <div className="flex items-center justify-between p-4 border-b dark:border-gray-800 flex-shrink-0">
             {isSidebarOpen && (
               <Link href="/">
@@ -208,9 +183,7 @@ const AppSideBar = () => {
             </Button>
           </div>
 
-          {/* Navigation and Projects - Scrollable Area */} 
           <div className="flex-grow overflow-y-auto p-4">
-            {/* Main Navigation */}
             <nav className="space-y-2">
               {NAV_CONTENT.map((item) => (
                 <Link
@@ -257,7 +230,6 @@ const AppSideBar = () => {
               )}
             </nav>
 
-            {/* Projects Section */}
             <div className="mt-8">
               <div className="flex items-center justify-between mb-2">
                 {isSidebarOpen && (
@@ -265,7 +237,6 @@ const AppSideBar = () => {
                     Áreas
                   </h3>
                 )}
-                {/* Add Project Button integrated with ProjectForm */} 
                 {session?.user?.role === 'ADMIN' && isSidebarOpen && (
                   <ProjectForm 
                     onSuccess={handleProjectCreated} 
@@ -278,15 +249,13 @@ const AppSideBar = () => {
                 )}
               </div>
               
-              {/* Project List */} 
               <div className="space-y-1">
-                {/* "All Projects" Link */}
                 <Button
                   variant="ghost"
-                  onClick={() => handleProjectSelect(null)} // Pass null for "All Projects"
+                  onClick={() => handleProjectSelect(null)}
                   className={cn(
                     "w-full justify-start text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800",
-                    !currentProjectId && // Highlight if no projectId is in URL
+                    !currentProjectId &&
                       "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white",
                     !isSidebarOpen && "justify-center p-0",
                   )}
@@ -295,7 +264,6 @@ const AppSideBar = () => {
                   {isSidebarOpen && <span>Todas as áreas</span>}
                 </Button>
 
-                {/* Loading Skeletons */}
                 {isLoading && isSidebarOpen && (
                   <>
                     <Skeleton className="h-8 w-full" />
@@ -303,7 +271,6 @@ const AppSideBar = () => {
                   </>
                 )}
 
-                {/* Actual Project List */}
                 {!isLoading && filteredProjects?.map((project) => (
                   <Button
                     key={project.id}
@@ -311,7 +278,7 @@ const AppSideBar = () => {
                     onClick={() => handleProjectSelect(project.id)}
                     className={cn(
                       "w-full justify-start text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800",
-                      currentProjectId === project.id && // Highlight if this project is selected
+                      currentProjectId === project.id &&
                         "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white",
                       !isSidebarOpen && "justify-center p-0",
                     )}
@@ -321,8 +288,6 @@ const AppSideBar = () => {
                   </Button>
                 ))}
 
-                {/* Error Message */} 
-                {/* Display error message using the 'error' object from useQuery */}
                 {error && isSidebarOpen && (
                   <p className="text-xs text-red-500">Erro ao carregar áreas: {error.message}</p>
                 )}
@@ -333,8 +298,6 @@ const AppSideBar = () => {
       </>
     );
   } catch (error) {
-    // console.error("Error rendering AppSideBar:", error); // Log removido
-    // Optionally render an error message or fallback UI
     return <div>Ocorreu um erro na barra lateral.</div>;
   }
 };

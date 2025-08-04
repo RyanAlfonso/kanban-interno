@@ -2,7 +2,6 @@ import { getAuthSession } from "@/lib/nextAuthOptions";
 import { getLogger } from "@/logger";
 import prisma from "@/lib/prismadb";
 import { NextRequest } from "next/server";
-import { canMoveCard } from "@/lib/permissions";
 
 export async function GET(req: NextRequest) {
   const logger = getLogger("info");
@@ -149,7 +148,6 @@ export async function PUT(req: NextRequest) {
 
     const dataForPrismaUpdate: any = { ...dataFromClient };
 
-    // Limpa IDs de relacionamento que chegam como string vazia ("") para null
     if (dataForPrismaUpdate.projectId === "")
       dataForPrismaUpdate.projectId = null;
     if (dataForPrismaUpdate.parentId === "")
@@ -157,8 +155,6 @@ export async function PUT(req: NextRequest) {
     if (dataForPrismaUpdate.columnId === "")
       dataForPrismaUpdate.columnId = null;
 
-    // Trata a relação de tags. O frontend agora envia um array de objetos.
-    // A API usa 'set' com os IDs desses objetos para sincronizar a relação.
     if (dataForPrismaUpdate.tags !== undefined) {
       if (Array.isArray(dataForPrismaUpdate.tags)) {
         dataForPrismaUpdate.tags = {
@@ -167,13 +163,10 @@ export async function PUT(req: NextRequest) {
           })),
         };
       } else {
-        // Se 'tags' for enviado mas não for um array, é um erro, então removemos
-        // para não quebrar a query do Prisma.
         delete dataForPrismaUpdate.tags;
       }
     }
 
-    // Lógica de movimento de card
     if (dataFromClient.columnId) {
       const currentTodo = await prisma.todo.findUnique({
         where: { id },
@@ -184,7 +177,6 @@ export async function PUT(req: NextRequest) {
         currentTodo.columnId &&
         currentTodo.columnId !== dataFromClient.columnId
       ) {
-        // ... sua lógica de permissão de movimento pode ser adicionada aqui ...
       }
     }
 
@@ -204,7 +196,6 @@ export async function PUT(req: NextRequest) {
       },
     });
 
-    // Busca relações associadas para retornar ao frontend
     const assignedUsers = await prisma.user.findMany({
       where: { id: { in: updatedTodo.assignedToIds } },
       select: { id: true, name: true, email: true, image: true },

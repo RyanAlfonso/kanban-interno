@@ -21,8 +21,8 @@ model ProjectColumn {
   movedFrom CardMovementHistory[] @relation("FromColumn")
   movedTo   CardMovementHistory[] @relation("ToColumn")
 
-  @@unique([projectId, name]) // Ensure column names are unique within a project
-  @@index([projectId, order]) // Index for ordering columns
+  @@unique([projectId, name])
+  @@index([projectId, order])
 }
 
 // Novo modelo para Projetos
@@ -30,20 +30,16 @@ model Project {
   id          String  @id @default(auto()) @map("_id") @db.ObjectId
   name        String
   description String?
-  // todos       Todo[] // This might become redundant if Todos are primarily accessed via ProjectColumn
-  columns     ProjectColumn[] // Relation to the project\"s columns
-  tags        Tag[] // Tags específicas deste projeto
+  // todos       Todo[]
+  columns     ProjectColumn[]
+  tags        Tag[]
 
-  // Relation to Todos directly associated with the project (optional, if needed beyond columns)
-  // Consider if all todos MUST belong to a column, or if some can be unassigned at project level.
-  // If all todos must be in a column, this direct todos relation might be removed.
   todos       Todo[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
-// Modelo para Tags por projeto
 model Tag {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
   name      String
@@ -55,7 +51,7 @@ model Tag {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([projectId, name]) // Ensure tag names are unique within a project
+  @@unique([projectId, name])
 }
 
 model Todo {
@@ -63,15 +59,15 @@ model Todo {
   title       String
   description String?
   label       String[] @default([])
-  deadline    DateTime // Tornando Prazo obrigatório
+  deadline    DateTime
   isDeleted   Boolean  @default(false)
   order       Int
-  referenceDocument String? // Novo campo: Documento de Referência (não obrigatório)
+  referenceDocument String?
 
   ownerId String @db.ObjectId
   owner   User?  @relation(fields: [ownerId], references: [id])
 
-  assignedToIds String[] @db.ObjectId // Usuários Responsáveis (obrigatório)
+  assignedToIds String[] @db.ObjectId
 
   projectId String? @db.ObjectId
   project   Project? @relation(fields: [projectId], references: [id])
@@ -91,8 +87,8 @@ model Todo {
 
   linkedCardIds String[] @db.ObjectId
 
-  comments      Comment[] // Novo campo para comentários
-  attachments   Attachment[] // Novo campo para anexos
+  comments      Comment[]
+  attachments   Attachment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -125,20 +121,19 @@ model User {
   id            String    @id @default(auto()) @map("_id") @db.ObjectId
   name          String?
   email         String?   @unique
-  password      String?   // Adicionado campo para senha
+  password      String?  
   image         String?
   emailVerified DateTime?
   accounts      Account[]
   sessions      Session[]
 
-  todos Todo[] // Todos criados pelo usuário (owner)
-  comments Comment[] // Relação inversa para comentários
-  attachments Attachment[] // Relação inversa para anexos
+  todos Todo[]
+  comments Comment[]
+  attachments Attachment[]
 
-  // Histórico de movimentação que o usuário realizou
   cardMovements CardMovementHistory[]
 
-  role Role @default(USER) // Adicionando o campo role
+  role Role @default(USER)
   type UserType @default(COLABORADOR)
 
   areas     Area[]   @relation(fields: [areaIds], references: [id])

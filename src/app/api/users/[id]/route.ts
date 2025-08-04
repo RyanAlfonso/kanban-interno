@@ -1,4 +1,3 @@
-// Path: kanban-interno/src/app/api/users/[id]/route.ts
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prismadb";
 import bcrypt from "bcrypt";

@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { UserType } from '@prisma/client';
-import { useEffect, useState } from 'react';
-import { MultiSelect } from './MultiSelect';
+import { UserType } from "@prisma/client";
+import { useEffect, useState } from "react";
+import { MultiSelect } from "./MultiSelect";
 
 interface Area {
   id: string;
@@ -17,9 +17,9 @@ interface UserFormProps {
 export function UserForm({ onSubmit, initialData }: UserFormProps) {
   const [areas, setAreas] = useState<Area[]>([]);
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    password: '',
+    name: "",
+    email: "",
+    password: "",
     type: UserType.COLABORADOR,
     areaIds: [],
     ...initialData,
@@ -27,14 +27,16 @@ export function UserForm({ onSubmit, initialData }: UserFormProps) {
 
   useEffect(() => {
     const fetchAreas = async () => {
-      const res = await fetch('/api/projects');
+      const res = await fetch("/api/projects");
       const data = await res.json();
       setAreas(data);
     };
     fetchAreas();
   }, [initialData]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
@@ -51,7 +53,10 @@ export function UserForm({ onSubmit, initialData }: UserFormProps) {
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div>
-        <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+        <label
+          htmlFor="name"
+          className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+        >
           Nome
         </label>
         <input
@@ -64,7 +69,10 @@ export function UserForm({ onSubmit, initialData }: UserFormProps) {
         />
       </div>
       <div>
-        <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+        <label
+          htmlFor="email"
+          className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+        >
           Email
         </label>
         <input
@@ -93,7 +101,10 @@ export function UserForm({ onSubmit, initialData }: UserFormProps) {
         />
       </div>
       <div>
-        <label htmlFor="type" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+        <label
+          htmlFor="type"
+          className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+        >
           Tipo
         </label>
         <select
@@ -108,7 +119,10 @@ export function UserForm({ onSubmit, initialData }: UserFormProps) {
         </select>
       </div>
       <div>
-        <label htmlFor="areas" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+        <label
+          htmlFor="areas"
+          className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+        >
           Áreas
         </label>
         <MultiSelect

@@ -3,7 +3,6 @@ import { getLogger } from "@/logger";
 import prisma from "@/lib/prismadb";
 import { NextRequest } from "next/server";
 
-// GET /api/todo/filter - Busca todos com filtros avançados
 export async function GET(req: NextRequest) {
   const logger = getLogger("info");
   try {
@@ -15,7 +14,6 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = new URL(req.url);
     
-    // Parâmetros de filtro
     const projectId = searchParams.get("projectId");
     const tagIds = searchParams.get("tagIds")?.split(",").filter(Boolean) || [];
     const assignedToIds = searchParams.get("assignedToIds")?.split(",").filter(Boolean) || [];
@@ -23,12 +21,10 @@ export async function GET(req: NextRequest) {
     const endDate = searchParams.get("endDate");
     const view = searchParams.get("view");
     
-    // Parâmetros de paginação (opcional, mas bom ter)
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "50");
     const skip = (page - 1) * limit;
 
-    // Buscar usuário e suas áreas para verificação de permissão
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },
       include: { areas: true }
@@ -42,7 +38,6 @@ export async function GET(req: NextRequest) {
       isDeleted: false,
     };
 
-    // Filtro por projeto
     if (projectId && projectId !== "all") {
       const project = await prisma.project.findUnique({
         where: { id: projectId }
@@ -52,7 +47,6 @@ export async function GET(req: NextRequest) {
         return new Response("Project not found", { status: 404 });
       }
 
-      // Se não for admin, verificar se o usuário tem acesso ao projeto
       if (session.user.role !== "ADMIN") {
         const userAreaNames = user.areas?.map(area => area.name) ?? [];
         if (!userAreaNames.includes(project.name)) {
@@ -62,7 +56,6 @@ export async function GET(req: NextRequest) {
 
       whereClause.projectId = projectId;
     } else if (session.user.role !== "ADMIN") {
-      // Se não for admin e não especificou um projeto, filtrar por projetos que ele tem acesso
       const userAreaNames = user.areas?.map(area => area.name) ?? [];
       
       if (userAreaNames.length > 0) {
@@ -73,17 +66,14 @@ export async function GET(req: NextRequest) {
         const accessibleProjectIds = accessibleProjects.map(p => p.id);
         whereClause.projectId = { in: accessibleProjectIds };
       } else {
-        // Se o usuário não tem acesso a nenhuma área, retorna um array vazio
         return new Response(JSON.stringify({ todos: [], total: 0, page, limit, totalPages: 0 }), { status: 200 });
       }
     }
 
-    // Filtro por view (mine = apenas tarefas do próprio usuário)
     if (view === "mine") {
       whereClause.ownerId = session.user.id;
     }
 
-    // Filtro por tags
     if (tagIds.length > 0) {
       whereClause.tags = {
         some: {
@@ -92,14 +82,12 @@ export async function GET(req: NextRequest) {
       };
     }
 
-    // Filtro por responsáveis
     if (assignedToIds.length > 0) {
       whereClause.assignedToIds = {
         hasSome: assignedToIds
       };
     }
 
-    // Filtro por período (deadline)
     if (startDate || endDate) {
       whereClause.deadline = {};
       if (startDate) {
@@ -107,15 +95,13 @@ export async function GET(req: NextRequest) {
       }
       if (endDate) {
         const endDateTime = new Date(endDate);
-        endDateTime.setHours(23, 59, 59, 999); // Inclui todo o dia final
+        endDateTime.setHours(23, 59, 59, 999);
         whereClause.deadline.lte = endDateTime;
       }
     }
 
-    // Buscar total de registros para paginação
     const total = await prisma.todo.count({ where: whereClause });
 
-    // Buscar todos com filtros e paginação aplicados
     const todos = await prisma.todo.findMany({
       where: whereClause,
       orderBy: [
@@ -129,11 +115,9 @@ export async function GET(req: NextRequest) {
         project: { select: { id: true, name: true } },
         column: { select: { id: true, name: true, order: true } },
         tags: { select: { id: true, name: true, color: true } },
-        // Outros includes podem ser adicionados aqui conforme necessário
       },
     });
 
-    // Adicionar relações que não podem ser incluídas diretamente na query principal (ex: assignedTo)
     const todosWithRelations = await Promise.all(
       todos.map(async (todo) => {
         const assignedUsers = await prisma.user.findMany({
@@ -166,9 +150,6 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// A rota POST pode ser usada para filtros mais complexos que não cabem em uma URL.
-// A lógica é muito similar à da rota GET.
 export async function POST(req: NextRequest) {
-    // Implemente a lógica POST aqui se necessário, seguindo o padrão da rota GET.
     return new Response(JSON.stringify({ message: "POST method for filtering is not implemented." }), { status: 405 });
 }

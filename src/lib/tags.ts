@@ -14,8 +14,6 @@ export interface TagColor {
   text: string;
 }
 
-// Simple consistent color generation based on tag name
-// More sophisticated color palettes can be added later
 const tagColorPalette: TagColor[] = [
   { bg: "bg-red-500", text: "text-white" },
   { bg: "bg-blue-500", text: "text-white" },
@@ -29,7 +27,6 @@ const tagColorPalette: TagColor[] = [
 
 const defaultTagColor: TagColor = { bg: "bg-gray-500", text: "text-white" };
 
-// Cache for generated tag colors
 const tagColorCache = new Map<PredefinedTag, TagColor>();
 
 export const getTagColor = (tagName: PredefinedTag): TagColor => {

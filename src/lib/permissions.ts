@@ -1,8 +1,6 @@
-// Caminho completo: kanban-interno/src/lib/permissions.ts
 
 import { UserType } from "@prisma/client";
 
-// Usar constantes para os nomes das colunas.
 export const COLUMNS = {
   BACKLOG: "BackLog",
   EM_EXECUCAO: "Em execução",
@@ -11,27 +9,21 @@ export const COLUMNS = {
   CONCLUIDA: "Concluída",
 };
 
-// ================== A CORREÇÃO ESTÁ AQUI ==================
-// Adicionamos 'as const' para que o TypeScript trate os valores como tipos literais
-// e não como strings genéricas. Isso resolve o erro de tipagem.
 export const USER_TYPES = {
   SERVIDOR: "SERVIDOR",
   COLABORADOR: "COLABORADOR",
 } as const;
-// ==========================================================
 
-// Interface para a resposta da função de permissão.
 interface PermissionResult {
   allowed: boolean;
   error?: string;
 }
 
 /**
- * Verifica se um usuário pode mover um card de uma coluna para outra.
- * @param fromColumnName - O nome da coluna de origem.
- * @param toColumnName - O nome da coluna de destino.
- * @param userType - O tipo do usuário ('SERVIDOR' ou 'COLABORADOR').
- * @returns Um objeto { allowed: boolean, error?: string }.
+ * @param fromColumnName
+ * @param toColumnName
+ * @param userType
+ * @returns
  */
 export function canMoveCard(
   fromColumnName: string,
@@ -40,8 +32,6 @@ export function canMoveCard(
 ): PermissionResult {
   const movement = `${fromColumnName} -> ${toColumnName}`;
 
-  // Mapeamento centralizado de TODAS as regras de negócio.
-  // Agora o TypeScript entende que os valores de USER_TYPES são compatíveis com UserType.
   const allowedMovements: { [key: string]: "ALL" | UserType[] } = {
     // 1.1 - Iniciar demanda (Todos)
     [`${COLUMNS.BACKLOG} -> ${COLUMNS.EM_EXECUCAO}`]: "ALL",
@@ -86,15 +76,12 @@ export function canMoveCard(
   };
 }
 
-// Função para obter os movimentos disponíveis (opcional, mas útil para o frontend)
-// Esta função também se beneficia da correção, mas não precisa de alterações diretas.
 export function getAvailableMovements(
   fromColumnName: string,
   userType: UserType
 ): string[] {
   const availableColumns: string[] = [];
 
-  // Recriando a referência ao objeto de regras para usar dentro desta função
   const allowedMovements: { [key: string]: "ALL" | UserType[] } = {
     [`${COLUMNS.BACKLOG} -> ${COLUMNS.EM_EXECUCAO}`]: "ALL",
     [`${COLUMNS.EM_EXECUCAO} -> ${COLUMNS.EM_APROVACAO}`]: "ALL",

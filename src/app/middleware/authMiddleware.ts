@@ -24,12 +24,11 @@ export async function authMiddleware(req: NextRequest) {
 
    if (!token && pathname === '/') {
     const loginUrl = new URL('/login', req.url);
-    console.log(`Redirecionando para: ${loginUrl.toString()}`); // Log para debug
     return NextResponse.redirect(loginUrl);
   }
 
   
 
-  return NextResponse.next(); // Permite continuar
+  return NextResponse.next();
 }
 
