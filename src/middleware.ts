@@ -10,7 +10,6 @@ export async function middleware(req: NextRequest) {
   const isAdminPage = pathname.startsWith('/admin');
   const isApiUserRoute = pathname.startsWith('/api/users');
 
-  // Se o usuário não estiver logado
   if (!token) {
     if (isAuthPage) {
       return NextResponse.next();
@@ -20,8 +19,6 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // Se o usuário estiver logado
-  // @ts-ignore
   const userRole = token.role;
 
   if (isAuthPage) {

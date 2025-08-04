@@ -10,7 +10,6 @@ import {
 } from './ui/dropdown-menu';
 import UserAvatar from './UserAvatar';
 import { User } from 'next-auth';
-import Link from 'next/link';
 import { signOut } from 'next-auth/react';
 
 type UserAccountNavProp = {
@@ -36,10 +35,6 @@ const UserAccountNav: FC<UserAccountNavProp> = ({ user }) => {
 				</div>
 				<DropdownMenuSeparator />
 
-				{/* <DropdownMenuItem asChild> */}
-				{/* 	<Link href='/settings'>Settings</Link> */}
-				{/* </DropdownMenuItem> */}
-				{/* <DropdownMenuSeparator /> */}
 				<DropdownMenuItem
 					className='cursor-pointer'
 					onClick={(event) => {

@@ -1,9 +1,8 @@
 import { getAuthSession } from "@/lib/nextAuthOptions";
 import { getLogger } from "@/logger";
 import prisma from "@/lib/prismadb";
-import { NextRequest, NextResponse } from "next/server"; // Importar NextResponse para facilitar
+import { NextRequest, NextResponse } from "next/server";
 
-// Função helper para criar respostas de erro padronizadas
 const createErrorResponse = (message: string, status: number) => {
   return new NextResponse(JSON.stringify({ message }), {
     status,
@@ -83,7 +82,6 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(newAttachment, { status: 201 });
   } catch (error) {
-    // Adiciona verificação para erros de parse do JSON no corpo da requisição
     if (error instanceof SyntaxError) {
       return createErrorResponse("Invalid JSON in request body", 400);
     }
@@ -116,7 +114,6 @@ export async function DELETE(req: NextRequest) {
       return createErrorResponse("Attachment not found", 404);
     }
 
-    // Verifica se o usuário é admin ou o dono do anexo
     if (attachment.uploadedById !== session.user.id && session.user.role !== "ADMIN") {
       return createErrorResponse("Forbidden: You can only delete your own attachments", 403);
     }
@@ -125,7 +122,6 @@ export async function DELETE(req: NextRequest) {
       where: { id: attachmentId },
     });
 
-    // Retorna uma resposta de sucesso com uma mensagem JSON
     return NextResponse.json({ message: "Attachment deleted successfully" }, { status: 200 });
   } catch (error) {
     logger.error("Error deleting attachment:", error);

@@ -13,19 +13,15 @@ const ViewToggle: FC<ViewToggleProps> = ({ className }) => {
   const router = useRouter();
   const searchParams = useSearchParams();
   
-  // Verificar se o modo de visualização atual é "mine" ou não
   const currentView = searchParams.get("view");
   const isMyCardsView = currentView === "mine";
   
-  // Função para alternar entre "Todos os Cards" e "Meus Cards"
   const toggleView = () => {
     const params = new URLSearchParams(Array.from(searchParams.entries()));
     
     if (isMyCardsView) {
-      // Se estiver em "Meus Cards", remover o parâmetro para voltar para "Todos"
       params.delete("view");
     } else {
-      // Se estiver em "Todos", adicionar parâmetro para ir para "Meus Cards"
       params.set("view", "mine");
     }
     

@@ -1,10 +1,9 @@
 import { Todo } from "@prisma/client";
 /**
- * Função para buscar todos (cards) da API
- * @param projectId - ID do projeto para filtrar (opcional)
- * @param view - Modo de visualização ('mine' para ver apenas os próprios cards, ou undefined para todos)
- * @param searchParams - Parâmetros de busca da URL (opcional)
- * @returns Promise com array de todos
+ * @param projectId
+ * @param view
+ * @param searchParams
+ * @returns
  */
 const todoFetchRequest = async (
   projectId?: string | null, 
@@ -13,7 +12,6 @@ const todoFetchRequest = async (
 ): Promise<Todo[]> => {
   console.log(`Fetching todos with projectId: ${projectId}, view: ${view}`);
   
-  // Verificar se há filtros avançados nos parâmetros
   const hasAdvancedFilters = searchParams && (
     searchParams.get("tagIds") ||
     searchParams.get("assignedToIds") ||
@@ -21,11 +19,9 @@ const todoFetchRequest = async (
     searchParams.get("endDate")
   );
 
-  // Se há filtros avançados, usar a API de filtros
   if (hasAdvancedFilters) {
     const url = new URL("/api/todo/filter", window.location.origin);
     
-    // Adicionar todos os parâmetros de filtro
     if (view === "mine") {
       url.searchParams.append("view", "mine");
     }
@@ -34,7 +30,6 @@ const todoFetchRequest = async (
       url.searchParams.append("projectId", projectId);
     }
     
-    // Adicionar filtros avançados
     const tagIds = searchParams.get("tagIds");
     if (tagIds) {
       url.searchParams.append("tagIds", tagIds);
@@ -72,15 +67,12 @@ const todoFetchRequest = async (
     }
   }
   
-  // Usar API padrão se não há filtros avançados
   const url = new URL("/api/todo", window.location.origin);
   
-  // Adicionar parâmetro de visualização se especificado
   if (view === "mine") {
     url.searchParams.append("view", "mine");
   }
   
-  // Adicionar parâmetro de projeto se especificado e não for "all"
   if (projectId && projectId !== "all") {
     url.searchParams.append("projectId", projectId);
   }

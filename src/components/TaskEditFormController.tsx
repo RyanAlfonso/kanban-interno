@@ -46,7 +46,7 @@ const TaskEditFormController: FC<TaskEditFormProps> = ({
     resolver: zodResolver(TodoEditValidator),
     defaultValues: {
       id: task.id,
-      title: task.title ?? "", // Usando ?? para segurança
+      title: task.title ?? "",
       description: task.description ?? null,
       columnId: task.columnId,
       label: task.label ?? [],

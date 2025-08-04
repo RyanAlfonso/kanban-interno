@@ -40,7 +40,6 @@ export async function PATCH(req: Request) {
 
     const dataToUpdate: Prisma.TodoUpdateInput = {};
 
-    // Adiciona campos simples se eles foram fornecidos
     if (updateData.title) dataToUpdate.title = updateData.title;
     if (updateData.description !== undefined) dataToUpdate.description = updateData.description;
     if (updateData.label) dataToUpdate.label = updateData.label;
@@ -48,9 +47,7 @@ export async function PATCH(req: Request) {
     if (updateData.linkedCardIds) dataToUpdate.linkedCardIds = updateData.linkedCardIds;
     if (updateData.referenceDocument !== undefined) dataToUpdate.referenceDocument = updateData.referenceDocument;
 
-    // Tratamento para tagIds
     if (updateData.tagIds !== undefined) {
-      // Verificar se as tags existem e pertencem ao projeto
       if (updateData.tagIds.length > 0 && currentTodo.projectId) {
         const tags = await prisma.tag.findMany({
           where: {
@@ -64,7 +61,6 @@ export async function PATCH(req: Request) {
         }
       }
 
-      // Desconectar todas as tags atuais e conectar as novas
       const currentTagIds = currentTodo.tags.map(tag => tag.id);
       
       dataToUpdate.tags = {
@@ -75,12 +71,10 @@ export async function PATCH(req: Request) {
       };
     }
 
-    // Tratamento para o campo 'deadline'
     if (updateData.deadline) {
       dataToUpdate.deadline = new Date(updateData.deadline);
     }
 
-    // Tratamento para a tarefa-pai (parentId)
     if (updateData.parentId !== undefined) {
       if (updateData.parentId) {
         dataToUpdate.parent = { connect: { id: updateData.parentId } };
@@ -89,24 +83,18 @@ export async function PATCH(req: Request) {
       }
     }
 
-    // *** A CORREÇÃO ESTÁ AQUI ***
-    // Tratamento para mudança de coluna e criação de histórico
-    // A condição agora verifica se a coluna de destino existe, se é diferente da atual,
-    // E se a coluna de origem (currentTodo.columnId) também não é nula.
+
     if (updateData.columnId && currentTodo.columnId && updateData.columnId !== currentTodo.columnId) {
       dataToUpdate.column = { connect: { id: updateData.columnId } };
       dataToUpdate.movementHistory = {
         create: {
           movedBy: { connect: { id: session.user.id } },
-          // Agora 'currentTodo.columnId' tem a garantia de ser uma string aqui dentro
           fromColumn: { connect: { id: currentTodo.columnId } },
           toColumn: { connect: { id: updateData.columnId } },
           movedAt: new Date(),
         }
       };
     } else if (updateData.columnId && !currentTodo.columnId) {
-      // Caso especial: a tarefa estava sem coluna e foi movida para uma.
-      // Aqui não criamos histórico de "movimento", apenas conectamos à nova coluna.
       dataToUpdate.column = { connect: { id: updateData.columnId } };
     }
 

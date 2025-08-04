@@ -59,14 +59,11 @@ const ProjectForm: FC<ProjectFormProps> = ({ onSuccess, trigger }) => {
         description: "Projeto criado com sucesso",
       });
       
-      // Limpar formulário
       setName("");
       setDescription("");
       
-      // Fechar diálogo
       setOpen(false);
       
-      // Callback de sucesso (para atualizar lista de projetos)
       if (onSuccess) {
         onSuccess();
       }

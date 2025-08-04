@@ -4,13 +4,12 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { getClockColor } from "@/lib/color";
-import { PREDEFINED_TAGS, getTagColor, PredefinedTag, TagColor } from "@/lib/tags";
 import { cn } from "@/lib/utils";
 import todoFetchRequest from "@/requests/todoFetchRequest";
 import { Todo } from "@prisma/client";
 import dayjs from "dayjs";
 import { BarChart, CheckCircle, Circle, Clock } from "lucide-react";
-import { useQuery } from "@tanstack/react-query"; 
+import { useQuery } from "@tanstack/react-query";
 import { Skeleton } from "../ui/skeleton";
 import { useSearchParams } from "next/navigation";
 import { useMemo } from "react";
@@ -27,7 +26,7 @@ type Project = {
 };
 
 interface ExtendedTodo extends Todo {
-  state: string; 
+  state: string;
   labels?: LabelType[];
   project?: Project;
   column?: {
@@ -35,9 +34,12 @@ interface ExtendedTodo extends Todo {
     name: string;
     order: number;
   };
-  tags: string[];
+  tags: {
+    id: string;
+    name: string;
+    color: string;
+  }[];
 }
-
 
 const DashboardComponent = () => {
   console.log("Rendering DashboardComponent...");
@@ -45,7 +47,11 @@ const DashboardComponent = () => {
   const projectId = searchParams.get("projectId") || null;
   const view = searchParams.get("view") || "all";
 
-  const { data: todos = [], isLoading, error } = useQuery<ExtendedTodo[], Error>({
+  const {
+    data: todos = [],
+    isLoading,
+    error,
+  } = useQuery<ExtendedTodo[], Error>({
     queryKey: ["todos", { projectId, view }, searchParams.toString()],
     queryFn: async () => {
       const todos = await todoFetchRequest(projectId, view, searchParams);
@@ -67,31 +73,36 @@ const DashboardComponent = () => {
   );
 
   const taskProgressByTag = useMemo(() => {
-    const progress: Record<PredefinedTag, { total: number; completed: number; colors: TagColor }> =
-      PREDEFINED_TAGS.reduce((acc, tag) => {
-        acc[tag] = { total: 0, completed: 0, colors: getTagColor(tag) };
-        return acc;
-      }, {} as Record<PredefinedTag, { total: number; completed: number; colors: TagColor }>);
+    const progress: Record<
+      string,
+      { total: number; completed: number; color: string }
+    > = {};
 
     (Array.isArray(todos) ? todos : []).forEach((todo: ExtendedTodo) => {
       if (todo.tags && todo.tags.length > 0) {
-        todo.tags.forEach(tagString => {
-          const tag = tagString as PredefinedTag;
-          if (progress[tag]) {
-            progress[tag].total += 1;
-            if (todo.state === "DONE") {
-              progress[tag].completed += 1;
-            }
+        todo.tags.forEach((tag) => {
+          if (!progress[tag.name]) {
+            progress[tag.name] = { total: 0, completed: 0, color: tag.color };
+          }
+          progress[tag.name].total += 1;
+          if (
+            todo.column?.name?.toLowerCase().includes("concluída") ||
+            todo.column?.name?.toLowerCase().includes("finalizado") ||
+            todo.column?.name?.toLowerCase().includes("done") ||
+            todo.column?.name?.toLowerCase().includes("histórico")
+          ) {
+            progress[tag.name].completed += 1;
           }
         });
       }
     });
+
     return Object.entries(progress)
       .filter(([_, data]) => data.total > 0)
       .reduce((acc, [tag, data]) => {
-        acc[tag as PredefinedTag] = data;
+        acc[tag] = data;
         return acc;
-      }, {} as Record<PredefinedTag, { total: number; completed: number; colors: TagColor }>);
+      }, {} as Record<string, { total: number; completed: number; color: string }>);
   }, [todos]);
 
   if (isLoading) return <DashboardSkeleton />;
@@ -99,41 +110,86 @@ const DashboardComponent = () => {
     console.error("DashboardComponent render error:", error);
     return (
       <div className="p-6 text-red-500">
-        Erro ao carregar dados do dashboard: {error?.message || 'Dados inválidos'}
+        Erro ao carregar dados do dashboard:{" "}
+        {error?.message || "Dados inválidos"}
       </div>
     );
   }
 
-  const lastUpdatedDate = todos.length > 0 ? sortedTodos[0]?.updatedAt : dayjs().toDate();
+  const lastUpdatedDate =
+    todos.length > 0 ? sortedTodos[0]?.updatedAt : dayjs().toDate();
   const totalTasks = todos.length;
   const numOfNewTask = todos.filter((todo: ExtendedTodo) =>
     dayjs(todo.createdAt).isAfter(dayjs().subtract(1, "week"))
   ).length;
 
-  const completedTasks = (Array.isArray(todos) ? todos : []).filter((todo: ExtendedTodo) => todo.state === "DONE").length;
+  const completedTasks = (Array.isArray(todos) ? todos : []).filter(
+    (todo: ExtendedTodo) =>
+      todo.column?.name?.toLowerCase().includes("concluída") ||
+      todo.column?.name?.toLowerCase().includes("finalizado") ||
+      todo.column?.name?.toLowerCase().includes("done") ||
+      todo.column?.name?.toLowerCase().includes("histórico")
+  ).length;
   const lastCompletedTask = Array.isArray(todos)
-    ? (todos as ExtendedTodo[]).slice().sort((a: ExtendedTodo, b: ExtendedTodo) => dayjs(b.updatedAt).unix() - dayjs(a.updatedAt).unix())
-      .find((todo: ExtendedTodo) => todo.state === "DONE")
+    ? (todos as ExtendedTodo[])
+        .slice()
+        .sort(
+          (a: ExtendedTodo, b: ExtendedTodo) =>
+            dayjs(b.updatedAt).unix() - dayjs(a.updatedAt).unix()
+        )
+        .find(
+          (todo: ExtendedTodo) =>
+            todo.column?.name?.toLowerCase().includes("concluída") ||
+            todo.column?.name?.toLowerCase().includes("finalizado") ||
+            todo.column?.name?.toLowerCase().includes("done") ||
+            todo.column?.name?.toLowerCase().includes("histórico")
+        )
     : undefined;
 
-  const inProgressTasks = todos?.filter(
-    (todo: ExtendedTodo) => todo.state === "IN_PROGRESS" || todo.state === "REVIEW",
-  ).length ?? 0;
+  const inProgressTasks =
+    todos?.filter(
+      (todo: ExtendedTodo) =>
+        todo.column?.name?.toLowerCase().includes("execução") ||
+        todo.column?.name?.toLowerCase().includes("aprovação") ||
+        todo.column?.name?.toLowerCase().includes("monitoramento") ||
+        todo.column?.name?.toLowerCase().includes("progress") ||
+        todo.column?.name?.toLowerCase().includes("progresso") ||
+        todo.column?.name?.toLowerCase().includes("desenvolvimento") ||
+        todo.column?.name?.toLowerCase().includes("review") ||
+        todo.column?.name?.toLowerCase().includes("revisão")
+    ).length ?? 0;
   const lastInProgressTask = todos
     ?.slice()
-    .sort((a: ExtendedTodo, b: ExtendedTodo) => dayjs(b.updatedAt).unix() - dayjs(a.updatedAt).unix())
-    .find((todo: ExtendedTodo): todo is ExtendedTodo => 
-      todo.state === "IN_PROGRESS" || todo.state === "REVIEW"
+    .sort(
+      (a: ExtendedTodo, b: ExtendedTodo) =>
+        dayjs(b.updatedAt).unix() - dayjs(a.updatedAt).unix()
+    )
+    .find(
+      (todo: ExtendedTodo): todo is ExtendedTodo =>
+        todo.column?.name?.toLowerCase().includes("execução") ||
+        todo.column?.name?.toLowerCase().includes("aprovação") ||
+        todo.column?.name?.toLowerCase().includes("monitoramento") ||
+        todo.column?.name?.toLowerCase().includes("progresso") ||
+        todo.column?.name?.toLowerCase().includes("desenvolvimento") ||
+        todo.column?.name?.toLowerCase().includes("revisão")
     ) as ExtendedTodo | undefined;
 
-  const upcomingTasks = Array.isArray(todos) ? (todos as ExtendedTodo[])
-    .filter((todo) => todo.deadline && dayjs(todo.deadline).isAfter(dayjs())) // Check if deadline exists
-    .slice().sort((a, b) => dayjs(a.deadline).unix() - dayjs(b.deadline).unix()) : [];
+  const upcomingTasks = Array.isArray(todos)
+    ? (todos as ExtendedTodo[])
+        .filter(
+          (todo) => todo.deadline && dayjs(todo.deadline).isAfter(dayjs())
+        ) // Check if deadline exists
+        .slice()
+        .sort((a, b) => dayjs(a.deadline).unix() - dayjs(b.deadline).unix())
+    : [];
   const nextDueTask = upcomingTasks?.[0];
 
   const projectProgress =
     (todos as ExtendedTodo[])?.reduce(
-      (acc: Record<string, { total: number; completed: number }>, todo: ExtendedTodo) => {
+      (
+        acc: Record<string, { total: number; completed: number }>,
+        todo: ExtendedTodo
+      ) => {
         const columnName = todo.column?.name;
         if (columnName) {
           if (acc[columnName]) {
@@ -142,14 +198,16 @@ const DashboardComponent = () => {
               acc[columnName].completed += 1;
             }
           } else {
-            acc[columnName] = { total: 1, completed: todo.state === "DONE" ? 1 : 0 };
+            acc[columnName] = {
+              total: 1,
+              completed: todo.state === "DONE" ? 1 : 0,
+            };
           }
         }
         return acc;
       },
-      {} as Record<string, { total: number; completed: number }>,
+      {} as Record<string, { total: number; completed: number }>
     ) || {};
-
 
   if (isLoading) {
     console.log("DashboardComponent loading...");
@@ -172,7 +230,7 @@ const DashboardComponent = () => {
       </div>
     );
   }
-  
+
   console.log("DashboardComponent rendering content...");
   try {
     return (
@@ -180,7 +238,10 @@ const DashboardComponent = () => {
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <Badge variant="outline" className="text-xs">
-              Last updated: {lastUpdatedDate ? dayjs(lastUpdatedDate).format("MMM D, h:mm A") : "N/A"}
+              Last updated:{" "}
+              {lastUpdatedDate
+                ? dayjs(lastUpdatedDate).format("MMM D, h:mm A")
+                : "N/A"}
             </Badge>
           </div>
         </div>
@@ -194,7 +255,9 @@ const DashboardComponent = () => {
             <CardContent>
               <div className="text-2xl font-bold">{totalTasks}</div>
               {numOfNewTask === 0 ? (
-                <p className="text-xs text-muted-foreground">No new tasks this week</p>
+                <p className="text-xs text-muted-foreground">
+                  No new tasks this week
+                </p>
               ) : (
                 <p className="text-xs text-muted-foreground">
                   +{numOfNewTask} from this week
@@ -231,7 +294,10 @@ const DashboardComponent = () => {
             <CardContent>
               <div className="text-2xl font-bold">{inProgressTasks}</div>
               {lastInProgressTask ? (
-                <p className="text-xs text-muted-foreground truncate" title={lastInProgressTask.title}>
+                <p
+                  className="text-xs text-muted-foreground truncate"
+                  title={lastInProgressTask.title}
+                >
                   Last updated: {lastInProgressTask.title}
                 </p>
               ) : (
@@ -248,7 +314,9 @@ const DashboardComponent = () => {
               <Clock className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{upcomingTasks?.length ?? 0}</div>
+              <div className="text-2xl font-bold">
+                {upcomingTasks?.length ?? 0}
+              </div>
               <p className="text-xs text-muted-foreground">
                 {nextDueTask ? (
                   <>
@@ -266,7 +334,9 @@ const DashboardComponent = () => {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
           <Card className="lg:col-span-4">
             <CardHeader>
-              <h3 className="text-base font-medium">Progresso de tarefas por tag</h3>
+              <h3 className="text-base font-medium">
+                Progresso de tarefas por tag
+              </h3>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
@@ -276,25 +346,29 @@ const DashboardComponent = () => {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center">
                           <span
-                            className={cn(
-                              `h-3 w-3 rounded-full mr-2`,
-                              data.colors.bg
-                            )}
+                            className="h-3 w-3 rounded-full mr-2"
+                            style={{ backgroundColor: data.color }}
                           ></span>
-                          <span className={cn("text-sm font-medium", data.colors.text && data.colors.bg.includes("dark:") ? data.colors.text.replace("text-","dark:text-") : data.colors.text )}>{tagName}</span>
+                          <span className="text-sm font-medium">{tagName}</span>
                         </div>
                         <span className="text-sm text-muted-foreground">
                           {data.completed}/{data.total} tasks
                         </span>
                       </div>
                       <Progress
-                        value={ (data.total > 0 ? (data.completed / data.total) * 100 : 0)}
-                        className={cn("h-2", data.colors.bg, data.colors.text === "text-white" ? "progress-indicator-white" : "progress-indicator-dark")} // Custom class for indicator if needed
+                        value={
+                          data.total > 0
+                            ? (data.completed / data.total) * 100
+                            : 0
+                        }
+                        className="h-2"
                       />
                     </div>
                   ))
                 ) : (
-                  <p className="text-sm text-muted-foreground">No tasks found with tags.</p>
+                  <p className="text-sm text-muted-foreground">
+                    No tasks found with tags.
+                  </p>
                 )}
               </div>
             </CardContent>
@@ -304,7 +378,10 @@ const DashboardComponent = () => {
             <CardHeader>
               <h3 className="text-base font-medium">Próximos prazos</h3>
               {nextDueTask ? (
-                <p className="text-sm text-muted-foreground truncate" title={nextDueTask.title}>
+                <p
+                  className="text-sm text-muted-foreground truncate"
+                  title={nextDueTask.title}
+                >
                   Próximo prazo: {nextDueTask.title}
                 </p>
               ) : (
@@ -321,24 +398,48 @@ const DashboardComponent = () => {
                       <div
                         className={cn(
                           "mr-4 flex h-9 w-9 items-center justify-center rounded-full flex-shrink-0",
-                          getClockColor(task.deadline ? dayjs(task.deadline).diff(dayjs(), 'day').toString() : 'default').bg,
+                          getClockColor(
+                            task.deadline
+                              ? dayjs(task.deadline)
+                                  .diff(dayjs(), "day")
+                                  .toString()
+                              : "default"
+                          ).bg
                         )}
                       >
                         <Clock
-                          className={cn("h-5 w-5", getClockColor(task.deadline ? dayjs(task.deadline).diff(dayjs(), 'day').toString() : 'default').badge)}
+                          className={cn(
+                            "h-5 w-5",
+                            getClockColor(
+                              task.deadline
+                                ? dayjs(task.deadline)
+                                    .diff(dayjs(), "day")
+                                    .toString()
+                                : "default"
+                            ).badge
+                          )}
                         />
                       </div>
-                      <div className="space-y-1 overflow-hidden flex-grow min-w-0"> 
-                        <p className="text-sm font-medium leading-none truncate" title={task.title}>
+                      <div className="space-y-1 overflow-hidden flex-grow min-w-0">
+                        <p
+                          className="text-sm font-medium leading-none truncate"
+                          title={task.title}
+                        >
                           {task.title}
                         </p>
                         <p className="text-sm text-muted-foreground">
-                          {task.deadline ? dayjs(task.deadline).format("MMM D, YYYY h:mm A") : "No deadline"}
+                          {task.deadline
+                            ? dayjs(task.deadline).format("MMM D, YYYY h:mm A")
+                            : "No deadline"}
                         </p>
                       </div>
                       <div className="ml-auto flex gap-1 flex-wrap justify-end pl-2">
                         {(task.label || []).map((label) => (
-                          <Badge variant="outline" key={label} className="text-xs whitespace-nowrap">
+                          <Badge
+                            variant="outline"
+                            key={label}
+                            className="text-xs whitespace-nowrap"
+                          >
                             {label}
                           </Badge>
                         ))}
@@ -346,7 +447,9 @@ const DashboardComponent = () => {
                     </div>
                   ))
                 ) : (
-                  <p className="text-sm text-muted-foreground">No upcoming tasks found.</p>
+                  <p className="text-sm text-muted-foreground">
+                    No upcoming tasks found.
+                  </p>
                 )}
               </div>
             </CardContent>
@@ -355,8 +458,12 @@ const DashboardComponent = () => {
       </div>
     );
   } catch (renderError) {
-      console.error("Error rendering DashboardComponent content:", renderError);
-      return <div className="p-6 text-red-500">Ocorreu um erro ao renderizar o dashboard.</div>;
+    console.error("Error rendering DashboardComponent content:", renderError);
+    return (
+      <div className="p-6 text-red-500">
+        Ocorreu um erro ao renderizar o dashboard.
+      </div>
+    );
   }
 };
 

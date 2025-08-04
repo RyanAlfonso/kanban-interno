@@ -2,32 +2,31 @@
 
 import { useState } from "react";
 import { Button } from "./ui/button";
-import { Input } from "./ui/input"; // Importar Input
-import { Label } from "./ui/label"; // Importar Label
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
 import { useToast } from "./ui/use-toast";
 import { signIn } from "next-auth/react";
-import { useRouter } from 'next/navigation'; // Importar useRouter
+import { useRouter } from 'next/navigation';
 
 const UserAuthForm = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const { toast } = useToast();
-  const router = useRouter(); // Inicializar router
+  const router = useRouter();
 
   const handleLogin = async (event: React.FormEvent) => {
-    event.preventDefault(); // Prevenir recarregamento da página
+    event.preventDefault();
     setIsLoading(true);
 
     try {
       const result = await signIn("credentials", {
-        redirect: false, // Não redirecionar automaticamente, tratar manualmente
+        redirect: false, 
         email: email,
         password: password,
       });
 
       if (result?.error) {
-        // Exibir erro específico retornado pelo next-auth (se houver)
         console.error("Erro de login:", result.error);
         toast({
           title: "Falha no Login",
@@ -35,16 +34,13 @@ const UserAuthForm = () => {
           variant: "destructive",
         });
       } else if (result?.ok) {
-        // Login bem-sucedido
         toast({
           title: "Login bem-sucedido",
           description: "Redirecionando para a página principal...",
         });
-        // Redirecionar para a página principal ou dashboard
-        router.push('/'); // Redireciona para a raiz
-        router.refresh(); // Força a atualização da página para refletir o estado de login
+        router.push('/'); 
+        router.refresh();
       } else {
-        // Caso genérico de erro
         toast({
           title: "Falha no Login",
           description: "Ocorreu um erro desconhecido durante o login.",

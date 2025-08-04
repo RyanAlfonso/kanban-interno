@@ -7,15 +7,13 @@ export const PREDEFINED_TAGS = [
   "Documentação",
 ] as const;
 
-export type PredefinedTag = typeof PREDEFINED_TAGS[number];
+export type PredefinedTag = (typeof PREDEFINED_TAGS)[number];
 
 export interface TagColor {
   bg: string;
   text: string;
 }
 
-// Simple consistent color generation based on tag name
-// More sophisticated color palettes can be added later
 const tagColorPalette: TagColor[] = [
   { bg: "bg-red-500", text: "text-white" },
   { bg: "bg-blue-500", text: "text-white" },
@@ -29,7 +27,6 @@ const tagColorPalette: TagColor[] = [
 
 const defaultTagColor: TagColor = { bg: "bg-gray-500", text: "text-white" };
 
-// Cache for generated tag colors
 const tagColorCache = new Map<PredefinedTag, TagColor>();
 
 export const getTagColor = (tagName: PredefinedTag): TagColor => {
@@ -38,7 +35,8 @@ export const getTagColor = (tagName: PredefinedTag): TagColor => {
   }
 
   const index = PREDEFINED_TAGS.indexOf(tagName);
-  const color = tagColorPalette[index % tagColorPalette.length] || defaultTagColor;
+  const color =
+    tagColorPalette[index % tagColorPalette.length] || defaultTagColor;
 
   tagColorCache.set(tagName, color);
   return color;
@@ -48,8 +46,11 @@ export const isValidTag = (tag: string): tag is PredefinedTag => {
   return PREDEFINED_TAGS.includes(tag as PredefinedTag);
 };
 
-export const getAllTagsWithColors = (): { name: PredefinedTag; colors: TagColor }[] => {
-  return PREDEFINED_TAGS.map(tag => ({
+export const getAllTagsWithColors = (): {
+  name: PredefinedTag;
+  colors: TagColor;
+}[] => {
+  return PREDEFINED_TAGS.map((tag) => ({
     name: tag,
     colors: getTagColor(tag),
   }));

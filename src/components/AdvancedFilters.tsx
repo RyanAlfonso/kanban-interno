@@ -26,7 +26,6 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 
-// Tipos para os dados da API
 interface Project {
   id: string;
   name: string;
@@ -56,7 +55,6 @@ const AdvancedFilters = () => {
   const [startDate, setStartDate] = useState<Date | undefined>();
   const [endDate, setEndDate] = useState<Date | undefined>();
 
-  // Buscar todos os projetos para o seletor
   const { data: projects = [] } = useQuery<Project[]>({
     queryKey: ["projects"],
     queryFn: async () => {
@@ -66,7 +64,6 @@ const AdvancedFilters = () => {
     },
   });
 
-  // Buscar tags APENAS quando um projeto for selecionado
   const { data: tags = [], isLoading: isLoadingTags } = useQuery<Tag[]>({
     queryKey: ["tags", selectedProject],
     queryFn: async () => {
@@ -78,7 +75,6 @@ const AdvancedFilters = () => {
     enabled: !!selectedProject,
   });
 
-  // Buscar todos os usuários
   const { data: users = [] } = useQuery<User[]>({
     queryKey: ["users"],
     queryFn: async () => {
@@ -88,7 +84,6 @@ const AdvancedFilters = () => {
     },
   });
 
-  // Carregar filtros da URL
   useEffect(() => {
     const projectId = searchParams.get("projectId") || "";
     const tagIds = searchParams.get("tagIds")?.split(",").filter(Boolean) || [];
@@ -104,12 +99,10 @@ const AdvancedFilters = () => {
     if (endDateParam) setEndDate(new Date(endDateParam));
   }, [searchParams]);
 
-  // Limpar tags selecionadas se o projeto mudar
   useEffect(() => {
     setSelectedTags([]);
   }, [selectedProject]);
 
-  // Aplicar filtros
   const applyFilters = () => {
     const params = new URLSearchParams(Array.from(searchParams.entries()));
 
@@ -131,7 +124,6 @@ const AdvancedFilters = () => {
     setIsOpen(false);
   };
 
-  // Limpar filtros
   const clearFilters = () => {
     const params = new URLSearchParams(Array.from(searchParams.entries()));
     params.delete("projectId");
@@ -197,7 +189,6 @@ const AdvancedFilters = () => {
             )}
           </div>
 
-          {/* Filtro por Projeto */}
           <div className="space-y-2">
             <Label className="text-sm font-medium flex items-center">
               <Briefcase className="h-4 w-4 mr-2" />
@@ -218,7 +209,6 @@ const AdvancedFilters = () => {
             </Select>
           </div>
 
-          {/* Filtro por Tags (condicional) */}
           {selectedProject && (
             <div className="space-y-2">
               <Label className="text-sm font-medium flex items-center">
@@ -265,7 +255,6 @@ const AdvancedFilters = () => {
             </div>
           )}
 
-          {/* ================== FILTRO DE RESPONSÁVEIS RESTAURADO ================== */}
           <div className="space-y-2">
             <Label className="text-sm font-medium flex items-center">
               <Users className="h-4 w-4 mr-2" />
@@ -304,9 +293,7 @@ const AdvancedFilters = () => {
               ))}
             </div>
           </div>
-          {/* ====================================================================== */}
 
-          {/* ================== FILTRO DE PERÍODO RESTAURADO ================== */}
           <div className="space-y-2">
             <Label className="text-sm font-medium flex items-center">
               <Clock className="h-4 w-4 mr-2" />
@@ -367,7 +354,6 @@ const AdvancedFilters = () => {
               </div>
             </div>
           </div>
-          {/* ====================================================================== */}
 
           <div className="flex space-x-2 pt-2">
             <Button onClick={applyFilters} className="flex-1">

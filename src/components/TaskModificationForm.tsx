@@ -76,7 +76,6 @@ type TaskEditFormProps = {
   formFunctionReturn: UseFormReturn<any>;
 };
 
-// Componentes auxiliares
 const AttachmentItem: FC<{
   attachment: AttachmentWithUploader;
   onDelete: (id: string) => void;
@@ -593,7 +592,6 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
         <ErrorMessage msg={errors.deadline?.message?.toString()} />
       </div>
 
-      {/* ================== CAMPO DE TAGS ATUALIZADO ================== */}
       <div className="relative grid gap-1 pb-4">
         <div className="flex items-center justify-between">
           <Label className="text-sm font-medium" htmlFor="tags">
@@ -645,11 +643,7 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
           defaultValue={task.tags || []}
           render={({ field }) => (
             <CustomizedMultSelect
-              // ================== CORREÇÃO FINAL APLICADA ==================
-              // Garante que o valor passado para o seletor seja sempre um array de strings (IDs),
-              // mesmo que o cache do React Query contenha objetos.
               value={(field.value || []).map((tag: any) => tag.id || tag)}
-              // =============================================================
               onChange={(selectedIds: string[]) => {
                 const selectedObjects = availableTags.filter((tag) =>
                   selectedIds.includes(tag.id)
@@ -667,7 +661,6 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
         )}
         <ErrorMessage msg={errors.tags?.message?.toString()} />
       </div>
-      {/* ============================================================= */}
     </>
   );
 

@@ -20,14 +20,12 @@ export const COLUMN_COLORS: Record<string, { bg: string; header: string }> = Obj
     bg: "bg-green-50 dark:bg-green-950",
     header: "bg-green-200 dark:bg-green-900",
   },
-  // Cor padrão para colunas que não correspondem a nenhuma das chaves acima.
   "default": {
     bg: "bg-gray-50 dark:bg-gray-950",
     header: "bg-gray-200 dark:bg-gray-800",
   }
 });
 
-// As constantes abaixo não apresentavam erro e foram mantidas.
 export const PROJECT_COLORS = [
   {
     bg: "bg-blue-500",

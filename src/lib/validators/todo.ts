@@ -1,22 +1,12 @@
-// Caminho do arquivo: src/lib/validators/todo.ts
 
 import { z } from "zod";
-// PREDEFINED_TAGS não é mais necessário aqui para validação,
-// pois agora validamos a estrutura do objeto Tag.
-// import { PREDEFINED_TAGS } from '@/lib/tags';
-
-// ================== CORREÇÃO APLICADA (1/2) ==================
-// Validador para um único objeto de Tag.
-// Isso garante que o frontend envie a estrutura correta.
 const TagObjectValidator = z.object({
   id: z.string(),
   name: z.string(),
   color: z.string().optional(),
   projectId: z.string().optional(),
 });
-// =============================================================
 
-// Validador para a criação de tarefas
 export const TodoCreateValidator = z.object({
   title: z
     .string()
@@ -39,10 +29,7 @@ export const TodoCreateValidator = z.object({
     )
     .optional(),
 
-  // ================== CORREÇÃO APLICADA (2/2) ==================
-  // O campo 'tags' agora é validado como um array de objetos Tag.
   tags: z.array(TagObjectValidator).optional(),
-  // =============================================================
 
   projectId: z.string().optional().nullable(),
   order: z
@@ -62,7 +49,6 @@ export const TodoCreateValidator = z.object({
     .nullable(),
 });
 
-// Validador para a edição de tarefas
 export const TodoEditValidator = z.object({
   id: z.string().min(1, { message: "Formato de ID inválido." }),
   title: z
@@ -88,10 +74,7 @@ export const TodoEditValidator = z.object({
     )
     .optional(),
 
-  // ================== CORREÇÃO APLICADA (2/2) ==================
-  // O campo 'tags' agora é validado como um array de objetos Tag.
   tags: z.array(TagObjectValidator).optional(),
-  // =============================================================
 
   order: z
     .number()
@@ -112,12 +95,10 @@ export const TodoEditValidator = z.object({
     .nullable(),
 });
 
-// Validador para a exclusão de tarefas
 export const TodoDeleteValidator = z.object({
   id: z.string().length(24, { message: "Formato de ID inválido." }),
 });
 
-// Exporta os tipos inferidos para uso no frontend e backend
 export type TodoCreateRequest = z.infer<typeof TodoCreateValidator>;
 export type TodoEditRequest = z.infer<typeof TodoEditValidator>;
 export type TodoDeleteRequest = z.infer<typeof TodoDeleteValidator>;
