@@ -1,43 +1,44 @@
-import { Todo } from "@prisma/client";
+import { TodoWithRelations } from "@/types/todo"; // Use o tipo completo que definimos
 
 /**
- * Função para buscar todos (cards) da API
- * @param projectId - ID do projeto para filtrar (opcional)
- * @param view - Modo de visualização ('mine' para ver apenas os próprios cards, ou undefined para todos)
- * @returns Promise com array de todos
+ * Função adaptada para buscar todos (cards) da nossa API unificada.
+ * Ela constrói uma URL com todos os parâmetros de filtro e faz uma única chamada.
+ * @param searchParams - Objeto URLSearchParams contendo todos os filtros da URL.
+ * @returns Promise com um array de todos (com todas as relações).
  */
-const todoFetchRequest = async (projectId?: string | null, view?: string | null): Promise<Todo[]> => {
-  console.log(`Fetching todos with projectId: ${projectId}, view: ${view}`);
+const todoFetchRequest = async (
+  searchParams: URLSearchParams
+): Promise<TodoWithRelations[]> => {
   
-  // Construir URL com parâmetros de consulta
+  // Cria a URL base para a nossa API unificada.
   const url = new URL("/api/todo", window.location.origin);
-  
-  // Adicionar parâmetro de visualização se especificado
-  if (view === "mine") {
-    url.searchParams.append("view", "mine");
-  }
-  
-  // Adicionar parâmetro de projeto se especificado e não for "all"
-  if (projectId && projectId !== "all") {
-    url.searchParams.append("projectId", projectId);
-  }
-  
+
+  // Anexa todos os parâmetros de busca existentes diretamente à URL da API.
+  // Isso inclui projectId, view, q, assignedToIds, startDate, endDate, etc.
+  searchParams.forEach((value, key) => {
+    url.searchParams.append(key, value);
+  });
+
+  console.log(`Buscando todos da API com a URL: ${url.toString()}`);
+
   try {
     const response = await fetch(url.toString());
-    
+
     if (!response.ok) {
-      console.error("Error fetching todos:", response.status, response.statusText);
-      throw new Error(`Erro ao buscar cards: ${response.statusText}`);
+      const errorText = await response.text();
+      console.error("Erro ao buscar os cards:", response.status, errorText);
+      throw new Error(`Erro ao buscar cards: ${errorText || response.statusText}`);
     }
-    
+
     const data = await response.json();
-    console.log(`Fetched ${data.length} todos`);
+    console.log(`Recebidos ${data.length || 0} cards.`);
     return data;
+
   } catch (error) {
-    console.error("Error in todoFetchRequest:", error);
+    console.error("Falha na requisição todoFetchRequest:", error);
+    // Re-lança o erro para que o React Query possa tratá-lo.
     throw error;
   }
 };
 
 export default todoFetchRequest;
-

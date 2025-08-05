@@ -11,25 +11,55 @@ export async function GET(req: NextRequest) {
   const logger = getLogger("info");
   try {
     const session = await getAuthSession();
+    if (!session?.user) {
+      return new Response("Unauthorized", { status: 401 });
+    }
 
-    if (!session?.user) return new Response("Unauthorized", { status: 401 });
-
+    // 1. LER TODOS OS PARÂMETROS DE FILTRO DA URL
     const url = new URL(req.url);
     const view = url.searchParams.get("view");
     const projectId = url.searchParams.get("projectId");
+    const assignedToIds = url.searchParams
+      .get("assignedToIds")
+      ?.split(",")
+      .filter(Boolean);
+    const startDate = url.searchParams.get("startDate");
+    const endDate = url.searchParams.get("endDate");
 
+    // 2. CONSTRUIR A CLÁUSULA 'WHERE' DINAMICAMENTE
     let whereClause: any = {
       isDeleted: false,
     };
 
+    // Filtro de visualização ("Meus cards")
     if (view === "mine") {
       whereClause.ownerId = session.user.id;
     }
 
+    // Filtro por Projeto
     if (projectId && projectId !== "all") {
       whereClause.projectId = projectId;
     }
 
+    // Filtro por Responsáveis (assignedToIds)
+    if (assignedToIds && assignedToIds.length > 0) {
+      whereClause.assignedToIds = { hasSome: assignedToIds };
+    }
+
+    // Filtro por Período (deadline)
+    if (startDate || endDate) {
+      whereClause.deadline = {};
+      if (startDate) {
+        whereClause.deadline.gte = new Date(startDate); // gte: >=
+      }
+      if (endDate) {
+        const endOfDay = new Date(endDate);
+        endOfDay.setUTCHours(23, 59, 59, 999);
+        whereClause.deadline.lte = endOfDay; // lte: <=
+      }
+    }
+
+    // 3. EXECUTAR A CONSULTA AO BANCO DE DADOS COM OS FILTROS
     const todos = await prisma.todo.findMany({
       where: whereClause,
       orderBy: {
@@ -64,6 +94,7 @@ export async function GET(req: NextRequest) {
       },
     });
 
+    // 4. POPULAR RELAÇÕES ADICIONAIS
     const todosWithRelations = await Promise.all(
       todos.map(async (todo) => {
         const assignedUsers = await prisma.user.findMany({
@@ -196,7 +227,20 @@ export async function PUT(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { id, columnId, ...otherData } = body;
+    const {
+      id,
+      columnId,
+      title,
+      description,
+      label,
+      tags,
+      deadline,
+      projectId,
+      order,
+      assignedToIds,
+      parentId,
+      linkedCardIds,
+    } = body;
 
     if (!id) {
       return new Response("Todo ID is required", { status: 400 });
@@ -211,7 +255,34 @@ export async function PUT(req: NextRequest) {
       return new Response("Tarefa não encontrada.", { status: 404 });
     }
 
-    const dataForPrismaUpdate: any = { ...otherData };
+    const dataForPrismaUpdate: any = {};
+
+    if (title !== undefined) dataForPrismaUpdate.title = title;
+    if (description !== undefined)
+      dataForPrismaUpdate.description = description;
+    if (label !== undefined) dataForPrismaUpdate.label = label;
+    if (tags !== undefined) dataForPrismaUpdate.tags = tags;
+    if (order !== undefined) dataForPrismaUpdate.order = order;
+    if (assignedToIds !== undefined)
+      dataForPrismaUpdate.assignedToIds = assignedToIds;
+    if (linkedCardIds !== undefined)
+      dataForPrismaUpdate.linkedCardIds = linkedCardIds;
+
+    if (projectId !== undefined) {
+      dataForPrismaUpdate.projectId = projectId === "" ? null : projectId;
+    }
+    if (parentId !== undefined) {
+      dataForPrismaUpdate.parentId = parentId === "" ? null : parentId;
+    }
+
+    if (deadline) {
+      const parsedDeadline = new Date(deadline);
+      if (isNaN(parsedDeadline.getTime())) {
+        return new Response("Formato de deadline inválido.", { status: 400 });
+      }
+      dataForPrismaUpdate.deadline = parsedDeadline;
+    }
+
     const isMovingCard =
       columnId && currentTodo.columnId && currentTodo.columnId !== columnId;
 
@@ -242,12 +313,13 @@ export async function PUT(req: NextRequest) {
           toColumn.name,
           session.user.type
         );
-        
+
         if (permissionCheck.allowed) {
           hasPermission = true;
         } else {
-          // CORREÇÃO APLICADA AQUI
-          permissionError = permissionCheck.error || "Movimento não permitido pelas regras do projeto.";
+          permissionError =
+            permissionCheck.error ||
+            "Movimento não permitido pelas regras do projeto.";
         }
       }
 
@@ -312,6 +384,7 @@ export async function PUT(req: NextRequest) {
 
     return new Response(JSON.stringify(resultWithRelations), { status: 200 });
   } catch (error) {
+    console.error("Error updating todo:", error);
     logger.error("Error updating todo:", { error });
     return new Response("Internal Server Error", { status: 500 });
   }
