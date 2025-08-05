@@ -21,32 +21,23 @@ import {
   TagColor,
 } from "@/lib/tags";
 import { cn } from "@/lib/utils";
-import { TodoWithRelations } from "@/types/todo"; // Usando nosso tipo consistente
-import todoFetchRequest from "@/requests/todoFetchRequest"; // Usando nossa função de busca adaptada
+import { TodoWithRelations } from "@/types/todo";
+import todoFetchRequest from "@/requests/todoFetchRequest";
+import { COLUMNS } from "@/lib/permissions"; // Importando os nomes das colunas
 
 const DashboardComponent = () => {
   const searchParams = useSearchParams();
 
-  // ================== QUERY DE TODOS ADAPTADA ==================
   const {
     data: todos = [],
     isLoading,
     error,
   } = useQuery<TodoWithRelations[], Error>({
-    // A queryKey agora depende da string de parâmetros, que contém todos os filtros.
-    // Isso garante que a query seja re-executada sempre que um filtro mudar.
     queryKey: ["todos", searchParams.toString()],
-
-    // A queryFn agora chama diretamente nossa função de busca unificada.
     queryFn: () => todoFetchRequest(searchParams),
-
-    // Mantém os dados em cache por 1 minuto para evitar buscas excessivas.
     staleTime: 1000 * 60,
   });
-  // =============================================================
 
-  // A lógica de 'useMemo' para processar os dados permanece a mesma.
-  // Ela será re-calculada automaticamente sempre que 'todos' mudar.
   const sortedTodos = useMemo(
     () =>
       [...todos].sort(
@@ -70,9 +61,8 @@ const DashboardComponent = () => {
           const tag = tagString as PredefinedTag;
           if (progress[tag]) {
             progress[tag].total += 1;
-            // Assumindo que o estado de "concluído" é quando o nome da coluna é "Done" ou similar.
-            // Adapte esta lógica se o seu critério for diferente.
-            if (todo.column?.name.toLowerCase() === "done") {
+            // CORREÇÃO: Verifica se a tarefa está na coluna "Concluída"
+            if (todo.column?.name === COLUMNS.CONCLUIDA) {
               progress[tag].completed += 1;
             }
           }
@@ -105,22 +95,26 @@ const DashboardComponent = () => {
     dayjs(todo.createdAt).isAfter(dayjs().subtract(1, "week"))
   ).length;
 
+  // CORREÇÃO: Usa o nome da coluna para contar tarefas concluídas
   const completedTasks = todos.filter(
-    (todo) => todo.column?.name.toLowerCase() === "done"
+    (todo) => todo.column?.name === COLUMNS.CONCLUIDA
   ).length;
   const lastCompletedTask = sortedTodos.find(
-    (todo) => todo.column?.name.toLowerCase() === "done"
+    (todo) => todo.column?.name === COLUMNS.CONCLUIDA
   );
 
+  // CORREÇÃO: Usa os nomes das colunas para contar tarefas em progresso
   const inProgressTasks = todos.filter(
     (todo) =>
-      todo.column?.name.toLowerCase() === "in progress" ||
-      todo.column?.name.toLowerCase() === "review"
+      todo.column?.name === COLUMNS.EM_EXECUCAO ||
+      todo.column?.name === COLUMNS.EM_APROVACAO ||
+      todo.column?.name === COLUMNS.MONITORAMENTO
   ).length;
   const lastInProgressTask = sortedTodos.find(
     (todo) =>
-      todo.column?.name.toLowerCase() === "in progress" ||
-      todo.column?.name.toLowerCase() === "review"
+      todo.column?.name === COLUMNS.EM_EXECUCAO ||
+      todo.column?.name === COLUMNS.EM_APROVACAO ||
+      todo.column?.name === COLUMNS.MONITORAMENTO
   );
 
   const upcomingTasks = todos
@@ -222,7 +216,7 @@ const DashboardComponent = () => {
                       <div className="flex items-center">
                         <span
                           className={cn(
-                            `h-3 w-3 rounded-full mr-2`,
+                            "h-3 w-3 rounded-full mr-2",
                             data.colors.bg
                           )}
                         ></span>
@@ -271,52 +265,48 @@ const DashboardComponent = () => {
           <CardContent>
             <div className="space-y-4">
               {upcomingTasks.length > 0 ? (
-                upcomingTasks.slice(0, 5).map(
-                  (
-                    task // Mostra até 5 tarefas
-                  ) => (
-                    <div key={task.id} className="flex items-center mb-4">
-                      <div
+                upcomingTasks.slice(0, 5).map((task) => (
+                  <div key={task.id} className="flex items-center mb-4">
+                    <div
+                      className={cn(
+                        "mr-4 flex h-9 w-9 items-center justify-center rounded-full flex-shrink-0",
+                        getClockColor(
+                          task.deadline
+                            ? dayjs(task.deadline)
+                                .diff(dayjs(), "day")
+                                .toString()
+                            : "default"
+                        ).bg
+                      )}
+                    >
+                      <Clock
                         className={cn(
-                          "mr-4 flex h-9 w-9 items-center justify-center rounded-full flex-shrink-0",
+                          "h-5 w-5",
                           getClockColor(
                             task.deadline
                               ? dayjs(task.deadline)
                                   .diff(dayjs(), "day")
                                   .toString()
                               : "default"
-                          ).bg
+                          ).badge
                         )}
-                      >
-                        <Clock
-                          className={cn(
-                            "h-5 w-5",
-                            getClockColor(
-                              task.deadline
-                                ? dayjs(task.deadline)
-                                    .diff(dayjs(), "day")
-                                    .toString()
-                                : "default"
-                            ).badge
-                          )}
-                        />
-                      </div>
-                      <div className="space-y-1 overflow-hidden flex-grow min-w-0">
-                        <p
-                          className="text-sm font-medium leading-none truncate"
-                          title={task.title}
-                        >
-                          {task.title}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {task.deadline
-                            ? dayjs(task.deadline).format("D [de] MMM, YYYY")
-                            : "Sem prazo"}
-                        </p>
-                      </div>
+                      />
                     </div>
-                  )
-                )
+                    <div className="space-y-1 overflow-hidden flex-grow min-w-0">
+                      <p
+                        className="text-sm font-medium leading-none truncate"
+                        title={task.title}
+                      >
+                        {task.title}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {task.deadline
+                          ? dayjs(task.deadline).format("D [de] MMM, YYYY")
+                          : "Sem prazo"}
+                      </p>
+                    </div>
+                  </div>
+                ))
               ) : (
                 <p className="text-sm text-muted-foreground">
                   Nenhuma tarefa com prazo encontrada.

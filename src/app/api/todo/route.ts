@@ -3,7 +3,7 @@
 import { getAuthSession } from "@/lib/nextAuthOptions";
 import { getLogger } from "@/logger";
 import prisma from "@/lib/prismadb";
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { isValidTag, PREDEFINED_TAGS } from "@/lib/tags";
 import { canMoveCard } from "@/lib/permissions";
 
@@ -12,11 +12,12 @@ export async function GET(req: NextRequest) {
   try {
     const session = await getAuthSession();
     if (!session?.user) {
-      return new Response("Unauthorized", { status: 401 });
+      return new NextResponse("Não autenticado", { status: 401 });
     }
 
-    // 1. LER TODOS OS PARÂMETROS DE FILTRO DA URL
     const url = new URL(req.url);
+
+    // LER TODOS OS PARÂMETROS DE FILTRO DA URL
     const view = url.searchParams.get("view");
     const projectId = url.searchParams.get("projectId");
     const assignedToIds = url.searchParams
@@ -25,46 +26,44 @@ export async function GET(req: NextRequest) {
       .filter(Boolean);
     const startDate = url.searchParams.get("startDate");
     const endDate = url.searchParams.get("endDate");
+    const searchQuery = url.searchParams.get("q");
+    const tags = url.searchParams.get("tags")?.split(",").filter(Boolean); // <-- 1. LER O NOVO PARÂMETRO DE TAGS
 
-    // 2. CONSTRUIR A CLÁUSULA 'WHERE' DINAMICAMENTE
+    // CONSTRUIR A CLÁUSULA 'WHERE' DINAMICAMENTE
     let whereClause: any = {
       isDeleted: false,
     };
 
-    // Filtro de visualização ("Meus cards")
-    if (view === "mine") {
-      whereClause.ownerId = session.user.id;
-    }
-
-    // Filtro por Projeto
-    if (projectId && projectId !== "all") {
-      whereClause.projectId = projectId;
-    }
-
-    // Filtro por Responsáveis (assignedToIds)
-    if (assignedToIds && assignedToIds.length > 0) {
+    if (view === "mine") whereClause.ownerId = session.user.id;
+    if (projectId && projectId !== "all") whereClause.projectId = projectId;
+    if (assignedToIds && assignedToIds.length > 0)
       whereClause.assignedToIds = { hasSome: assignedToIds };
-    }
 
-    // Filtro por Período (deadline)
     if (startDate || endDate) {
       whereClause.deadline = {};
-      if (startDate) {
-        whereClause.deadline.gte = new Date(startDate); // gte: >=
-      }
+      if (startDate) whereClause.deadline.gte = new Date(startDate);
       if (endDate) {
         const endOfDay = new Date(endDate);
         endOfDay.setUTCHours(23, 59, 59, 999);
-        whereClause.deadline.lte = endOfDay; // lte: <=
+        whereClause.deadline.lte = endOfDay;
       }
     }
 
-    // 3. EXECUTAR A CONSULTA AO BANCO DE DADOS COM OS FILTROS
+    if (searchQuery) {
+      whereClause.OR = [
+        { title: { contains: searchQuery, mode: "insensitive" } },
+        { description: { contains: searchQuery, mode: "insensitive" } },
+      ];
+    }
+
+    // <-- 2. ADICIONAR LÓGICA DE FILTRO PARA TAGS
+    if (tags && tags.length > 0) {
+      whereClause.tags = { hasSome: tags };
+    }
+
     const todos = await prisma.todo.findMany({
       where: whereClause,
-      orderBy: {
-        order: "asc",
-      },
+      orderBy: { order: "asc" },
       include: {
         owner: { select: { id: true, name: true, image: true } },
         project: { select: { id: true, name: true } },
@@ -94,7 +93,6 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    // 4. POPULAR RELAÇÕES ADICIONAIS
     const todosWithRelations = await Promise.all(
       todos.map(async (todo) => {
         const assignedUsers = await prisma.user.findMany({
@@ -109,10 +107,10 @@ export async function GET(req: NextRequest) {
       })
     );
 
-    return new Response(JSON.stringify(todosWithRelations), { status: 200 });
+    return NextResponse.json(todosWithRelations);
   } catch (error) {
     logger.error("Error fetching todos:", { error });
-    return new Response("Internal Server Error", { status: 500 });
+    return new NextResponse("Internal Server Error", { status: 500 });
   }
 }
 
@@ -290,7 +288,7 @@ export async function PUT(req: NextRequest) {
       let hasPermission = false;
       let permissionError = "Você não tem permissão para realizar esta ação.";
 
-      if (session.user.role === "ADMIN") {
+      if (session.user.role === "ADMIN" || session.user.type === "SERVIDOR") {
         hasPermission = true;
       } else {
         const fromColumn = await prisma.projectColumn.findUnique({
@@ -313,7 +311,6 @@ export async function PUT(req: NextRequest) {
           toColumn.name,
           session.user.type
         );
-
         if (permissionCheck.allowed) {
           hasPermission = true;
         } else {

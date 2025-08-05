@@ -13,7 +13,7 @@ import {
   Briefcase,
 } from "lucide-react";
 
-// Importações dos componentes de UI (shadcn/ui)
+// Componentes de UI
 import { Button } from "./ui/button";
 import { Label } from "./ui/label";
 import {
@@ -25,15 +25,11 @@ import {
 } from "./ui/select";
 import { Badge } from "./ui/badge";
 import { Calendar } from "./ui/calendar";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "./ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { cn } from "@/lib/utils";
 
-// ================== DEFINIÇÕES DE TIPO ==================
-// Adicionar estas interfaces garante a segurança de tipos e melhora o autocompletar.
+import { getAllTagsWithColors } from "@/lib/tags";
+
 interface Project {
   id: string;
   name: string;
@@ -46,14 +42,6 @@ interface User {
   image?: string;
 }
 
-// Deixando a interface Tag preparada para quando você for implementá-la.
-interface Tag {
-  id: string;
-  name: string;
-  color?: string;
-}
-// ========================================================
-
 const AdvancedFilters = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -61,13 +49,12 @@ const AdvancedFilters = () => {
   // Estados para controlar os valores selecionados nos filtros
   const [isOpen, setIsOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState("");
-  const [selectedTags, setSelectedTags] = useState<string[]>([]); // Preparado para o futuro
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [startDate, setStartDate] = useState<Date | undefined>();
   const [endDate, setEndDate] = useState<Date | undefined>();
 
-  // --- BUSCA DE DADOS COM REACT-QUERY ---
-
+  // --- BUSCA DE DADOS ---
   // Buscar todos os projetos para o seletor
   const { data: projects = [] } = useQuery<Project[]>({
     queryKey: ["projects"],
@@ -87,64 +74,59 @@ const AdvancedFilters = () => {
       return response.json();
     },
   });
-  
-  // (A query para Tags foi mantida, mas não será usada até você reativar a UI)
 
-  // --- EFEITOS PARA SINCRONIZAÇÃO ---
+  // Obter a lista de tags estáticas (não precisa de API)
+  const allTags = getAllTagsWithColors();
 
-  // Carrega o estado inicial dos filtros a partir dos parâmetros da URL
+  // --- SINCRONIZAÇÃO COM A URL ---
   useEffect(() => {
     const projectId = searchParams.get("projectId") || "";
     const assignedToIds =
       searchParams.get("assignedToIds")?.split(",").filter(Boolean) || [];
+    const tagsParam =
+      searchParams.get("tags")?.split(",").filter(Boolean) || [];
     const startDateParam = searchParams.get("startDate");
     const endDateParam = searchParams.get("endDate");
 
     setSelectedProject(projectId);
     setSelectedUsers(assignedToIds);
+    setSelectedTags(tagsParam); // Sincroniza as tags
     if (startDateParam) setStartDate(new Date(startDateParam));
     if (endDateParam) setEndDate(new Date(endDateParam));
   }, [searchParams]);
 
-  // --- FUNÇÕES DE MANIPULAÇÃO DOS FILTROS ---
-
-  // Aplica os filtros, atualizando a URL
+  // --- MANIPULAÇÃO DOS FILTROS ---
   const applyFilters = () => {
     const params = new URLSearchParams(Array.from(searchParams.entries()));
-
-    // Função auxiliar para definir ou remover um parâmetro
     const setOrDeleteParam = (key: string, value: string) => {
-      if (value) {
-        params.set(key, value);
-      } else {
-        params.delete(key);
-      }
+      if (value) params.set(key, value);
+      else params.delete(key);
     };
 
     setOrDeleteParam("projectId", selectedProject);
     setOrDeleteParam("assignedToIds", selectedUsers.join(","));
+    setOrDeleteParam("tags", selectedTags.join(",")); // Adiciona as tags
     setOrDeleteParam(
       "startDate",
       startDate ? format(startDate, "yyyy-MM-dd") : ""
     );
     setOrDeleteParam("endDate", endDate ? format(endDate, "yyyy-MM-dd") : "");
-    // (A lógica para 'tagIds' será adicionada aqui no futuro)
 
     router.replace(`/?${params.toString()}`);
-    setIsOpen(false); // Fecha o popover após aplicar
+    setIsOpen(false);
   };
 
-  // Limpa todos os filtros e atualiza a URL
   const clearFilters = () => {
     const params = new URLSearchParams(Array.from(searchParams.entries()));
     params.delete("projectId");
     params.delete("assignedToIds");
+    params.delete("tags"); // Limpa as tags
     params.delete("startDate");
     params.delete("endDate");
-    // (params.delete("tagIds") no futuro)
 
     setSelectedProject("");
     setSelectedUsers([]);
+    setSelectedTags([]); // Limpa o estado das tags
     setStartDate(undefined);
     setEndDate(undefined);
 
@@ -152,9 +134,9 @@ const AdvancedFilters = () => {
     setIsOpen(false);
   };
 
-  // Calcula a quantidade de filtros ativos para exibir no badge
   const activeFiltersCount = [
     selectedProject,
+    selectedTags.length > 0, // Adiciona ao contador
     selectedUsers.length > 0,
     startDate,
     endDate,
@@ -219,6 +201,42 @@ const AdvancedFilters = () => {
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          {/* Filtro por Tags */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium flex items-center">
+              <TagIcon className="h-4 w-4 mr-2" />
+              Tags
+            </Label>
+            <div className="space-y-2 max-h-32 overflow-y-auto pr-2">
+              {allTags.map((tag) => (
+                <div key={tag.name} className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id={`tag-${tag.name}`}
+                    checked={selectedTags.includes(tag.name)}
+                    onChange={(e) =>
+                      setSelectedTags(
+                        e.target.checked
+                          ? [...selectedTags, tag.name]
+                          : selectedTags.filter((name) => name !== tag.name)
+                      )
+                    }
+                    className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <label
+                    htmlFor={`tag-${tag.name}`}
+                    className="flex items-center space-x-2 text-sm cursor-pointer"
+                  >
+                    <span
+                      className={cn("h-3 w-3 rounded-full", tag.colors.bg)}
+                    />
+                    <span className="font-medium">{tag.name}</span>
+                  </label>
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* Filtro por Responsáveis */}
