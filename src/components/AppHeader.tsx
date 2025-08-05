@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Menu, Search, Settings } from "lucide-react";
 
@@ -26,6 +26,7 @@ const AppHeader = () => {
   const { data: session } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const pathname = usePathname(); // Hook para obter o caminho da URL atual
 
   // Estado para o valor do input de busca
   const [search, setSearch] = useState(searchParams.get("q") || "");
@@ -43,9 +44,11 @@ const AppHeader = () => {
       params.delete("q");
     }
 
-    // Usa router.replace para atualizar a URL sem adicionar ao histórico do navegador
-    router.replace(`/?${params.toString()}`);
-  }, [debouncedSearchTerm, router]);
+    // CORREÇÃO: Usa o pathname atual para construir a URL.
+    // Isso atualiza os parâmetros na página atual sem redirecionar para a home.
+    router.replace(`${pathname}?${params.toString()}`);
+    
+  }, [debouncedSearchTerm, pathname, router]); // Adicionado pathname às dependências
 
   // Função para atualizar o estado do input de busca
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
