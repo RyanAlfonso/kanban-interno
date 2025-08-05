@@ -1,0 +1,199 @@
+datasource db {
+  provider = "mongodb"
+  url      = env("MONGODB_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model ProjectColumn {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  name      String // e.g., "To Do", "In Progress", "QA", "Done"
+  order     Int // To define the order of columns in a project\"s board
+  projectId String   @db.ObjectId
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  todos     Todo[] // Each column can have multiple Todo items (cards)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relações inversas para CardMovementHistory
+  movedFrom CardMovementHistory[] @relation("FromColumn")
+  movedTo   CardMovementHistory[] @relation("ToColumn")
+
+  @@unique([projectId, name]) // Ensure column names are unique within a project
+  @@index([projectId, order]) // Index for ordering columns
+}
+
+// Novo modelo para Projetos
+model Project {
+  id          String  @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  description String?
+  // todos       Todo[] // This might become redundant if Todos are primarily accessed via ProjectColumn
+  columns     ProjectColumn[] // Relation to the project\"s columns
+
+  // Relation to Todos directly associated with the project (optional, if needed beyond columns)
+  // Consider if all todos MUST belong to a column, or if some can be unassigned at project level.
+  // If all todos must be in a column, this direct todos relation might be removed.
+  todos       Todo[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Todo {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  description String?
+  label       String[] @default([])
+  tags        String[] @default([])
+  deadline    DateTime // Tornando Prazo obrigatório
+  isDeleted   Boolean  @default(false)
+  order       Int
+  referenceDocument String? // Novo campo: Documento de Referência (não obrigatório)
+
+  ownerId String @db.ObjectId
+  owner   User?  @relation(fields: [ownerId], references: [id])
+
+  assignedToIds String[] @db.ObjectId // Usuários Responsáveis (obrigatório)
+
+  projectId String? @db.ObjectId
+  project   Project? @relation(fields: [projectId], references: [id])
+
+  columnId    String?   @db.ObjectId
+  column      ProjectColumn? @relation(fields: [columnId], references: [id], onDelete: SetNull)
+
+  movementHistory CardMovementHistory[]
+
+  parentId      String? @db.ObjectId
+  parent        Todo?   @relation("ChildTodos", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  childTodos    Todo[]  @relation("ChildTodos")
+
+  linkedCardIds String[] @db.ObjectId
+
+  comments      Comment[] // Novo campo para comentários
+  attachments   Attachment[] // Novo campo para anexos
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Comment {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  content   String
+  todoId    String   @db.ObjectId
+  todo      Todo     @relation(fields: [todoId], references: [id], onDelete: Cascade)
+  authorId  String   @db.ObjectId
+  author    User     @relation(fields: [authorId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Attachment {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  filename  String
+  url       String
+  todoId    String   @db.ObjectId
+  todo      Todo     @relation(fields: [todoId], references: [id], onDelete: Cascade)
+  uploadedById String @db.ObjectId
+  uploadedBy User   @relation(fields: [uploadedById], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model User {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  name          String?
+  email         String?   @unique
+  password      String?   // Adicionado campo para senha
+  image         String?
+  emailVerified DateTime?
+  accounts      Account[]
+  sessions      Session[]
+
+  todos Todo[] // Todos criados pelo usuário (owner)
+  comments Comment[] // Relação inversa para comentários
+  attachments Attachment[] // Relação inversa para anexos
+
+  // Histórico de movimentação que o usuário realizou
+  cardMovements CardMovementHistory[]
+
+  role Role @default(USER) // Adicionando o campo role
+  type UserType @default(COLABORADOR)
+
+  areas     Area[]   @relation(fields: [areaIds], references: [id])
+  areaIds   String[] @db.ObjectId
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum UserType {
+  SERVIDOR
+  COLABORADOR
+}
+
+model Area {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String   @unique
+  description String?
+  users       User[]   @relation(fields: [userIds], references: [id])
+  userIds     String[] @db.ObjectId
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Account {
+  id                String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId            String   @db.ObjectId
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?  @db.String
+  access_token      String?  @db.String
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?  @db.String
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid()) @map("_id")
+  userId       String   @db.ObjectId
+  expires      DateTime
+  sessionToken String   @unique
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model CardMovementHistory {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  todoId       String   @db.ObjectId
+  todo         Todo     @relation(fields: [todoId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  movedById    String   @db.ObjectId
+  movedBy      User     @relation(fields: [movedById], references: [id])
+  fromColumnId String   @db.ObjectId
+  fromColumn   ProjectColumn @relation("FromColumn", fields: [fromColumnId], references: [id])
+  toColumnId   String   @db.ObjectId
+  toColumn     ProjectColumn @relation("ToColumn", fields: [toColumnId], references: [id])
+  movedAt      DateTime @default(now())
+
+  @@index([todoId])
+  @@index([movedById])
+  @@index([fromColumnId])
+  @@index([toColumnId])
+}
+
