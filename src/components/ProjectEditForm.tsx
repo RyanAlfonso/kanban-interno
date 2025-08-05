@@ -32,7 +32,6 @@ const ProjectEditForm: FC<ProjectEditFormProps> = ({ project, onSuccess, trigger
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Atualizar os campos quando o projeto mudar
   useEffect(() => {
     setName(project.name);
     setDescription(project.description || "");
@@ -74,13 +73,10 @@ const ProjectEditForm: FC<ProjectEditFormProps> = ({ project, onSuccess, trigger
         description: "Área atualizado com sucesso",
       });
       
-      // Fechar diálogo
       setOpen(false);
       
-      // Invalidar cache de projetos para forçar recarregamento
       queryClient.invalidateQueries({ queryKey: ["projects"] });
       
-      // Callback de sucesso
       if (onSuccess) {
         onSuccess();
       }
@@ -120,13 +116,10 @@ const ProjectEditForm: FC<ProjectEditFormProps> = ({ project, onSuccess, trigger
         description: "Projeto excluído com sucesso",
       });
       
-      // Fechar diálogo
       setOpen(false);
       
-      // Invalidar cache de projetos para forçar recarregamento
       queryClient.invalidateQueries({ queryKey: ["projects"] });
       
-      // Callback de sucesso
       if (onSuccess) {
         onSuccess();
       }

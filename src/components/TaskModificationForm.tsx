@@ -43,7 +43,6 @@ import { Label } from "./ui/label";
 import { useToast } from "./ui/use-toast";
 import axios from "axios";
 
-// NOVO: Tipagem para o histórico de movimentação, para garantir consistência.
 type MovementHistoryItem = {
   id: string;
   movedAt: Date;
@@ -52,16 +51,14 @@ type MovementHistoryItem = {
   toColumn: { name: string };
 };
 
-// NOVO: Tipagem estendida para a tarefa, incluindo o histórico.
 type ExtendedTask = Partial<Todo> & {
   attachments?: AttachmentWithUploader[];
   comments?: CommentWithAuthor[];
   assignedToIds?: string[];
   linkedCardIds?: string[];
-  movementHistory?: MovementHistoryItem[]; // Adicionando o histórico aqui
+  movementHistory?: MovementHistoryItem[];
 };
 
-// Tipos e Componente para Anexos
 type AttachmentWithUploader = Attachment & {
   uploadedBy: Pick<User, "id" | "name" | "image">;
 };
@@ -127,7 +124,6 @@ const AttachmentItem: FC<AttachmentItemProps> = ({
   );
 };
 
-// Tipos e Componente para Comentários
 type CommentWithAuthor = Comment & {
   author: Pick<User, "id" | "name" | "image">;
 };
@@ -165,7 +161,6 @@ const CommentItem: FC<CommentItemProps> = ({ comment }) => {
   );
 };
 
-// NOVO: Componente para exibir o histórico de movimentação
 const MovementHistory: FC<{ history: MovementHistoryItem[] }> = ({ history }) => {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -208,10 +203,9 @@ const MovementHistory: FC<{ history: MovementHistoryItem[] }> = ({ history }) =>
 };
 
 
-// Props do Formulário Principal
 type TaskEditFormProps = {
   handleOnClose: () => void;
-  task: ExtendedTask; // NOVO: Usando a tipagem estendida
+  task: ExtendedTask;
   title: string;
   enableDelete?: boolean;
   deleteMutationFunctionReturn?: UseMutationResult<
@@ -714,7 +708,6 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
                 </div>
               )}
               
-              {/* NOVO: Renderiza o componente de histórico aqui */}
               {task.id && task.movementHistory && (
                 <MovementHistory history={task.movementHistory} />
               )}

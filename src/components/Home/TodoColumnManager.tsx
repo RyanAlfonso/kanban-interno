@@ -13,7 +13,6 @@ import { AxiosError } from "axios";
 import { Project, ProjectColumn as PrismaProjectColumn } from "@prisma/client";
 import { PlusCircle } from "lucide-react";
 
-// Componentes de UI
 import { Skeleton } from "../ui/skeleton";
 import { useToast } from "../ui/use-toast";
 import { Button } from "../ui/button";
@@ -24,11 +23,9 @@ import TodoColumn from "./TodoColumn";
 import ViewToggle from "../ViewToggle";
 import DndContextProvider, { OnDragEndEvent } from "../DnDContextProvider";
 
-// Tipos e Validadores
 import { TodoEditRequest } from "@/lib/validators/todo";
 import { TodoWithRelations } from "@/types/todo";
 
-// Funções de Requisição
 import todoFetchRequest from "@/requests/todoFetchRequest";
 import todoEditRequest from "@/requests/todoEditRequest";
 import projectColumnsFetchRequest from "@/requests/projectColumnsFetchRequest";
@@ -53,23 +50,18 @@ const TodoColumnManager = () => {
   const searchParams = useSearchParams();
   const { data: session } = useSession();
 
-  // Parâmetros da URL para controle de UI
   const searchTerm = searchParams.get("q")?.toLowerCase() || "";
   const currentProjectId = searchParams.get("projectId") || "all";
 
-  // Estado local para o formulário de adicionar coluna
   const [showAddColumnForm, setShowAddColumnForm] = useState(false);
   const [newColumnName, setNewColumnName] = useState("");
 
-  // ================== QUERY DE TODOS ADAPTADA ==================
   const {
     data: todos = [],
     isLoading: isLoadingTodos,
     error: errorTodos,
   } = useQuery<TodoWithRelations[], Error>({
-    // A queryKey agora depende apenas da string de parâmetros, que contém tudo.
     queryKey: ["todos", searchParams.toString()],
-    // A queryFn chama nossa nova função de busca simplificada.
     queryFn: () => todoFetchRequest(searchParams),
     onError: (err) => {
       toast({
@@ -81,7 +73,6 @@ const TodoColumnManager = () => {
   });
   // =============================================================
 
-  // Query para buscar as colunas do projeto selecionado
   const {
     data: projectColumns,
     isLoading: isLoadingProjectColumns,
@@ -89,10 +80,9 @@ const TodoColumnManager = () => {
   } = useQuery<PrismaProjectColumn[], Error>({
     queryKey: ["projectColumns", { projectId: currentProjectId }],
     queryFn: () => projectColumnsFetchRequest(currentProjectId),
-    enabled: currentProjectId !== "all", // Só executa se um projeto específico for selecionado
+    enabled: currentProjectId !== "all",
   });
 
-  // Lógica para buscar colunas de múltiplos projetos na visão "all"
   const uniqueProjectIdsFromTodos =
     currentProjectId === "all" && todos
       ? Array.from(
@@ -117,11 +107,12 @@ const TodoColumnManager = () => {
   });
 
   const allProjectsColumnsMap = React.useMemo(() => {
-    const map: Record<string, PrismaProjectColumn[]> = {};
+    const map: { [key: string]: PrismaProjectColumn[] } = {};
     if (currentProjectId === "all") {
       allProjectsColumnsQueries.forEach((queryResult, index) => {
-        if (queryResult.data && uniqueProjectIdsFromTodos[index]) {
-          map[uniqueProjectIdsFromTodos[index]] = queryResult.data.sort(
+        const projectId = uniqueProjectIdsFromTodos[index];
+        if (queryResult.data && projectId) {
+          map[projectId as string] = queryResult.data.sort(
             (a, b) => a.order - b.order
           );
         }
@@ -130,7 +121,6 @@ const TodoColumnManager = () => {
     return map;
   }, [currentProjectId, allProjectsColumnsQueries, uniqueProjectIdsFromTodos]);
 
-  // Estados de carregamento e erro consolidados
   const isLoadingAllProjectsColumns =
     currentProjectId === "all"
       ? allProjectsColumnsQueries.some((q) => q.isLoading)
@@ -148,9 +138,7 @@ const TodoColumnManager = () => {
     (currentProjectId !== "all" ? errorProjectColumns : null) ||
     errorAllProjectsColumns;
 
-  // (Continuação do código anterior)
 
-  // Mutações para criar e deletar colunas
   const { mutate: createColumnMutation } = useMutation<
     PrismaProjectColumn,
     AxiosError,
@@ -279,7 +267,6 @@ const TodoColumnManager = () => {
     }
   };
 
-  // Mutação para atualizar o estado de um todo (arrastar e soltar)
   const { mutate: handleUpdateState } = useMutation<
     TodoWithRelations,
     AxiosError,
@@ -294,7 +281,6 @@ const TodoColumnManager = () => {
         queryClient.getQueryData<TodoWithRelations[]>(queryKey);
       if (!previousTodos) return { previousTodos: undefined, queryKey };
 
-      // Lógica de atualização otimista (mantida do seu código original)
       const todoToUpdate = previousTodos.find((todo) => todo.id === payload.id);
       if (!todoToUpdate) return { previousTodos, queryKey };
 
@@ -403,7 +389,6 @@ const TodoColumnManager = () => {
     };
     handleUpdateState(payload);
   };
-  // (Continuação do código anterior)
 
   if (isLoading) {
     return (
@@ -430,7 +415,6 @@ const TodoColumnManager = () => {
     );
   }
 
-  // Filtro de busca no lado do cliente
   const filteredTodos = todos.filter((todo) => {
     if (!searchTerm) return true;
     const inTitle = todo.title?.toLowerCase().includes(searchTerm);
@@ -439,7 +423,6 @@ const TodoColumnManager = () => {
     return inTitle || inDescription;
   });
 
-  // Lógica para determinar o título da página
   let pageTitle = "Todas as áreas";
   if (currentProjectId !== "all") {
     const project = (
@@ -448,7 +431,6 @@ const TodoColumnManager = () => {
     pageTitle = project?.name || "Projeto";
   }
 
-  // Lógica para agrupar por projeto na visão "all"
   const groupedProjects: GroupedProject[] = [];
   if (currentProjectId === "all") {
     const projectsMap: Map<string, GroupedProject> = new Map();
@@ -547,7 +529,6 @@ const TodoColumnManager = () => {
             )}
           </div>
         ) : (
-          // Renderização para "Todos os projetos"
           <div className="flex flex-col gap-6">
             {groupedProjects.map((project, projectIndex) => {
               const currentProjectDynamicColumns =

@@ -1,5 +1,3 @@
-// Caminho do arquivo: src/app/api/todo/edit/route.ts
-
 import { getAuthSession } from "@/lib/nextAuthOptions";
 import prisma from "@/lib/prismadb";
 import { Prisma } from "@prisma/client";
@@ -22,7 +20,7 @@ export async function PATCH(req: Request) {
 
     const currentTodo = await prisma.todo.findUnique({
       where: { id },
-      select: { ownerId: true, columnId: true, parentId: true }
+      select: { ownerId: true, columnId: true, parentId: true },
     });
 
     if (!currentTodo) {
@@ -34,21 +32,22 @@ export async function PATCH(req: Request) {
 
     const dataToUpdate: Prisma.TodoUpdateInput = {};
 
-    // Adiciona campos simples se eles foram fornecidos
     if (updateData.title) dataToUpdate.title = updateData.title;
-    if (updateData.description !== undefined) dataToUpdate.description = updateData.description;
+    if (updateData.description !== undefined)
+      dataToUpdate.description = updateData.description;
     if (updateData.label) dataToUpdate.label = updateData.label;
     if (updateData.tags) dataToUpdate.tags = updateData.tags;
-    if (updateData.assignedToIds) dataToUpdate.assignedToIds = updateData.assignedToIds;
-    if (updateData.linkedCardIds) dataToUpdate.linkedCardIds = updateData.linkedCardIds;
-    if (updateData.referenceDocument !== undefined) dataToUpdate.referenceDocument = updateData.referenceDocument;
+    if (updateData.assignedToIds)
+      dataToUpdate.assignedToIds = updateData.assignedToIds;
+    if (updateData.linkedCardIds)
+      dataToUpdate.linkedCardIds = updateData.linkedCardIds;
+    if (updateData.referenceDocument !== undefined)
+      dataToUpdate.referenceDocument = updateData.referenceDocument;
 
-    // Tratamento para o campo 'deadline'
     if (updateData.deadline) {
       dataToUpdate.deadline = new Date(updateData.deadline);
     }
 
-    // Tratamento para a tarefa-pai (parentId)
     if (updateData.parentId !== undefined) {
       if (updateData.parentId) {
         dataToUpdate.parent = { connect: { id: updateData.parentId } };
@@ -57,29 +56,28 @@ export async function PATCH(req: Request) {
       }
     }
 
-    // *** A CORREÇÃO ESTÁ AQUI ***
-    // Tratamento para mudança de coluna e criação de histórico
-    // A condição agora verifica se a coluna de destino existe, se é diferente da atual,
-    // E se a coluna de origem (currentTodo.columnId) também não é nula.
-    if (updateData.columnId && currentTodo.columnId && updateData.columnId !== currentTodo.columnId) {
+    if (
+      updateData.columnId &&
+      currentTodo.columnId &&
+      updateData.columnId !== currentTodo.columnId
+    ) {
       dataToUpdate.column = { connect: { id: updateData.columnId } };
       dataToUpdate.movementHistory = {
         create: {
           movedBy: { connect: { id: session.user.id } },
-          // Agora 'currentTodo.columnId' tem a garantia de ser uma string aqui dentro
           fromColumn: { connect: { id: currentTodo.columnId } },
           toColumn: { connect: { id: updateData.columnId } },
           movedAt: new Date(),
-        }
+        },
       };
     } else if (updateData.columnId && !currentTodo.columnId) {
-      // Caso especial: a tarefa estava sem coluna e foi movida para uma.
-      // Aqui não criamos histórico de "movimento", apenas conectamos à nova coluna.
       dataToUpdate.column = { connect: { id: updateData.columnId } };
     }
 
-
-    logger.info("--- API Backend (PATCH /edit): Dados sendo enviados para o Prisma update ---", JSON.stringify(dataToUpdate, null, 2));
+    logger.info(
+      "--- API Backend (PATCH /edit): Dados sendo enviados para o Prisma update ---",
+      JSON.stringify(dataToUpdate, null, 2)
+    );
 
     const updatedTodo = await prisma.todo.update({
       where: { id },
@@ -98,7 +96,7 @@ export async function PATCH(req: Request) {
         },
         parent: { select: { id: true, title: true } },
         childTodos: { select: { id: true, title: true } },
-      }
+      },
     });
 
     const assignedUsers = await prisma.user.findMany({
@@ -116,8 +114,9 @@ export async function PATCH(req: Request) {
     revalidatePath("/dashboard");
     revalidatePath("/");
 
-    return new Response(JSON.stringify(resultWithAssignedUsers), { status: 200 });
-
+    return new Response(JSON.stringify(resultWithAssignedUsers), {
+      status: 200,
+    });
   } catch (error) {
     logger.error(error);
     if (error instanceof z.ZodError) {

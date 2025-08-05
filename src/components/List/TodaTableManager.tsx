@@ -7,29 +7,26 @@ import { useEffect, useMemo, useState } from "react";
 import { Button } from "../ui/button";
 import TableSortedIcon from "./TableSortedIcon";
 import TodoTable from "./TodoTable";
-// Update import from react-query to @tanstack/react-query
 import { useQuery } from "@tanstack/react-query"; 
 import todoFetchRequest from "@/requests/todoFetchRequest";
-import { Skeleton } from "../ui/skeleton"; // Import Skeleton
-import { AxiosError } from "axios"; // Import AxiosError for error handling
-import { useToast } from "../ui/use-toast"; // Import useToast
+import { Skeleton } from "../ui/skeleton";
+import { AxiosError } from "axios";
+import { useToast } from "../ui/use-toast";
 
 const TodoTableManager = () => {
   console.log("Rendering TodoTableManager..."); // Added log
   const [isMounted, setIsMounted] = useState(false);
-  const { toast } = useToast(); // Initialize toast
+  const { toast } = useToast();
 
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
-  // Update useQuery syntax for v4+
   const { data: todos, isLoading, error } = useQuery<Todo[], Error>({
     queryKey: ["todos"], // Query key as array
     queryFn: () => todoFetchRequest(), // Fetch function
     onError: (err) => {
       console.error("Error fetching todos for table:", err);
-      // Show toast on error
       toast({
         title: "Erro ao Carregar Tarefas",
         description: err.message || "Não foi possível buscar as tarefas para a tabela.",
@@ -124,7 +121,7 @@ const TodoTableManager = () => {
           </div>
         );
       },
-      enableSorting: false, // Disable sorting for label array
+      enableSorting: false,
     },
     {
       accessorKey: "createdAt",
@@ -166,9 +163,7 @@ const TodoTableManager = () => {
     },
   ];
 
-  // Wait for mount to avoid hydration errors
   if (!isMounted) {
-      // Render skeleton during SSR or before mount
       return (
           <div className="p-6">
               <Skeleton className="h-96 w-full" />
@@ -176,21 +171,18 @@ const TodoTableManager = () => {
       );
   }
 
-  // Handle loading state after mount
   if (isLoading) {
     console.log("TodoTableManager loading...");
     return (
       <div className="p-6">
-        <Skeleton className="h-12 w-full mb-4" /> {/* Skeleton for potential filters/header */}
-        <Skeleton className="h-96 w-full" /> {/* Skeleton for table */}
+        <Skeleton className="h-12 w-full mb-4" />
+        <Skeleton className="h-96 w-full" />
       </div>
     );
   }
 
-  // Handle error state
   if (error) {
     console.error("TodoTableManager render error:", error);
-    // Error toast is shown by useQuery's onError, display simple message here
     return <div className="p-6 text-red-500">Erro ao carregar tarefas. Tente recarregar a página.</div>;
   }
   

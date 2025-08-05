@@ -9,7 +9,7 @@ type AppLayoutProps = {
 };
 
 const AppLayout: FC<AppLayoutProps> = ({ children, title, action }) => {
-  console.log("Rendering AppLayout..."); // Added log
+  console.log("Rendering AppLayout...");
   try {
     return (
       <div className="flex h-screen bg-gray-100 dark:bg-gray-950 overflow-hidden">
@@ -31,8 +31,7 @@ const AppLayout: FC<AppLayoutProps> = ({ children, title, action }) => {
       </div>
     );
   } catch (error) {
-    console.error("Error rendering AppLayout:", error); // Added try-catch
-    // Optionally render an error message or fallback UI
+    console.error("Error rendering AppLayout:", error);
     return <div>Ocorreu um erro no layout principal.</div>;
   }
 };

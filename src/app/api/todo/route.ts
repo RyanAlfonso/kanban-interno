@@ -1,5 +1,3 @@
-// Caminho completo: kanban-interno/src/app/api/todo/route.ts
-
 import { getAuthSession } from "@/lib/nextAuthOptions";
 import { getLogger } from "@/logger";
 import prisma from "@/lib/prismadb";
@@ -17,7 +15,6 @@ export async function GET(req: NextRequest) {
 
     const url = new URL(req.url);
 
-    // LER TODOS OS PARÂMETROS DE FILTRO DA URL
     const view = url.searchParams.get("view");
     const projectId = url.searchParams.get("projectId");
     const assignedToIds = url.searchParams
@@ -27,9 +24,8 @@ export async function GET(req: NextRequest) {
     const startDate = url.searchParams.get("startDate");
     const endDate = url.searchParams.get("endDate");
     const searchQuery = url.searchParams.get("q");
-    const tags = url.searchParams.get("tags")?.split(",").filter(Boolean); // <-- 1. LER O NOVO PARÂMETRO DE TAGS
+    const tags = url.searchParams.get("tags")?.split(",").filter(Boolean);
 
-    // CONSTRUIR A CLÁUSULA 'WHERE' DINAMICAMENTE
     let whereClause: any = {
       isDeleted: false,
     };
@@ -56,7 +52,6 @@ export async function GET(req: NextRequest) {
       ];
     }
 
-    // <-- 2. ADICIONAR LÓGICA DE FILTRO PARA TAGS
     if (tags && tags.length > 0) {
       whereClause.tags = { hasSome: tags };
     }

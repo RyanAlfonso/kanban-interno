@@ -1,7 +1,6 @@
-// /src/app/api/todo/create/route.ts (versão final e limpa)
 
 import { getAuthSession } from "@/lib/nextAuthOptions";
-import prisma from "@/lib/prismadb"; // Importe o prisma com o middleware
+import prisma from "@/lib/prismadb";
 import { TodoCreateValidator } from "@/lib/validators/todo";
 import { getLogger } from "@/logger";
 import { z } from "zod";

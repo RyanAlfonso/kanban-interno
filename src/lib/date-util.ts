@@ -78,5 +78,5 @@ export function getTimeframeSortOrder(timeframe: string): number {
     "Mais Antigo": 6,
   };
 
-  return order[timeframe] || 999; // Should not happen if categorizeDate is exhaustive
+  return order[timeframe] || 999;
 }

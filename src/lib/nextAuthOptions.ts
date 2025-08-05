@@ -1,4 +1,3 @@
-// Caminho: src/lib/nextAuthOptions.ts (ou similar)
 
 import prisma from "@/lib/prismadb";
 import { PrismaAdapter } from "@auth/prisma-adapter";
@@ -22,7 +21,6 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
-        // 1. Garanta que 'type' seja incluído na busca do usuário
         const user = await prisma.user.findUnique({
           where: {
             email: credentials.email,
@@ -49,15 +47,13 @@ export const authOptions: NextAuthOptions = {
 
         console.log("Autorização bem-sucedida para:", user.email);
         
-        // 2. Retorne o objeto completo do usuário, incluindo 'type'
-        //    O 'as User' funcionará corretamente com o arquivo next-auth.d.ts atualizado.
         return {
           id: user.id,
           name: user.name,
           email: user.email,
           image: user.image,
           role: user.role,
-          type: user.type, // <<-- ADICIONADO
+          type: user.type,
           areas: user.areas,
         };
       },
@@ -69,22 +65,19 @@ export const authOptions: NextAuthOptions = {
   },
   callbacks: {
     async jwt({ token, user }) {
-      // O objeto 'user' aqui é o que foi retornado pela função 'authorize'
       if (user) {
         token.id = user.id;
         token.role = user.role;
-        token.type = user.type; // <<-- ADICIONADO
+        token.type = user.type;
         token.areas = user.areas;
-        // Os campos padrão (name, email, image) já são tratados pelo NextAuth
       }
       return token;
     },
     async session({ session, token }) {
-      // O objeto 'token' aqui é o que foi retornado pela função 'jwt'
       if (token && session.user) {
         session.user.id = token.id as string;
         session.user.role = token.role;
-        session.user.type = token.type; // <<-- ADICIONADO
+        session.user.type = token.type;
         session.user.areas = token.areas;
       }
       return session;

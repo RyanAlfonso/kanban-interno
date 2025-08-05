@@ -5,20 +5,18 @@ import {
   TodoEditRequest,
   TodoEditValidator,
 } from "@/lib/validators/todo";
-import { useTypedDispatch } from "@/redux/store";
 import todoEditRequest from "@/requests/todoEditRequest";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Todo } from "@prisma/client";
 import axios, { AxiosError } from "axios";
 import { FC } from "react";
 import { useForm } from "react-hook-form";
-// Update import from react-query to @tanstack/react-query
 import { useMutation, useQueryClient } from "@tanstack/react-query"; 
 import "react-quill/dist/quill.snow.css";
 import TaskModificationForm from "./TaskModificationForm";
 import { useToast } from "./ui/use-toast";
 import todoDeleteRequest from "@/requests/todoDeleteRequest";
-import { useSearchParams } from 'next/navigation'; // Import useSearchParams
+import { useSearchParams } from 'next/navigation';
 
 type TaskEditFormProps = {
   handleOnSuccess: () => void;
@@ -31,10 +29,10 @@ const TaskEditFormController: FC<TaskEditFormProps> = ({
   handleOnClose,
   task,
 }) => {
-  console.log("Rendering TaskEditFormController..."); // Added log
+  console.log("Rendering TaskEditFormController...");
   const queryClient = useQueryClient();
-  const searchParams = useSearchParams(); // Get search params
-  const projectId = searchParams.get("projectId") || null; // Get current projectId
+  const searchParams = useSearchParams();
+  const projectId = searchParams.get("projectId") || null;
 
   const { axiosToast } = useToast();
   const form = useForm<TodoEditRequest>({
@@ -44,19 +42,17 @@ const TaskEditFormController: FC<TaskEditFormProps> = ({
       title: task.title || "",
       description: task.description || null,
       columnId: task.columnId || undefined,
-      label: task.label || [], // Assuming 'label' is still part of Todo and TodoEditRequest
-      tags: task.tags || [], // Explicitly include tags
+      label: task.label || [], 
+      tags: task.tags || [],
       deadline: task.deadline || null,
       projectId: task.projectId || null,
-      order: task.order, // Assuming 'order' is part of Todo and TodoEditRequest
-      isDeleted: task.isDeleted || false, // Assuming 'isDeleted' is part of Todo and TodoEditRequest
+      order: task.order,
+      isDeleted: task.isDeleted || false, 
     },
   });
 
-  // Define the query key with projectId context
   const queryKey = ["todos", { projectId }];
 
-  // Update useMutation syntax for v4+
   const editMutation = useMutation<Todo[], AxiosError, TodoEditRequest, { prevTodos: Todo[] | undefined }>({
     mutationFn: todoEditRequest,
     onMutate: async (variables: TodoEditRequest) => {
@@ -65,7 +61,6 @@ const TaskEditFormController: FC<TaskEditFormProps> = ({
       const prevTodos = queryClient.getQueryData<Todo[]>(queryKey);
       console.log("Previous todos (edit):", prevTodos);
 
-      // Optimistically update the cache
       queryClient.setQueryData<Todo[]>(
         queryKey,
         (oldTodos = []) => 
@@ -74,12 +69,11 @@ const TaskEditFormController: FC<TaskEditFormProps> = ({
           )
       );
 
-      handleOnSuccess(); // Close dialog immediately on optimistic update
+      handleOnSuccess();
       return { prevTodos };
     },
     onError: (error, variables, context) => {
       console.error("onError editMutation:", error);
-      // Rollback on error
       if (context?.prevTodos) {
         queryClient.setQueryData(queryKey, context.prevTodos);
       }
@@ -87,12 +81,10 @@ const TaskEditFormController: FC<TaskEditFormProps> = ({
     },
     onSuccess: (data, variables, context) => {
       console.log("onSuccess editMutation:", data);
-      // Invalidate and refetch on success to ensure consistency
       queryClient.invalidateQueries({ queryKey });
     },
   });
 
-  // Update useMutation syntax for v4+
   const deleteMutation = useMutation<Todo[], AxiosError, TodoDeleteRequest, { prevTodos: Todo[] | undefined }>({
     mutationFn: todoDeleteRequest,
     onMutate: async (variables: TodoDeleteRequest) => {
@@ -101,18 +93,16 @@ const TaskEditFormController: FC<TaskEditFormProps> = ({
       const prevTodos = queryClient.getQueryData<Todo[]>(queryKey);
       console.log("Previous todos (delete):", prevTodos);
 
-      // Optimistically update the cache
       queryClient.setQueryData<Todo[]>(
         queryKey,
         (oldTodos = []) => oldTodos.filter((todo) => todo.id !== variables.id)
       );
 
-      handleOnSuccess(); // Close dialog immediately
+      handleOnSuccess();
       return { prevTodos };
     },
     onError: (error, variables, context) => {
       console.error("onError deleteMutation:", error);
-      // Rollback on error
       if (context?.prevTodos) {
         queryClient.setQueryData(queryKey, context.prevTodos);
       }
@@ -120,7 +110,6 @@ const TaskEditFormController: FC<TaskEditFormProps> = ({
     },
     onSuccess: (data, variables, context) => {
       console.log("onSuccess deleteMutation:", data);
-      // Invalidate and refetch on success to ensure consistency
       queryClient.invalidateQueries({ queryKey });
     },
   });

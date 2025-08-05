@@ -15,15 +15,14 @@ import {
   useState,
 } from "react";
 
-// 1. Definir o tipo para as opções
 type Option = {
   value: string;
   title: string;
 };
 
 type CustomizedMultSelectProps = {
-  options?: Option[]; // ✅ Aceita um array de objetos
-  value?: string[]; // ✅ O valor continua sendo um array de IDs (strings)
+  options?: Option[]; 
+  value?: string[];
   onChange?: (value: string[]) => void;
   placeholder?: string;
 };
@@ -61,7 +60,6 @@ const CustomizedMultSelect: FC<CustomizedMultSelectProps> = ({
     searchRef.current.focus();
   }, [open]);
   
-  // Sincroniza o estado interno com as props externas
   useEffect(() => {
     setPrivateValue(value);
   }, [value]);
@@ -81,7 +79,6 @@ const CustomizedMultSelect: FC<CustomizedMultSelectProps> = ({
     if (onChange) onChange([]);
   };
 
-  // 2. A lógica de seleção agora usa o 'value' da opção
   const onSelect = (optionValue: string) => {
     setSearchValue("");
     const newValue = privateValue.includes(optionValue)
@@ -97,7 +94,6 @@ const CustomizedMultSelect: FC<CustomizedMultSelectProps> = ({
     onSelect(optionValue);
   };
   
-  // 3. A busca agora filtra pelo 'title' da opção
   const onSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setSearchValue(value);
@@ -117,7 +113,6 @@ const CustomizedMultSelect: FC<CustomizedMultSelectProps> = ({
     e.stopPropagation();
     if (e.key === "Enter") {
         e.preventDefault();
-        // Lógica para adicionar o primeiro item da busca se existir
         if (privateOptions.length > 0) {
             onSelect(privateOptions[0].value);
         }
@@ -132,7 +127,6 @@ const CustomizedMultSelect: FC<CustomizedMultSelectProps> = ({
     }
   };
 
-  // 4. Função para encontrar o título correspondente a um ID
   const getTitleById = (id: string) => {
     return options.find(opt => opt.value === id)?.title || id;
   };
@@ -149,7 +143,6 @@ const CustomizedMultSelect: FC<CustomizedMultSelectProps> = ({
         >
           <div className="flex flex-wrap justify-start max-w-full gap-1">
             {privateValue.length > 0 ? (
-              // 5. Exibe os títulos dos IDs selecionados
               privateValue.map((id) => (
                 <div
                   key={id}
@@ -193,7 +186,6 @@ const CustomizedMultSelect: FC<CustomizedMultSelectProps> = ({
         {open && (
           <div className="absolute bg-white dark:bg-gray-800 my-1 w-full border rounded-md z-50 max-h-60 overflow-y-auto">
             {privateOptions.length > 0 ? privateOptions.map((option) => (
-              // 6. A lista de opções agora usa 'option.value' e 'option.title'
               <div
                 key={option.value}
                 className={cn(

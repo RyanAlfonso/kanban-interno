@@ -1,4 +1,3 @@
-// Caminho: kanban-interno/src/app/api/comments/route.ts
 
 import { getAuthSession } from "@/lib/nextAuthOptions";
 import { getLogger } from "@/logger";
@@ -40,10 +39,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const logger = getLogger("info");
 
-  // ================== LOG DE DIAGNÓSTICO 1 ==================
-  // Este log confirma que a requisição do frontend chegou a esta rota.
   logger.info("✅ ROTA POST /api/comments ACIONADA!");
-  // ==========================================================
 
   try {
     const session = await getAuthSession();
@@ -80,20 +76,14 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // ================== LOG DE DIAGNÓSTICO 2 ==================
-    // Este log confirma que o comentário foi salvo no banco de dados com sucesso.
     logger.info("✅ Comentário criado com sucesso no banco de dados.", {
       commentId: newComment.id,
       todoId: newComment.todoId,
     });
-    // ==========================================================
 
     return new Response(JSON.stringify(newComment), { status: 201 });
   } catch (error) {
-    // ================== LOG DE DIAGNÓSTICO 3 ==================
-    // Este log captura e exibe qualquer erro que ocorra durante o processo.
     logger.error("❌ Erro ao criar comentário:", error);
-    // ==========================================================
     return new Response("Internal Server Error", { status: 500 });
   }
 }

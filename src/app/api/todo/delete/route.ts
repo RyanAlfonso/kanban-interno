@@ -1,4 +1,3 @@
-// Path: kanban-interno/src/app/api/todo/delete/route.ts
 import { getAuthSession } from "@/lib/nextAuthOptions";
 import { TodoDeleteValidator } from "@/lib/validators/todo";
 import prisma from "@/lib/prismadb";
@@ -64,5 +63,4 @@ export async function DELETE(req: NextRequest) {
 
 
 
-// Invalidate cache for todos query
 export const revalidate = 0;

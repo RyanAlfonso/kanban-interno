@@ -7,7 +7,6 @@ import { Suspense } from 'react';
 
 export const dynamic = 'force-dynamic';
 
-// Component containing parts that use useSearchParams
 function HomePageContent() {
   return (
     <AppLayout title="Board">
@@ -20,7 +19,6 @@ function HomePageContent() {
 
 const Home = () => {
   return (
-    // Wrap the entire content in Suspense
     <Suspense fallback={<div>Loading home...</div>}>
       <HomePageContent />
     </Suspense>

@@ -3,8 +3,8 @@ import { getLabelColor } from "@/lib/color";
 import { getRelativeTimeString } from "@/lib/date-util";
 import { cn } from "@/lib/utils";
 import { openTodoEditor } from "@/redux/actions/todoEditorAction";
-import { State } from "@/lib/types/prisma-types"; // Import the State enum
-import { TodoWithColumn, EmbeddedProjectColumn } from "@/types/todo"; // Use TodoWithColumn
+import { State } from "@/lib/types/prisma-types";
+import { TodoWithColumn, EmbeddedProjectColumn } from "@/types/todo";
 import dayjs from "dayjs";
 import {
   BarChart2,
@@ -18,21 +18,20 @@ import { FC } from "react";
 import { useDispatch } from "react-redux";
 
 type TimelineItemProps = {
-  todo: TodoWithColumn; // Use TodoWithColumn
+  todo: TodoWithColumn;
   isLast?: boolean;
 };
 
-// Helper function to map column name to State enum value
 const mapColumnNameToState = (columnName?: string | null): State => {
   if (!columnName) {
-    return State.TODO; // Default state if no column or column name
+    return State.TODO;
   }
   switch (columnName.toUpperCase().replace(/\s+/g, "_")) {
     case "TO_DO":
     case "TODO":
       return State.TODO;
     case "IN_PROGRESS":
-    case "IN PROGRESS": // Common variation
+    case "IN PROGRESS":
       return State.IN_PROGRESS;
     case "REVIEW":
       return State.REVIEW;
@@ -40,7 +39,7 @@ const mapColumnNameToState = (columnName?: string | null): State => {
       return State.DONE;
     default:
       console.warn(`Unknown column name: ${columnName}, defaulting to TODO`);
-      return State.TODO; // Fallback for unknown column names
+      return State.TODO;
   }
 };
 
@@ -52,12 +51,10 @@ const TimelineItem: FC<TimelineItemProps> = ({ todo, isLast = false }) => {
   const dueDate = todo.deadline ? dayjs(todo.deadline) : null;
   const createdDate = dayjs(todo.createdAt);
 
-  // Determine if task is overdue
   const isOverdue = !!dueDate && createdDate.isAfter(dueDate);
   const isFinished = derivedState === State.DONE || derivedState === State.REVIEW;
 
-  // Get the appropriate icon based on task status
-  const getStatusIcon = (state: State) => { // Parameter type is now State enum
+  const getStatusIcon = (state: State) => {
     switch (state) {
       case State.TODO:
         return <Settings className="h-5 w-5" />;
@@ -68,12 +65,11 @@ const TimelineItem: FC<TimelineItemProps> = ({ todo, isLast = false }) => {
       case State.DONE:
         return <CheckCircle className="h-5 w-5" />;
       default:
-        return <Settings className="h-5 w-5" />; // Should not happen with enum
+        return <Settings className="h-5 w-5" />;
     }
   };
 
-  // Get the appropriate color based on task status
-  const getStatusColor = (state: State) => { // Parameter type is now State enum
+  const getStatusColor = (state: State) => {
     switch (state) {
       case State.TODO:
         return "bg-blue-500 text-white";
@@ -84,15 +80,11 @@ const TimelineItem: FC<TimelineItemProps> = ({ todo, isLast = false }) => {
       case State.DONE:
         return "bg-green-500 text-white";
       default:
-        // Should not happen with enum, but provide a fallback just in case
         return "bg-gray-500 text-white";
     }
   };
 
   const handleClick = () => {
-    // Ensure the todo object passed to openTodoEditor is the original one,
-    // or if it expects a plain Todo, we might need to strip the column if it causes issues.
-    // For now, assuming it can handle the TodoWithColumn structure.
     dispatch(openTodoEditor(todo, "/timeline", "edit"));
   };
 
@@ -102,27 +94,24 @@ const TimelineItem: FC<TimelineItemProps> = ({ todo, isLast = false }) => {
         {createdDate.format("YYYY-MM-DD")}
       </div>
       <div className="flex group">
-        {/* Date column */}
         <div className="w-28 flex-shrink-0 text-sm text-muted-foreground pt-0.5 pr-4 text-right hidden md:relative">
           {createdDate.format("YYYY-MM-DD")}
         </div>
 
-        {/* Timeline connector */}
         <div className="relative flex flex-col items-center mr-4">
           <div
             className={cn(
               "flex items-center justify-center w-10 h-10 rounded-full z-0",
-              getStatusColor(derivedState), // Use derivedState
+              getStatusColor(derivedState),
             )}
           >
-            {getStatusIcon(derivedState)} {/* Use derivedState */}
+            {getStatusIcon(derivedState)}
           </div>
           {!isLast && (
             <div className="w-0.5 h-full bg-border absolute top-10 bottom-0 left-1/2 -translate-x-1/2" />
           )}
         </div>
 
-        {/* Content */}
         <div className="pb-8 w-full">
           <div
             className="block group-hover:opacity-90 transition-opacity cursor-pointer"
@@ -187,23 +176,6 @@ const TimelineItem: FC<TimelineItemProps> = ({ todo, isLast = false }) => {
                     </span>
                   </div>
                 )}
-
-                {/* {isOverdue && !isFinished && ( */}
-                {/*   <Badge */}
-                {/*     variant="outline" */}
-                {/*     className="bg-red-500/10 text-red-500 border-red-500/20" */}
-                {/*   > */}
-                {/*     Overdue */}
-                {/*   </Badge> */}
-                {/* )} */}
-                {/* {!!dueDate && isFinished && ( */}
-                {/*   <Badge */}
-                {/*     variant="outline" */}
-                {/*     className="bg-green-500/10 text-green-500 border-green-500/20" */}
-                {/*   > */}
-                {/*     Finished */}
-                {/*   </Badge> */}
-                {/* )} */}
               </div>
             </div>
           </div>

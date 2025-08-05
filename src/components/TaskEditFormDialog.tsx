@@ -20,7 +20,6 @@ const TaskEditFormDialog: FC = () => {
   );
 
   const task = useSelector<ReduxState, Todo | TaskCreatorDefaultValues | null>(
-    // Allow task to potentially be null initially or if state is cleared
     (state) => state.editTodo.targetTodo,
   );
 
@@ -28,7 +27,6 @@ const TaskEditFormDialog: FC = () => {
     (state) => state.editTodo.taskEditorCaller,
   );
 
-  // Remove the non-null assertion '!' and allow type to be null
   const type = useSelector<ReduxState, "create" | "edit" | null>(
     (state) => state.editTodo.taskEditType,
   );
@@ -39,13 +37,11 @@ const TaskEditFormDialog: FC = () => {
 
   const handleOnSuccess = () => {
     onClose();
-    // Only push if caller is defined, prevent error if it's empty string
     if (caller) {
         router.push(caller);
     }
   };
 
-  // Add checks for task and type before rendering controllers
   if (!isOpen || !task || !type) return null;
 
   return (
@@ -54,7 +50,6 @@ const TaskEditFormDialog: FC = () => {
         <TaskEditFormController
           handleOnSuccess={handleOnSuccess}
           handleOnClose={onClose}
-          // Ensure task is treated as Todo here, might need better type guarding if task structure differs significantly
           task={task as Todo} 
           key={"edit"}
         />
@@ -62,7 +57,6 @@ const TaskEditFormDialog: FC = () => {
         <TaskCreateFormController
           handleOnSuccess={handleOnSuccess}
           handleOnClose={onClose}
-          // Ensure task is treated as TaskCreatorDefaultValues here
           task={task as TaskCreatorDefaultValues}
           key={"create"}
         />

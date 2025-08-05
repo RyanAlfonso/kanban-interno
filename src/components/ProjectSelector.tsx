@@ -11,12 +11,10 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@radix-ui/react-popover";
-// Update import from react-query to @tanstack/react-query
 import { useQuery, useQueryClient } from "@tanstack/react-query"; 
 import { useToast } from "./ui/use-toast";
-import { Skeleton } from "./ui/skeleton"; // Import Skeleton
+import { Skeleton } from "./ui/skeleton"; 
 
-// Função para buscar projetos da API
 const fetchProjects = async (): Promise<Project[]> => {
   console.log("Fetching projects for selector...");
   const response = await fetch("/api/projects");
@@ -30,7 +28,6 @@ const fetchProjects = async (): Promise<Project[]> => {
 };
 
 interface ProjectSelectorProps {
-  // Removed onCreateProject as it's handled in AppSideBar now
 }
 
 const ProjectSelector: FC<ProjectSelectorProps> = () => {
@@ -39,12 +36,11 @@ const ProjectSelector: FC<ProjectSelectorProps> = () => {
   const searchParams = useSearchParams();
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
-  const queryClient = useQueryClient(); // Get query client instance
+  const queryClient = useQueryClient();
 
-  // Update useQuery syntax for v4+
   const { data: projects, isLoading, error } = useQuery<Project[], Error>({
-    queryKey: ["projects"], // Query key as array
-    queryFn: fetchProjects, // Fetch function
+    queryKey: ["projects"], 
+    queryFn: fetchProjects, 
     onError: (err) => {
       console.error("Error fetching projects in ProjectSelector:", err);
       toast({
@@ -55,17 +51,14 @@ const ProjectSelector: FC<ProjectSelectorProps> = () => {
     },
   });
 
-  // Obter o projectId atual da URL
   const currentProjectId = searchParams.get("projectId") || "all"; // Default to "all"
   console.log("ProjectSelector - Current Project ID:", currentProjectId);
 
-  // Encontrar o Nome da área atual
   const currentProjectName = 
       isLoading ? "Carregando..." 
     : currentProjectId === "all" ? "Todas as áreas" 
     : projects?.find(p => p.id === currentProjectId)?.name || "Projeto não encontrado"; // Handle case where project might not be found
 
-  // Função para mudar o projeto selecionado
   const handleProjectChange = (projectId: string) => {
     console.log("ProjectSelector - Handling project change:", projectId);
     const params = new URLSearchParams(Array.from(searchParams.entries()));
@@ -76,16 +69,10 @@ const ProjectSelector: FC<ProjectSelectorProps> = () => {
       params.set("projectId", projectId);
     }
     
-    // Navigate to the root page with updated params
     router.push(`/?${params.toString()}`);
-    setOpen(false); // Close popover
+    setOpen(false);
   };
 
-  // Callback function for successful project creation (called from AppSideBar)
-  // This component doesn't create projects directly anymore, but might need to react
-  // useEffect(() => {
-  //   // Optional: Could listen for project creation events if needed
-  // }, []);
 
   try {
     return (
@@ -100,7 +87,7 @@ const ProjectSelector: FC<ProjectSelectorProps> = () => {
               role="combobox"
               aria-expanded={open}
               className="w-full justify-between text-sm font-normal h-9 px-3 py-2"
-              disabled={isLoading} // Disable while loading
+              disabled={isLoading}
             >
               <span className="truncate" title={currentProjectName}>
                 {currentProjectName}
@@ -112,30 +99,25 @@ const ProjectSelector: FC<ProjectSelectorProps> = () => {
             className="w-[--radix-popover-trigger-width] p-0 bg-white dark:bg-gray-900 shadow-lg rounded-md border border-gray-200 dark:border-gray-800 z-50"
             align="start"
           >
-            {/* Loading state inside popover */}
             {isLoading && (
               <div className="p-2">
                 <Skeleton className="h-8 w-full mb-1" />
                 <Skeleton className="h-8 w-full" />
               </div>
             )}
-            {/* Error state inside popover */}
             {error && !isLoading && (
               <div className="p-2 text-sm text-red-500">Erro ao carregar.</div>
             )}
-            {/* Project list */}
             {!isLoading && !error && (
               <div className="max-h-60 overflow-auto p-1">
-                {/* "All Projects" Option */}
                 <Button
-                  variant={currentProjectId === "all" ? "secondary" : "ghost"} // Use secondary for selected
+                  variant={currentProjectId === "all" ? "secondary" : "ghost"}
                   className="w-full justify-start font-normal h-8 px-2 text-sm"
                   onClick={() => handleProjectChange("all")}
                 >
                   Todas as áreas
                 </Button>
                 
-                {/* Individual Projects */}
                 {projects?.map((project) => (
                   <Button
                     key={project.id}
@@ -154,7 +136,6 @@ const ProjectSelector: FC<ProjectSelectorProps> = () => {
           </PopoverContent>
         </Popover>
         
-        {/* Create project button is now in AppSideBar */}
       </div>
     );
   } catch (renderError) {

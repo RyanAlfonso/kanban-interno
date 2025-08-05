@@ -5,14 +5,11 @@ import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
 import dayjs from "dayjs";
 import { BarChart, CheckCircle, Circle, Clock } from "lucide-react";
-
-// Componentes de UI
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "../ui/skeleton";
 
-// Funções e tipos
 import { getClockColor } from "@/lib/color";
 import {
   PREDEFINED_TAGS,
@@ -23,7 +20,7 @@ import {
 import { cn } from "@/lib/utils";
 import { TodoWithRelations } from "@/types/todo";
 import todoFetchRequest from "@/requests/todoFetchRequest";
-import { COLUMNS } from "@/lib/permissions"; // Importando os nomes das colunas
+import { COLUMNS } from "@/lib/permissions";
 
 const DashboardComponent = () => {
   const searchParams = useSearchParams();
@@ -61,7 +58,6 @@ const DashboardComponent = () => {
           const tag = tagString as PredefinedTag;
           if (progress[tag]) {
             progress[tag].total += 1;
-            // CORREÇÃO: Verifica se a tarefa está na coluna "Concluída"
             if (todo.column?.name === COLUMNS.CONCLUIDA) {
               progress[tag].completed += 1;
             }
@@ -87,7 +83,6 @@ const DashboardComponent = () => {
     );
   }
 
-  // Cálculos para os cards de resumo
   const lastUpdatedDate =
     todos.length > 0 ? sortedTodos[0]?.updatedAt : dayjs().toDate();
   const totalTasks = todos.length;
@@ -95,7 +90,6 @@ const DashboardComponent = () => {
     dayjs(todo.createdAt).isAfter(dayjs().subtract(1, "week"))
   ).length;
 
-  // CORREÇÃO: Usa o nome da coluna para contar tarefas concluídas
   const completedTasks = todos.filter(
     (todo) => todo.column?.name === COLUMNS.CONCLUIDA
   ).length;
@@ -103,7 +97,6 @@ const DashboardComponent = () => {
     (todo) => todo.column?.name === COLUMNS.CONCLUIDA
   );
 
-  // CORREÇÃO: Usa os nomes das colunas para contar tarefas em progresso
   const inProgressTasks = todos.filter(
     (todo) =>
       todo.column?.name === COLUMNS.EM_EXECUCAO ||

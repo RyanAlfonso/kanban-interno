@@ -10,9 +10,8 @@ import ProjectEditForm from "./ProjectEditForm";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "./ui/button";
 import { Plus } from "lucide-react";
-import { useSession } from 'next-auth/react'; // Import useSession
+import { useSession } from 'next-auth/react';
 
-// Função para buscar projetos da API
 const fetchProjects = async (): Promise<Project[]> => {
   const response = await fetch("/api/projects");
   if (!response.ok) {
@@ -29,12 +28,10 @@ const ProjectList: FC<ProjectListProps> = ({ className }) => {
   const { toast } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { data: session } = useSession(); // Get session
+  const { data: session } = useSession();
   
-  // Obter o projectId atual da URL
   const currentProjectId = searchParams.get("projectId") || "all";
 
-  // Buscar projetos
   const { data: projects, isLoading, error, refetch } = useQuery<Project[], Error>({
     queryKey: ["projects"],
     queryFn: fetchProjects,
@@ -47,7 +44,6 @@ const ProjectList: FC<ProjectListProps> = ({ className }) => {
     },
   });
 
-  // Função para selecionar um projeto
   const handleSelectProject = (projectId: string) => {
     const params = new URLSearchParams(Array.from(searchParams.entries()));
     
@@ -89,7 +85,6 @@ const ProjectList: FC<ProjectListProps> = ({ className }) => {
         </div>
       ) : (
         <div className="space-y-1">
-          {/* Opção "Todas as áreas" */}
           <div 
             className={`flex items-center justify-between p-2 rounded-md cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 ${
               currentProjectId === "all" ? "bg-gray-100 dark:bg-gray-800" : ""
@@ -99,7 +94,6 @@ const ProjectList: FC<ProjectListProps> = ({ className }) => {
             <span className="font-medium">Todas as áreas</span>
           </div>
           
-          {/* Lista de projetos */}
           {projects && projects.length > 0 ? (
             projects.map((project) => (
               <div 

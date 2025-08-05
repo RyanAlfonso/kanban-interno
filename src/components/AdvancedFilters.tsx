@@ -46,7 +46,6 @@ const AdvancedFilters = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // Estados para controlar os valores selecionados nos filtros
   const [isOpen, setIsOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState("");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
@@ -54,8 +53,6 @@ const AdvancedFilters = () => {
   const [startDate, setStartDate] = useState<Date | undefined>();
   const [endDate, setEndDate] = useState<Date | undefined>();
 
-  // --- BUSCA DE DADOS ---
-  // Buscar todos os projetos para o seletor
   const { data: projects = [] } = useQuery<Project[]>({
     queryKey: ["projects"],
     queryFn: async () => {
@@ -65,7 +62,6 @@ const AdvancedFilters = () => {
     },
   });
 
-  // Buscar todos os usuários para o filtro de responsáveis
   const { data: users = [] } = useQuery<User[]>({
     queryKey: ["users"],
     queryFn: async () => {
@@ -75,10 +71,8 @@ const AdvancedFilters = () => {
     },
   });
 
-  // Obter a lista de tags estáticas (não precisa de API)
   const allTags = getAllTagsWithColors();
 
-  // --- SINCRONIZAÇÃO COM A URL ---
   useEffect(() => {
     const projectId = searchParams.get("projectId") || "";
     const assignedToIds =
@@ -90,12 +84,11 @@ const AdvancedFilters = () => {
 
     setSelectedProject(projectId);
     setSelectedUsers(assignedToIds);
-    setSelectedTags(tagsParam); // Sincroniza as tags
+    setSelectedTags(tagsParam);
     if (startDateParam) setStartDate(new Date(startDateParam));
     if (endDateParam) setEndDate(new Date(endDateParam));
   }, [searchParams]);
 
-  // --- MANIPULAÇÃO DOS FILTROS ---
   const applyFilters = () => {
     const params = new URLSearchParams(Array.from(searchParams.entries()));
     const setOrDeleteParam = (key: string, value: string) => {
@@ -105,7 +98,7 @@ const AdvancedFilters = () => {
 
     setOrDeleteParam("projectId", selectedProject);
     setOrDeleteParam("assignedToIds", selectedUsers.join(","));
-    setOrDeleteParam("tags", selectedTags.join(",")); // Adiciona as tags
+    setOrDeleteParam("tags", selectedTags.join(","));
     setOrDeleteParam(
       "startDate",
       startDate ? format(startDate, "yyyy-MM-dd") : ""
@@ -120,13 +113,13 @@ const AdvancedFilters = () => {
     const params = new URLSearchParams(Array.from(searchParams.entries()));
     params.delete("projectId");
     params.delete("assignedToIds");
-    params.delete("tags"); // Limpa as tags
+    params.delete("tags");
     params.delete("startDate");
     params.delete("endDate");
 
     setSelectedProject("");
     setSelectedUsers([]);
-    setSelectedTags([]); // Limpa o estado das tags
+    setSelectedTags([]);
     setStartDate(undefined);
     setEndDate(undefined);
 
@@ -136,7 +129,7 @@ const AdvancedFilters = () => {
 
   const activeFiltersCount = [
     selectedProject,
-    selectedTags.length > 0, // Adiciona ao contador
+    selectedTags.length > 0,
     selectedUsers.length > 0,
     startDate,
     endDate,
@@ -182,7 +175,6 @@ const AdvancedFilters = () => {
             )}
           </div>
 
-          {/* Filtro por Projeto */}
           <div className="space-y-2">
             <Label className="text-sm font-medium flex items-center">
               <Briefcase className="h-4 w-4 mr-2" />
@@ -203,7 +195,6 @@ const AdvancedFilters = () => {
             </Select>
           </div>
 
-          {/* Filtro por Tags */}
           <div className="space-y-2">
             <Label className="text-sm font-medium flex items-center">
               <TagIcon className="h-4 w-4 mr-2" />
@@ -239,7 +230,6 @@ const AdvancedFilters = () => {
             </div>
           </div>
 
-          {/* Filtro por Responsáveis */}
           <div className="space-y-2">
             <Label className="text-sm font-medium flex items-center">
               <Users className="h-4 w-4 mr-2" />
@@ -279,7 +269,6 @@ const AdvancedFilters = () => {
             </div>
           </div>
 
-          {/* Filtro por Período (Deadline) */}
           <div className="space-y-2">
             <Label className="text-sm font-medium flex items-center">
               <Clock className="h-4 w-4 mr-2" />
