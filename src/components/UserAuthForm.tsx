@@ -6,6 +6,7 @@ import { Input } from "./ui/input";
 import { useToast } from "./ui/use-toast";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { Label } from "@radix-ui/react-label";
 
 const UserAuthForm = () => {
   const [isLoading, setIsLoading] = useState(false);
