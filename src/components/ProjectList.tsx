@@ -35,14 +35,14 @@ const ProjectList: FC<ProjectListProps> = ({ className }) => {
   const { data: projects, isLoading, error, refetch } = useQuery<Project[], Error>({
     queryKey: ["projects"],
     queryFn: fetchProjects,
-    onError: (err) => {
-      toast({
-        title: "Erro ao Carregar áreas",
-        description: err.message || "Não foi possível carregar a lista de áreas.",
-        variant: "destructive",
+   // onError: (err) => {
+    //  toast({
+     //   title: "Erro ao Carregar áreas",
+     //   description: err.message || "Não foi possível carregar a lista de áreas.",
+    //    variant: "destructive",
       });
-    },
-  });
+ //   },
+ // });
 
   const handleSelectProject = (projectId: string) => {
     const params = new URLSearchParams(Array.from(searchParams.entries()));

@@ -7,8 +7,7 @@ import { TodoWithRelations } from "@/types/todo"; // Use o tipo completo que def
  * @returns Promise com um array de todos (com todas as relações).
  */
 const todoFetchRequest = async (
-  searchParams: URLSearchParams
-): Promise<TodoWithRelations[]> => {
+projectId: string | null, view: string, searchParams: URLSearchParams): Promise<TodoWithRelations[]> => {
   
   // Cria a URL base para a nossa API unificada.
   const url = new URL("/api/todo", window.location.origin);

@@ -21,16 +21,16 @@ const TimelineComponent = () => {
 
   const { data: todos, isLoading, error } = useQuery<TodoWithColumn[], Error>({
     queryKey: ["todos", { projectId, view }],
-    queryFn: () => todoFetchRequest(projectId, view) as Promise<TodoWithColumn[]>,
-    onError: (err) => {
-      console.error("Error fetching todos for timeline:", err);
-      toast({
-        title: "Erro ao Carregar Tarefas",
-        description: err.message || "Não foi possível buscar as tarefas para a linha do tempo.",
-        variant: "destructive",
+    queryFn: () => todoFetchRequest(projectId, view, searchParams) as Promise<TodoWithColumn[]>,
+   // onError: (err) => {
+   //   console.error("Error fetching todos for timeline:", err);
+   //   toast({
+  //      title: "Erro ao Carregar Tarefas",
+   //     description: err.message || "Não foi possível buscar as tarefas para a linha do tempo.",
+   //     variant: "destructive",
       });
-    }
-  });
+  //  }
+ // });
 
   const groupedTasks =
     todos && todos.length > 0

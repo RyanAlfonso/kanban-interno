@@ -4,7 +4,7 @@ import { getRelativeTimeString } from "@/lib/date-util";
 import { cn } from "@/lib/utils";
 import { openTodoEditor } from "@/redux/actions/todoEditorAction";
 import { State } from "@/lib/types/prisma-types";
-import { TodoWithColumn, EmbeddedProjectColumn } from "@/types/todo";
+import { TodoWithColumn } from "@/types/todo";
 import dayjs from "dayjs";
 import {
   BarChart2,

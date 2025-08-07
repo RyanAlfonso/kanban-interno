@@ -41,15 +41,15 @@ const ProjectSelector: FC<ProjectSelectorProps> = () => {
   const { data: projects, isLoading, error } = useQuery<Project[], Error>({
     queryKey: ["projects"], 
     queryFn: fetchProjects, 
-    onError: (err) => {
-      console.error("Error fetching projects in ProjectSelector:", err);
-      toast({
-        title: "Erro ao Carregar Projetos",
-        description: err.message || "Não foi possível carregar a lista de projetos.",
-        variant: "destructive",
+    //onError: (err) => {
+    //  console.error("Error fetching projects in ProjectSelector:", err);
+    //  toast({
+    //    title: "Erro ao Carregar Projetos",
+    //    description: err.message || "Não foi possível carregar a lista de projetos.",
+     //   variant: "destructive",
       });
-    },
-  });
+  //  },
+//  });
 
   const currentProjectId = searchParams.get("projectId") || "all"; // Default to "all"
   console.log("ProjectSelector - Current Project ID:", currentProjectId);

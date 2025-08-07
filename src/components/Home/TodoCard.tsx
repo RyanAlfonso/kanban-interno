@@ -201,7 +201,7 @@ const TodoCard: FC<TodoProps> = ({ todo }) => {
                     {todo.movementHistory.map((movement) => (
                       <div key={movement.id} className="text-xs border-l-2 border-gray-200 pl-2">
                         <div className="font-medium">
-                          {movement.movedBy.name} moveu de "{movement.fromColumn.name}" para "{movement.toColumn.name}"
+                          {movement.movedBy.name} moveu de {movement.fromColumn.name} para {movement.toColumn.name}
                         </div>
                         <div className="text-gray-500">
                           {dayjs(movement.movedAt).format("DD/MM/YYYY HH:mm")}

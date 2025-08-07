@@ -55,6 +55,8 @@ const TodoColumnManager = () => {
 
   const [showAddColumnForm, setShowAddColumnForm] = useState(false);
   const [newColumnName, setNewColumnName] = useState("");
+  const projectId = searchParams.get("projectId") || null;
+  const view = searchParams.get("view") || "all";
 
   const {
     data: todos = [],
@@ -62,15 +64,15 @@ const TodoColumnManager = () => {
     error: errorTodos,
   } = useQuery<TodoWithRelations[], Error>({
     queryKey: ["todos", searchParams.toString()],
-    queryFn: () => todoFetchRequest(searchParams),
-    onError: (err) => {
-      toast({
-        title: "Erro",
-        description: `Falha ao buscar tarefas: ${err.message}`,
-        variant: "destructive",
-      });
-    },
+    queryFn: () => todoFetchRequest(projectId, view, searchParams),
+    //onError: (err:any) => {
+    // toast({
+    //  title: "Erro",
+    //  description: `Falha ao buscar tarefas: ${err.message}`,
+    // variant: "destructive",
   });
+  // },
+  // });
   // =============================================================
 
   const {
@@ -137,7 +139,6 @@ const TodoColumnManager = () => {
     errorTodos ||
     (currentProjectId !== "all" ? errorProjectColumns : null) ||
     errorAllProjectsColumns;
-
 
   const { mutate: createColumnMutation } = useMutation<
     PrismaProjectColumn,
@@ -398,10 +399,11 @@ const TodoColumnManager = () => {
           <Skeleton className="h-10 w-32" />
         </div>
         <div className="flex gap-2 overflow-x-auto p-6">
+          {/*} <SkeletonColumn />
           <SkeletonColumn />
           <SkeletonColumn />
           <SkeletonColumn />
-          <SkeletonColumn />
+          {*/}
         </div>
       </div>
     );

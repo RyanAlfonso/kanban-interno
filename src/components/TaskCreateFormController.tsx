@@ -1,7 +1,6 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { TASK_STATE_OPTIONS } from "@/lib/const";
 import { TodoCreateRequest, TodoCreateValidator } from "@/lib/validators/todo";
 import { TaskCreatorDefaultValues } from "@/redux/actions/todoEditorAction";
 import todoCreateRequest from "@/requests/todoCreateRequest";
@@ -37,7 +36,7 @@ const TaskCreateFormController: FC<TaskCreateFormProps> = ({
       title: "",
       description: "",
       columnId: task.columnId || undefined,
-      deadline: "",
+     // deadline: "",
       label: [],
       tags: [],
       projectId: task.projectId || (searchParams.get("projectId") !== "all" ? searchParams.get("projectId") : null) || undefined,

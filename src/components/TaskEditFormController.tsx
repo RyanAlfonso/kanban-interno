@@ -43,7 +43,6 @@ const TaskEditFormController: FC<TaskEditFormProps> = ({
       description: task.description || null,
       columnId: task.columnId || undefined,
       label: task.label || [], 
-      tags: task.tags || [],
       deadline: task.deadline || null,
       projectId: task.projectId || null,
       order: task.order,
@@ -54,20 +53,12 @@ const TaskEditFormController: FC<TaskEditFormProps> = ({
   const queryKey = ["todos", { projectId }];
 
   const editMutation = useMutation<Todo[], AxiosError, TodoEditRequest, { prevTodos: Todo[] | undefined }>({
-    mutationFn: todoEditRequest,
+   // mutationFn: todoEditRequest,
     onMutate: async (variables: TodoEditRequest) => {
       console.log("onMutate editMutation:", variables);
       await queryClient.cancelQueries({ queryKey });
       const prevTodos = queryClient.getQueryData<Todo[]>(queryKey);
       console.log("Previous todos (edit):", prevTodos);
-
-      queryClient.setQueryData<Todo[]>(
-        queryKey,
-        (oldTodos = []) => 
-          oldTodos.map((todo) =>
-            todo.id === variables.id ? { ...todo, ...variables } : todo
-          )
-      );
 
       handleOnSuccess();
       return { prevTodos };

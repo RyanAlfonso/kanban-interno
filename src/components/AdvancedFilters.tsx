@@ -29,6 +29,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { cn } from "@/lib/utils";
 
 import { getAllTagsWithColors } from "@/lib/tags";
+import { useForm } from "react-hook-form";
 
 interface Project {
   id: string;
@@ -46,6 +47,7 @@ const AdvancedFilters = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
 
+  const { register } = useForm();
   const [isOpen, setIsOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState("");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
@@ -292,6 +294,7 @@ const AdvancedFilters = () => {
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
                     <Calendar
+                      register={register("startDate")}
                       mode="single"
                       selected={startDate}
                       onSelect={setStartDate}
@@ -317,6 +320,7 @@ const AdvancedFilters = () => {
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
                     <Calendar
+                      register={register("startDate")}
                       mode="single"
                       selected={endDate}
                       onSelect={setEndDate}

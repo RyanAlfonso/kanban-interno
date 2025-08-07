@@ -161,7 +161,9 @@ const CommentItem: FC<CommentItemProps> = ({ comment }) => {
   );
 };
 
-const MovementHistory: FC<{ history: MovementHistoryItem[] }> = ({ history }) => {
+const MovementHistory: FC<{ history: MovementHistoryItem[] }> = ({
+  history,
+}) => {
   const [isOpen, setIsOpen] = useState(false);
 
   if (!history || history.length === 0) {
@@ -185,11 +187,22 @@ const MovementHistory: FC<{ history: MovementHistoryItem[] }> = ({ history }) =>
       {isOpen && (
         <div className="flex flex-col gap-1 rounded-lg border bg-slate-50 dark:bg-slate-800 p-2 max-h-60 overflow-y-auto">
           {history.map((movement) => (
-            <div key={movement.id} className="text-xs p-2 border-l-2 border-gray-300 dark:border-gray-600 ml-1">
+            <div
+              key={movement.id}
+              className="text-xs p-2 border-l-2 border-gray-300 dark:border-gray-600 ml-1"
+            >
               <p className="font-medium text-gray-800 dark:text-gray-200">
-                <span className="font-bold">{movement.movedBy?.name || "Usuário desconhecido"}</span> moveu de 
-                <span className="font-semibold"> "{movement.fromColumn.name}"</span> para 
-                <span className="font-semibold"> "{movement.toColumn.name}"</span>.
+                <span className="font-bold">
+                  {movement.movedBy?.name || "Usuário desconhecido"}
+                </span>{" "}
+                moveu de
+                <span className="font-semibold">
+                  {" "}
+                  {movement.fromColumn.name}
+                </span>{" "}
+                para
+                <span className="font-semibold"> {movement.toColumn.name}</span>
+                .
               </p>
               <p className="text-gray-500 dark:text-gray-400 mt-1">
                 {dayjs(movement.movedAt).format("DD/MM/YYYY [às] HH:mm")}
@@ -201,7 +214,6 @@ const MovementHistory: FC<{ history: MovementHistoryItem[] }> = ({ history }) =>
     </div>
   );
 };
-
 
 type TaskEditFormProps = {
   handleOnClose: () => void;
@@ -536,6 +548,7 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0 bg-white dark:bg-gray-900 z-50 border rounded-md shadow-md">
                 <Calendar
+                  register={register("startDate")}
                   mode="single"
                   selected={field.value ? new Date(field.value) : undefined}
                   onSelect={(date) => field.onChange(date || null)}
@@ -707,7 +720,7 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
                   </div>
                 </div>
               )}
-              
+
               {task.id && task.movementHistory && (
                 <MovementHistory history={task.movementHistory} />
               )}

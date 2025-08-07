@@ -34,7 +34,6 @@ export async function DELETE(req: NextRequest) {
     await prisma.todo.updateMany({
       where: {
         ownerId: session.user.id,
-        state: record.state,
         order: { gt: record.order },
       },
       data: {

@@ -1,17 +1,23 @@
 "use client";
 
-import { State, Todo } from "@prisma/client";
+import { Todo as PrismaTodo } from "@prisma/client";
+
+// Extend Todo type to include 'state' if missing
+type Todo = PrismaTodo & {
+  state: string;
+};
 import { ColumnDef } from "@tanstack/react-table";
 import dayjs from "dayjs";
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "../ui/button";
 import TableSortedIcon from "./TableSortedIcon";
 import TodoTable from "./TodoTable";
-import { useQuery } from "@tanstack/react-query"; 
+import { useQuery } from "@tanstack/react-query";
 import todoFetchRequest from "@/requests/todoFetchRequest";
 import { Skeleton } from "../ui/skeleton";
-import { AxiosError } from "axios";
 import { useToast } from "../ui/use-toast";
+import { State } from "@/lib/types/prisma-types";
+import { View } from "lucide-react";
 
 const TodoTableManager = () => {
   console.log("Rendering TodoTableManager..."); // Added log
@@ -22,18 +28,33 @@ const TodoTableManager = () => {
     setIsMounted(true);
   }, []);
 
-  const { data: todos, isLoading, error } = useQuery<Todo[], Error>({
-    queryKey: ["todos"], // Query key as array
-    queryFn: () => todoFetchRequest(), // Fetch function
-    onError: (err) => {
-      console.error("Error fetching todos for table:", err);
-      toast({
-        title: "Erro ao Carregar Tarefas",
-        description: err.message || "Não foi possível buscar as tarefas para a tabela.",
-        variant: "destructive",
-      });
-    }
+  const searchParams = useMemo(() => new URLSearchParams(), []);
+  const projectId = searchParams.get("projectId") || null;
+  const view = searchParams.get("view") || "all";
+
+  const {
+    data: todos,
+    isLoading,
+    error,
+  } = useQuery<Todo[], Error>({
+    queryKey: ["todos", searchParams.toString()],
+    queryFn: async () => {
+      const rawTodos = await todoFetchRequest(projectId, view, searchParams);
+      // Ensure each todo has a 'state' property
+      return rawTodos.map((todo: any) => ({
+        ...todo,
+        state: todo.state ?? "", // fallback to empty string if missing
+      }));
+    },
+    // onError: (err) => {
+    //  console.error("Error fetching todos for table:", err);
+    //   toast({
+    ///      title: "Erro ao Carregar Tarefas",
+    //     description: err.message || "Não foi possível buscar as tarefas para a tabela.",
+    //     variant: "destructive",
   });
+  //   }
+  // });
 
   const order = useMemo(() => Object.values(State), []);
 
@@ -53,7 +74,11 @@ const TodoTableManager = () => {
           />
         </Button>
       ),
-      cell: ({ row }) => <div className="truncate max-w-xs" title={row.original.title}>{row.original.title}</div>, // Add truncate and title
+      cell: ({ row }) => (
+        <div className="truncate max-w-xs" title={row.original.title}>
+          {row.original.title}
+        </div>
+      ), // Add truncate and title
     },
     {
       accessorKey: "state",
@@ -71,12 +96,21 @@ const TodoTableManager = () => {
         </Button>
       ),
       sortingFn: (rowA, rowB) => {
-        return (
-          order.indexOf(rowA.original.state) -
-          order.indexOf(rowB.original.state)
-        );
+        const stateA = rowA.original.state
+          ? rowA.original.state.toLowerCase().replace("_", " ")
+          : "";
+        const stateB = rowB.original.state
+          ? rowB.original.state.toLowerCase().replace("_", " ")
+          : "";
+        if (stateA < stateB) return -1;
+        if (stateA > stateB) return 1;
+        return 0;
       },
-      cell: ({ row }) => <span className="capitalize">{row.original.state.toLowerCase().replace("_", " ")}</span>, // Format state
+      cell: ({ row }) => (
+        <span className="capitalize">
+          {row.original.state.toLowerCase().replace("_", " ")}
+        </span>
+      ), // Format state
     },
     {
       accessorKey: "deadline",
@@ -94,7 +128,8 @@ const TodoTableManager = () => {
         </Button>
       ),
       cell: ({ row }) => {
-        if (!row.original.deadline) return <span className="text-muted-foreground">-</span>;
+        if (!row.original.deadline)
+          return <span className="text-muted-foreground">-</span>;
         return dayjs(row.original.deadline).format("YYYY/MM/DD");
       },
     },
@@ -103,7 +138,8 @@ const TodoTableManager = () => {
       header: "Label",
       cell: ({ row }) => {
         const labels = row.original.label || [];
-        if (labels.length === 0) return <span className="text-muted-foreground">-</span>;
+        if (labels.length === 0)
+          return <span className="text-muted-foreground">-</span>;
 
         return (
           <div className="flex gap-1 flex-wrap max-w-xs">
@@ -164,11 +200,11 @@ const TodoTableManager = () => {
   ];
 
   if (!isMounted) {
-      return (
-          <div className="p-6">
-              <Skeleton className="h-96 w-full" />
-          </div>
-      );
+    return (
+      <div className="p-6">
+        <Skeleton className="h-96 w-full" />
+      </div>
+    );
   }
 
   if (isLoading) {
@@ -183,9 +219,13 @@ const TodoTableManager = () => {
 
   if (error) {
     console.error("TodoTableManager render error:", error);
-    return <div className="p-6 text-red-500">Erro ao carregar tarefas. Tente recarregar a página.</div>;
+    return (
+      <div className="p-6 text-red-500">
+        Erro ao carregar tarefas. Tente recarregar a página.
+      </div>
+    );
   }
-  
+
   console.log("TodoTableManager rendering table with data:", todos);
   try {
     return (
@@ -194,10 +234,13 @@ const TodoTableManager = () => {
       </div>
     );
   } catch (renderError) {
-      console.error("Error rendering TodoTableManager content:", renderError);
-      return <div className="p-6 text-red-500">Ocorreu um erro ao renderizar a tabela de tarefas.</div>;
+    console.error("Error rendering TodoTableManager content:", renderError);
+    return (
+      <div className="p-6 text-red-500">
+        Ocorreu um erro ao renderizar a tabela de tarefas.
+      </div>
+    );
   }
 };
 
 export default TodoTableManager;
-

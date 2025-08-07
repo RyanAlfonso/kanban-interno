@@ -24,6 +24,8 @@ import { COLUMNS } from "@/lib/permissions";
 
 const DashboardComponent = () => {
   const searchParams = useSearchParams();
+  const projectId = searchParams.get("projectId") || null;
+  const view = searchParams.get("view") || "all";
 
   const {
     data: todos = [],
@@ -31,7 +33,7 @@ const DashboardComponent = () => {
     error,
   } = useQuery<TodoWithRelations[], Error>({
     queryKey: ["todos", searchParams.toString()],
-    queryFn: () => todoFetchRequest(searchParams),
+    queryFn: () => todoFetchRequest(projectId, view, searchParams),
     staleTime: 1000 * 60,
   });
 

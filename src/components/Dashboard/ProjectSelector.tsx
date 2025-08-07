@@ -36,13 +36,6 @@ const DashboardProjectSelector: FC<DashboardProjectSelectorProps> = ({ className
   const { data: projects, isLoading, error } = useQuery<Project[], Error>({
     queryKey: ["projects"],
     queryFn: fetchProjects,
-    onError: (err) => {
-      toast({
-        title: "Erro ao Carregar Projetos",
-        description: err.message || "Não foi possível carregar a lista de projetos.",
-        variant: "destructive",
-      });
-    },
   });
 
   const currentProjectId = searchParams.get("projectId") || "all";
@@ -50,7 +43,9 @@ const DashboardProjectSelector: FC<DashboardProjectSelectorProps> = ({ className
   const currentProjectName = 
       isLoading ? "Carregando..." 
     : currentProjectId === "all" ? "Todas as áreas" 
-    : projects?.find(p => p.id === currentProjectId)?.name || "Projeto não encontrado";
+    : Array.isArray(projects)
+      ? projects.find(p => p.id === currentProjectId)?.name || "Projeto não encontrado"
+      : "Projeto não encontrado";
 
   const handleProjectChange = (projectId: string) => {
     const params = new URLSearchParams(Array.from(searchParams.entries()));
@@ -96,15 +91,12 @@ const DashboardProjectSelector: FC<DashboardProjectSelectorProps> = ({ className
             </div>
           )}
           
-          {/* Error state */}
           {error && !isLoading && (
             <div className="p-2 text-sm text-red-500">Erro ao carregar projetos.</div>
           )}
           
-          {/* Project list */}
           {!isLoading && !error && (
             <div className="max-h-60 overflow-auto p-1">
-              {/* "All Projects" Option */}
               <Button
                 variant={currentProjectId === "all" ? "secondary" : "ghost"}
                 className="w-full justify-start font-normal h-8 px-2 text-sm"
@@ -113,8 +105,7 @@ const DashboardProjectSelector: FC<DashboardProjectSelectorProps> = ({ className
                 Todas as áreas
               </Button>
               
-              {/* Individual Projects */}
-              {projects?.map((project) => (
+              {Array.isArray(projects) && projects.map((project) => (
                 <Button
                   key={project.id}
                   variant={currentProjectId === project.id ? "secondary" : "ghost"}
@@ -125,7 +116,7 @@ const DashboardProjectSelector: FC<DashboardProjectSelectorProps> = ({ className
                 </Button>
               ))}
               
-              {projects?.length === 0 && (
+              {Array.isArray(projects) && projects.length === 0 && (
                 <div className="p-2 text-sm text-muted-foreground">Nenhum projeto encontrado.</div>
               )}
             </div>
