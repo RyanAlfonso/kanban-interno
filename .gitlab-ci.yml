@@ -28,7 +28,7 @@ workflow:
       --destination ${image_name}:latest
       --destination ${image_name}:${tag}
 
-build-evtea-frontend:
+build-kanban-interno:
   extends: .build-image
   tags:
     - k8s-runner
