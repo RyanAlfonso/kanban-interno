@@ -26,7 +26,7 @@ export function Providers({ children }: ProvidersProps) {
       <QueryClientProvider client={queryClient}>
         <Provider store={store}>
           <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-            <SessionProvider>{children}</SessionProvider>
+            <SessionProvider basePath={`${process.env.NEXT_PUBLIC_BASE_PATH}/api/auth`}>{children}</SessionProvider>
             <TaskEditFormDialog />
           </ThemeProvider>
         </Provider>
