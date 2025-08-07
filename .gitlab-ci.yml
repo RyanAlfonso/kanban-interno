@@ -1,0 +1,37 @@
+workflow:
+  rules:
+    - if: $CI_COMMIT_TAG
+
+.build-image:
+  stage: build
+  image:
+    name: gcr.io/kaniko-project/executor:v1.12.1-debug
+    entrypoint: [""]
+  before_script:
+    - mkdir -p /kaniko/.docker
+    - echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_REGISTRY_USER\",\"password\":\"$CI_REGISTRY_PASSWORD\"}}}" > /kaniko/.docker/config.json
+    - |
+      if [[ -n "$CI_COMMIT_TAG" ]];then
+        echo "Commit com tag: $CI_COMMIT_TAG"
+        tag="$CI_COMMIT_TAG"
+      else
+        echo "Commit sem tag, usando SHA: $CI_COMMIT_SHORT_SHA"
+        tag="$CI_COMMIT_SHORT_SHA"
+      fi
+    - image_name="${CI_REGISTRY_IMAGE}/${IMAGE_NAME}"
+  script:
+    - >
+      /kaniko/executor
+      --skip-tls-verify
+      --context $CI_PROJECT_DIR
+      --dockerfile $CI_PROJECT_DIR/${DOCKERFILE_PATH}
+      --destination ${image_name}:latest
+      --destination ${image_name}:${tag}
+
+build-evtea-frontend:
+  extends: .build-image
+  tags:
+    - k8s-runner
+  variables:
+    IMAGE_NAME: kanban-interno
+    DOCKERFILE_PATH: ./Dockerfile
