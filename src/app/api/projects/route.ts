@@ -1,8 +1,16 @@
+// File: kanban-interno/src/app/api/projects/route.ts
+
 import { getAuthSession } from "@/lib/nextAuthOptions";
 import { getLogger } from "@/logger";
 import prisma from "@/lib/prismadb";
 import { NextRequest } from "next/server";
 
+/**
+ * GET /api/projects
+ * Busca projetos com base na role do usuário.
+ * - ADMINs veem todos os projetos.
+ * - Usuários comuns veem apenas os projetos aos quais estão associados através de suas áreas.
+ */
 export async function GET(req: NextRequest) {
   const logger = getLogger("info");
   try {
@@ -13,6 +21,7 @@ export async function GET(req: NextRequest) {
 
     const userRole = session.user.role;
 
+    // Se o usuário for ADMIN, retorna todos os projetos
     if (userRole === "ADMIN") {
       const projects = await prisma.project.findMany({
         orderBy: {
@@ -22,23 +31,19 @@ export async function GET(req: NextRequest) {
       return new Response(JSON.stringify(projects), { status: 200 });
     }
 
+    // Para usuários não-ADMIN, busca os IDs das áreas associadas
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },
-      include: {
-        areas: {
-          select: {
-            name: true
-          }
-        }
-      }
+      select: {
+        areaIds: true, // Seleciona apenas os IDs das áreas para eficiência
+      },
     });
 
-    if (user && user.areas.length > 0) {
-      const userAreaNames = user.areas.map(area => area.name);
-
+    // Se o usuário for encontrado e tiver áreas, filtra os projetos pelo ID
+    if (user && user.areaIds.length > 0) {
       const projects = await prisma.project.findMany({
         where: {
-          name: { in: userAreaNames },
+          id: { in: user.areaIds }, // Filtra projetos cujo ID está na lista de areaIds do usuário
         },
         orderBy: {
           name: "asc",
@@ -47,6 +52,7 @@ export async function GET(req: NextRequest) {
       return new Response(JSON.stringify(projects), { status: 200 });
     }
 
+    // Se o usuário não for ADMIN e não tiver áreas, retorna uma lista vazia
     return new Response(JSON.stringify([]), { status: 200 });
   } catch (error) {
     logger.error("Error fetching projects:", error);
@@ -54,6 +60,10 @@ export async function GET(req: NextRequest) {
   }
 }
 
+/**
+ * POST /api/projects
+ * Cria um novo projeto. Apenas para ADMINs.
+ */
 export async function POST(req: NextRequest) {
   const logger = getLogger("info");
   try {
@@ -87,6 +97,10 @@ export async function POST(req: NextRequest) {
   }
 }
 
+/**
+ * PUT /api/projects
+ * Atualiza um projeto existente. Apenas para ADMINs.
+ */
 export async function PUT(req: NextRequest) {
   const logger = getLogger("info");
   try {
@@ -109,8 +123,8 @@ export async function PUT(req: NextRequest) {
     const updatedProject = await prisma.project.update({
       where: { id: id },
       data: {
-        name: name || undefined,
-        description: description || undefined,
+        name: name,
+        description: description,
       },
     });
 
@@ -121,6 +135,10 @@ export async function PUT(req: NextRequest) {
   }
 }
 
+/**
+ * DELETE /api/projects
+ * Deleta um projeto. Apenas para ADMINs.
+ */
 export async function DELETE(req: NextRequest) {
   const logger = getLogger("info");
   try {
@@ -133,8 +151,7 @@ export async function DELETE(req: NextRequest) {
       return new Response("Forbidden: User is not an Admin", { status: 403 });
     }
 
-    const body = await req.json();
-    const { id } = body;
+    const { id } = await req.json();
 
     if (!id) {
       return new Response("Project ID is required", { status: 400 });
