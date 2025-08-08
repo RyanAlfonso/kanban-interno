@@ -13,16 +13,13 @@ export const USER_TYPES = {
   SERVIDOR: "SERVIDOR",
   COLABORADOR: "COLABORADOR",
 } as const;
-// ==========================================================
 
-// Interface para a resposta da função de permissão.
 interface PermissionResult {
   allowed: boolean;
   error?: string;
 }
 
 /**
- * Verifica se um usuário pode mover um card de uma coluna para outra.
  * @param fromColumnName - O nome da coluna de origem.
  * @param toColumnName - O nome da coluna de destino.
  * @param userType - O tipo do usuário ('SERVIDOR' ou 'COLABORADOR').
@@ -53,7 +50,7 @@ export function canMoveCard(
     // 4.1 - Retomar demanda (Todos)
     [`${COLUMNS.MONITORAMENTO} -> ${COLUMNS.EM_EXECUCAO}`]: "ALL",
     // 4.2 - Finalizar demanda (Apenas Servidores)
-    [`${COLUMNS.MONITORAMENTO} -> ${COLUMNS.CONCLUIDA}`]: "ALL",
+    [`${COLUMNS.MONITORAMENTO} -> ${COLUMNS.CONCLUIDA}`]: [USER_TYPES.SERVIDOR],
   };
 
   const permission = allowedMovements[movement];

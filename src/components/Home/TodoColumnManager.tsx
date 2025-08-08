@@ -43,6 +43,15 @@ type MutationContext = {
   queryKey: any[];
 };
 
+// Função para buscar os projetos que a API já filtra por permissão
+const fetchPermittedProjects = async (): Promise<Project[]> => {
+  const response = await fetch("/api/projects");
+  if (!response.ok) {
+    throw new Error("Falha ao buscar projetos permitidos");
+  }
+  return response.json();
+};
+
 const TodoColumnManager = () => {
   const router = useRouter();
   const { toast } = useToast();
@@ -58,6 +67,16 @@ const TodoColumnManager = () => {
   const projectId = searchParams.get("projectId") || null;
   const view = searchParams.get("view") || "all";
 
+  // 1. Busca a lista de projetos que o usuário PODE ver. Esta é a nossa "fonte da verdade".
+  const { data: permittedProjects, isLoading: isLoadingPermittedProjects } =
+    useQuery<Project[], Error>({
+      queryKey: ["projects"],
+      queryFn: fetchPermittedProjects,
+      enabled: !!session,
+      staleTime: 1000 * 60 * 5,
+    });
+
+  // 2. Busca as tarefas. Esta API pode retornar dados a mais, por isso vamos filtrá-los.
   const {
     data: todos = [],
     isLoading: isLoadingTodos,
@@ -65,15 +84,18 @@ const TodoColumnManager = () => {
   } = useQuery<TodoWithRelations[], Error>({
     queryKey: ["todos", searchParams.toString()],
     queryFn: () => todoFetchRequest(projectId, view, searchParams),
-    //onError: (err:any) => {
-    // toast({
-    //  title: "Erro",
-    //  description: `Falha ao buscar tarefas: ${err.message}`,
-    // variant: "destructive",
   });
-  // },
-  // });
-  // =============================================================
+
+  // 3. FILTRAGEM DE SEGURANÇA: Cria uma lista de tarefas segura.
+  const safeTodos = React.useMemo(() => {
+    if (isLoadingPermittedProjects || !permittedProjects) {
+      return [];
+    }
+    const permittedProjectIds = new Set(permittedProjects.map((p) => p.id));
+    return todos.filter(
+      (todo) => todo.projectId && permittedProjectIds.has(todo.projectId)
+    );
+  }, [todos, permittedProjects, isLoadingPermittedProjects]);
 
   const {
     data: projectColumns,
@@ -86,10 +108,10 @@ const TodoColumnManager = () => {
   });
 
   const uniqueProjectIdsFromTodos =
-    currentProjectId === "all" && todos
+    currentProjectId === "all" && safeTodos // Usa a lista segura
       ? Array.from(
           new Set(
-            todos
+            safeTodos // Usa a lista segura
               .map((todo) => todo.projectId)
               .filter((id): id is string => !!id)
           )
@@ -99,7 +121,7 @@ const TodoColumnManager = () => {
   const allProjectsColumnsQueries = useQueries({
     queries:
       currentProjectId === "all" &&
-      todos &&
+      safeTodos && // Usa a lista segura
       uniqueProjectIdsFromTodos.length > 0
         ? uniqueProjectIdsFromTodos.map((projId) => ({
             queryKey: ["projectColumns", { projectId: projId }],
@@ -133,12 +155,16 @@ const TodoColumnManager = () => {
       : null;
   const isLoading =
     isLoadingTodos ||
+    isLoadingPermittedProjects || // Adicionado ao estado de loading geral
     (currentProjectId !== "all" && isLoadingProjectColumns) ||
     isLoadingAllProjectsColumns;
   const error =
     errorTodos ||
     (currentProjectId !== "all" ? errorProjectColumns : null) ||
     errorAllProjectsColumns;
+
+  // ... (O restante do código (mutações, handlers) permanece o mesmo)
+  // A única alteração é garantir que a fonte de dados inicial seja 'safeTodos'
 
   const { mutate: createColumnMutation } = useMutation<
     PrismaProjectColumn,
@@ -199,7 +225,6 @@ const TodoColumnManager = () => {
       setShowAddColumnForm(false);
     },
   });
-
   const handleCreateColumn = (name: string) => {
     if (!name.trim() || currentProjectId === "all") return;
     const order = projectColumns ? projectColumns.length : 0;
@@ -209,7 +234,6 @@ const TodoColumnManager = () => {
       projectId: currentProjectId,
     });
   };
-
   const { mutate: deleteColumnMutation } = useMutation<
     PrismaProjectColumn,
     AxiosError,
@@ -257,7 +281,6 @@ const TodoColumnManager = () => {
       });
     },
   });
-
   const handleDeleteColumn = (columnId: string) => {
     if (
       window.confirm(
@@ -267,7 +290,6 @@ const TodoColumnManager = () => {
       deleteColumnMutation(columnId);
     }
   };
-
   const { mutate: handleUpdateState } = useMutation<
     TodoWithRelations,
     AxiosError,
@@ -281,21 +303,17 @@ const TodoColumnManager = () => {
       const previousTodos =
         queryClient.getQueryData<TodoWithRelations[]>(queryKey);
       if (!previousTodos) return { previousTodos: undefined, queryKey };
-
       const todoToUpdate = previousTodos.find((todo) => todo.id === payload.id);
       if (!todoToUpdate) return { previousTodos, queryKey };
-
       const originalTodoState = JSON.parse(JSON.stringify(todoToUpdate));
       const newProjectId = payload.projectId || originalTodoState.projectId;
       const newColumnId = payload.columnId!;
       const newOrder = payload.order!;
-
       let tempTodos = JSON.parse(
         JSON.stringify(previousTodos)
       ) as TodoWithRelations[];
       const itemIndex = tempTodos.findIndex((todo) => todo.id === payload.id);
       if (itemIndex > -1) tempTodos.splice(itemIndex, 1);
-
       if (
         originalTodoState.columnId !== newColumnId ||
         originalTodoState.projectId !== newProjectId
@@ -308,7 +326,6 @@ const TodoColumnManager = () => {
             : todo
         );
       }
-
       tempTodos = tempTodos.map((todo) =>
         todo.projectId === newProjectId &&
         todo.columnId === newColumnId &&
@@ -316,7 +333,6 @@ const TodoColumnManager = () => {
           ? { ...todo, order: todo.order + 1 }
           : todo
       );
-
       const updatedTodoItem: TodoWithRelations = {
         ...originalTodoState,
         projectId: newProjectId,
@@ -328,13 +344,11 @@ const TodoColumnManager = () => {
         ...(payload.label && { label: payload.label }),
       };
       tempTodos.push(updatedTodoItem);
-
       tempTodos.sort((a, b) =>
         a.columnId && b.columnId && a.columnId !== b.columnId
           ? a.columnId.localeCompare(b.columnId)
           : a.order - b.order
       );
-
       queryClient.setQueryData<TodoWithRelations[]>(queryKey, tempTodos);
       return { previousTodos, queryKey };
     },
@@ -357,14 +371,11 @@ const TodoColumnManager = () => {
       });
     },
   });
-
   const handleDragEnd = (dragEndEvent: OnDragEndEvent) => {
     const { over, item, order } = dragEndEvent;
     if (!over || !item || order === undefined) return;
-
-    const draggedTodo = todos.find((t) => t.id === item);
+    const draggedTodo = safeTodos.find((t) => t.id === item);
     if (!draggedTodo) return;
-
     let targetProjectId = currentProjectId;
     if (currentProjectId === "all") {
       for (const projId in allProjectsColumnsMap) {
@@ -378,7 +389,6 @@ const TodoColumnManager = () => {
         }
       }
     }
-
     const payload: TodoEditRequest = {
       id: item as string,
       columnId: over.toString(),
@@ -399,11 +409,11 @@ const TodoColumnManager = () => {
           <Skeleton className="h-10 w-32" />
         </div>
         <div className="flex gap-2 overflow-x-auto p-6">
-          {/*} <SkeletonColumn />
+          {/*<SkeletonColumn />
           <SkeletonColumn />
           <SkeletonColumn />
           <SkeletonColumn />
-          {*/}
+          */}
         </div>
       </div>
     );
@@ -417,7 +427,7 @@ const TodoColumnManager = () => {
     );
   }
 
-  const filteredTodos = todos.filter((todo) => {
+  const filteredTodos = safeTodos.filter((todo) => {
     if (!searchTerm) return true;
     const inTitle = todo.title?.toLowerCase().includes(searchTerm);
     const inDescription =
@@ -462,7 +472,6 @@ const TodoColumnManager = () => {
       </div>
       <DndContextProvider onDragEnd={handleDragEnd}>
         {currentProjectId !== "all" ? (
-          // Renderização para um único projeto
           <div className="flex gap-2 overflow-x-auto px-6">
             {(projectColumns || [])
               .sort((a, b) => a.order - b.order)
@@ -491,6 +500,7 @@ const TodoColumnManager = () => {
                     }}
                     className="p-2 bg-slate-200 dark:bg-slate-700 rounded-md space-y-2"
                   >
+                    {" "}
                     <Input
                       type="text"
                       value={newColumnName}
@@ -498,24 +508,27 @@ const TodoColumnManager = () => {
                       placeholder="Nome da Coluna"
                       className="bg-white dark:bg-slate-800"
                       autoFocus
-                    />
+                    />{" "}
                     <div className="flex justify-end gap-2">
+                      {" "}
                       <Button
                         type="button"
                         variant="ghost"
                         size="sm"
                         onClick={() => setShowAddColumnForm(false)}
                       >
-                        Cancelar
-                      </Button>
+                        {" "}
+                        Cancelar{" "}
+                      </Button>{" "}
                       <Button
                         type="submit"
                         size="sm"
                         disabled={!newColumnName.trim()}
                       >
-                        Adicionar
-                      </Button>
-                    </div>
+                        {" "}
+                        Adicionar{" "}
+                      </Button>{" "}
+                    </div>{" "}
                   </form>
                 ) : (
                   <Button
@@ -523,8 +536,9 @@ const TodoColumnManager = () => {
                     className="w-full border-dashed hover:bg-slate-200 dark:hover:bg-slate-700"
                     onClick={() => setShowAddColumnForm(true)}
                   >
-                    <PlusCircle className="h-4 w-4 mr-2" />
-                    Adicionar Nova Coluna
+                    {" "}
+                    <PlusCircle className="h-4 w-4 mr-2" /> Adicionar Nova
+                    Coluna{" "}
                   </Button>
                 )}
               </div>
