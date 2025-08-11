@@ -94,10 +94,12 @@ export async function GET(req: NextRequest) {
           where: { id: { in: todo.assignedToIds } },
           select: { id: true, name: true, email: true, image: true },
         });
+
         const linkedCards = await prisma.todo.findMany({
           where: { id: { in: todo.linkedCardIds } },
           select: { id: true, title: true },
         });
+
         return { ...todo, assignedTo: assignedUsers, linkedCards: linkedCards };
       })
     );
@@ -188,6 +190,7 @@ export async function POST(req: NextRequest) {
         status: 400,
       });
     }
+
     const newTodo = await prisma.todo.create({
       data: {
         title,

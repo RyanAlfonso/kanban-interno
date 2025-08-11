@@ -11,7 +11,7 @@ import {
 import { useSession } from "next-auth/react";
 import { AxiosError } from "axios";
 import { Project, ProjectColumn as PrismaProjectColumn } from "@prisma/client";
-import { PlusCircle } from "lucide-react";
+import { PlusCircle, Download } from "lucide-react"; // Importa o ícone de Download
 
 import { Skeleton } from "../ui/skeleton";
 import { useToast } from "../ui/use-toast";
@@ -24,7 +24,8 @@ import ViewToggle from "../ViewToggle";
 import DndContextProvider, { OnDragEndEvent } from "../DnDContextProvider";
 
 import { TodoEditRequest } from "@/lib/validators/todo";
-import { TodoWithRelations } from "@/types/todo";
+import { TodoWithRelations } from "@/types/todo"; // Importa o tipo corrigido
+import { exportToExcel } from "@/lib/export"; // Importa a função de exportação
 
 import todoFetchRequest from "@/requests/todoFetchRequest";
 import todoEditRequest from "@/requests/todoEditRequest";
@@ -43,7 +44,6 @@ type MutationContext = {
   queryKey: any[];
 };
 
-// Função para buscar os projetos que a API já filtra por permissão
 const fetchPermittedProjects = async (): Promise<Project[]> => {
   const response = await fetch("/api/projects");
   if (!response.ok) {
@@ -59,6 +59,7 @@ const TodoColumnManager = () => {
   const searchParams = useSearchParams();
   const { data: session } = useSession();
 
+  const [isExporting, setIsExporting] = useState(false);
   const searchTerm = searchParams.get("q")?.toLowerCase() || "";
   const currentProjectId = searchParams.get("projectId") || "all";
 
@@ -67,7 +68,6 @@ const TodoColumnManager = () => {
   const projectId = searchParams.get("projectId") || null;
   const view = searchParams.get("view") || "all";
 
-  // 1. Busca a lista de projetos que o usuário PODE ver. Esta é a nossa "fonte da verdade".
   const { data: permittedProjects, isLoading: isLoadingPermittedProjects } =
     useQuery<Project[], Error>({
       queryKey: ["projects"],
@@ -76,7 +76,6 @@ const TodoColumnManager = () => {
       staleTime: 1000 * 60 * 5,
     });
 
-  // 2. Busca as tarefas. Esta API pode retornar dados a mais, por isso vamos filtrá-los.
   const {
     data: todos = [],
     isLoading: isLoadingTodos,
@@ -86,7 +85,6 @@ const TodoColumnManager = () => {
     queryFn: () => todoFetchRequest(projectId, view, searchParams),
   });
 
-  // 3. FILTRAGEM DE SEGURANÇA: Cria uma lista de tarefas segura.
   const safeTodos = React.useMemo(() => {
     if (isLoadingPermittedProjects || !permittedProjects) {
       return [];
@@ -96,7 +94,6 @@ const TodoColumnManager = () => {
       (todo) => todo.projectId && permittedProjectIds.has(todo.projectId)
     );
   }, [todos, permittedProjects, isLoadingPermittedProjects]);
-
   const {
     data: projectColumns,
     isLoading: isLoadingProjectColumns,
@@ -108,10 +105,10 @@ const TodoColumnManager = () => {
   });
 
   const uniqueProjectIdsFromTodos =
-    currentProjectId === "all" && safeTodos // Usa a lista segura
+    currentProjectId === "all" && safeTodos
       ? Array.from(
           new Set(
-            safeTodos // Usa a lista segura
+            safeTodos
               .map((todo) => todo.projectId)
               .filter((id): id is string => !!id)
           )
@@ -121,7 +118,7 @@ const TodoColumnManager = () => {
   const allProjectsColumnsQueries = useQueries({
     queries:
       currentProjectId === "all" &&
-      safeTodos && // Usa a lista segura
+      safeTodos &&
       uniqueProjectIdsFromTodos.length > 0
         ? uniqueProjectIdsFromTodos.map((projId) => ({
             queryKey: ["projectColumns", { projectId: projId }],
@@ -141,9 +138,16 @@ const TodoColumnManager = () => {
           );
         }
       });
+    } else if (projectColumns) {
+      map[currentProjectId] = projectColumns;
     }
     return map;
-  }, [currentProjectId, allProjectsColumnsQueries, uniqueProjectIdsFromTodos]);
+  }, [
+    currentProjectId,
+    allProjectsColumnsQueries,
+    uniqueProjectIdsFromTodos,
+    projectColumns,
+  ]);
 
   const isLoadingAllProjectsColumns =
     currentProjectId === "all"
@@ -155,16 +159,13 @@ const TodoColumnManager = () => {
       : null;
   const isLoading =
     isLoadingTodos ||
-    isLoadingPermittedProjects || // Adicionado ao estado de loading geral
+    isLoadingPermittedProjects ||
     (currentProjectId !== "all" && isLoadingProjectColumns) ||
     isLoadingAllProjectsColumns;
   const error =
     errorTodos ||
     (currentProjectId !== "all" ? errorProjectColumns : null) ||
     errorAllProjectsColumns;
-
-  // ... (O restante do código (mutações, handlers) permanece o mesmo)
-  // A única alteração é garantir que a fonte de dados inicial seja 'safeTodos'
 
   const { mutate: createColumnMutation } = useMutation<
     PrismaProjectColumn,
@@ -225,6 +226,7 @@ const TodoColumnManager = () => {
       setShowAddColumnForm(false);
     },
   });
+
   const handleCreateColumn = (name: string) => {
     if (!name.trim() || currentProjectId === "all") return;
     const order = projectColumns ? projectColumns.length : 0;
@@ -234,6 +236,7 @@ const TodoColumnManager = () => {
       projectId: currentProjectId,
     });
   };
+
   const { mutate: deleteColumnMutation } = useMutation<
     PrismaProjectColumn,
     AxiosError,
@@ -281,6 +284,7 @@ const TodoColumnManager = () => {
       });
     },
   });
+
   const handleDeleteColumn = (columnId: string) => {
     if (
       window.confirm(
@@ -290,6 +294,7 @@ const TodoColumnManager = () => {
       deleteColumnMutation(columnId);
     }
   };
+
   const { mutate: handleUpdateState } = useMutation<
     TodoWithRelations,
     AxiosError,
@@ -371,6 +376,7 @@ const TodoColumnManager = () => {
       });
     },
   });
+
   const handleDragEnd = (dragEndEvent: OnDragEndEvent) => {
     const { over, item, order } = dragEndEvent;
     if (!over || !item || order === undefined) return;
@@ -401,32 +407,6 @@ const TodoColumnManager = () => {
     handleUpdateState(payload);
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex flex-col gap-4">
-        <div className="flex justify-between items-center px-6 pt-6">
-          <Skeleton className="h-10 w-64" />
-          <Skeleton className="h-10 w-32" />
-        </div>
-        <div className="flex gap-2 overflow-x-auto p-6">
-          {/*<SkeletonColumn />
-          <SkeletonColumn />
-          <SkeletonColumn />
-          <SkeletonColumn />
-          */}
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="p-6 text-red-500">
-        Erro ao carregar tarefas: {error.message}
-      </div>
-    );
-  }
-
   const filteredTodos = safeTodos.filter((todo) => {
     if (!searchTerm) return true;
     const inTitle = todo.title?.toLowerCase().includes(searchTerm);
@@ -437,9 +417,9 @@ const TodoColumnManager = () => {
 
   let pageTitle = "Todas as áreas";
   if (currentProjectId !== "all") {
-    const project = (
-      queryClient.getQueryData<Project[]>(["projects"]) || []
-    ).find((p) => p.id === currentProjectId);
+    const project = (permittedProjects || []).find(
+      (p) => p.id === currentProjectId
+    );
     pageTitle = project?.name || "Projeto";
   }
 
@@ -462,11 +442,98 @@ const TodoColumnManager = () => {
     groupedProjects.sort((a, b) => a.name.localeCompare(b.name));
   }
 
+  const handleExport = () => {
+    if (!filteredTodos || filteredTodos.length === 0) {
+      toast({
+        title: "Nenhuma tarefa para exportar",
+        description: "Não há tarefas que correspondam aos filtros atuais.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsExporting(true);
+    try {
+      const dataToExport = filteredTodos.map((todo) => ({
+        "Título da Tarefa": todo.title,
+        Projeto: todo.project?.name || "N/A",
+        "Coluna (Status)": todo.columnId
+          ? allProjectsColumnsMap[todo.projectId as string]?.find(
+              (c) => c.id === todo.columnId
+            )?.name || "Não categorizada"
+          : "N/A",
+        Responsáveis:
+          todo.assignedTo?.map((user) => user.name).join(", ") || "Ninguém",
+        Descrição: todo.description || "",
+        Prazo: todo.deadline
+          ? new Date(todo.deadline).toLocaleDateString()
+          : "N/A",
+        "Criado em": new Date(todo.createdAt).toLocaleString(),
+        "Atualizado em": new Date(todo.updatedAt).toLocaleString(),
+        "ID da Tarefa": todo.id,
+      }));
+
+      const fileName = `tarefas_${
+        currentProjectId === "all" ? "todos-projetos" : currentProjectId
+      }_${new Date().toISOString().split("T")[0]}`;
+      exportToExcel(dataToExport, fileName, "Tarefas");
+    } catch (err) {
+      toast({
+        title: "Erro ao exportar",
+        description: "Ocorreu um problema ao gerar o arquivo Excel.",
+        variant: "destructive",
+      });
+      console.error("Export Error:", err);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+  if (isLoading) {
+    return (
+      <div className="flex flex-col gap-4">
+        <div className="flex justify-between items-center px-6 pt-6">
+          <Skeleton className="h-10 w-64" />
+          <Skeleton className="h-10 w-32" />
+        </div>
+        <div className="flex gap-2 overflow-x-auto p-6">
+          {/*<SkeletonColumn />
+          <SkeletonColumn />
+          <SkeletonColumn />
+          <SkeletonColumn />
+          */}
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6 text-red-500">
+        Erro ao carregar dados: {error.message}
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-4 pb-6">
       <div className="flex justify-between items-center px-6 pt-6">
         <h1 className="text-2xl font-bold tracking-tight">{pageTitle}</h1>
         <div className="flex items-center gap-2">
+          <Button
+            onClick={handleExport}
+            variant="outline"
+            size="sm"
+            disabled={isExporting}
+          >
+            {isExporting ? (
+              "Exportando..."
+            ) : (
+              <>
+                <Download className="mr-2 h-4 w-4" />
+                Exportar para Excel
+              </>
+            )}
+          </Button>
           <ViewToggle />
         </div>
       </div>
@@ -500,7 +567,6 @@ const TodoColumnManager = () => {
                     }}
                     className="p-2 bg-slate-200 dark:bg-slate-700 rounded-md space-y-2"
                   >
-                    {" "}
                     <Input
                       type="text"
                       value={newColumnName}
@@ -508,27 +574,24 @@ const TodoColumnManager = () => {
                       placeholder="Nome da Coluna"
                       className="bg-white dark:bg-slate-800"
                       autoFocus
-                    />{" "}
+                    />
                     <div className="flex justify-end gap-2">
-                      {" "}
                       <Button
                         type="button"
                         variant="ghost"
                         size="sm"
                         onClick={() => setShowAddColumnForm(false)}
                       >
-                        {" "}
-                        Cancelar{" "}
-                      </Button>{" "}
+                        Cancelar
+                      </Button>
                       <Button
                         type="submit"
                         size="sm"
                         disabled={!newColumnName.trim()}
                       >
-                        {" "}
-                        Adicionar{" "}
-                      </Button>{" "}
-                    </div>{" "}
+                        Adicionar
+                      </Button>
+                    </div>
                   </form>
                 ) : (
                   <Button
@@ -536,9 +599,8 @@ const TodoColumnManager = () => {
                     className="w-full border-dashed hover:bg-slate-200 dark:hover:bg-slate-700"
                     onClick={() => setShowAddColumnForm(true)}
                   >
-                    {" "}
                     <PlusCircle className="h-4 w-4 mr-2" /> Adicionar Nova
-                    Coluna{" "}
+                    Coluna
                   </Button>
                 )}
               </div>
