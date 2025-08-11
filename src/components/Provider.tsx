@@ -1,7 +1,7 @@
 "use client";
 
 import { SessionProvider } from "next-auth/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query"; 
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Provider } from "react-redux";
 import store from "../redux/store";
 import TaskEditFormDialog from "./TaskEditFormDialog";
@@ -14,19 +14,19 @@ type ProvidersProps = {
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 1000 * 60 * 5,
+      staleTime: 1000 * 60 * 5, // 5 minutos
     },
   },
 });
 
 export function Providers({ children }: ProvidersProps) {
-  console.log("Rendering Providers component...");
   try {
     return (
       <QueryClientProvider client={queryClient}>
         <Provider store={store}>
           <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-            <SessionProvider basePath={`${process.env.NEXT_PUBLIC_BASE_PATH}/api/auth`}>{children}</SessionProvider>
+            <SessionProvider>{children}</SessionProvider>
+
             <TaskEditFormDialog />
           </ThemeProvider>
         </Provider>
@@ -37,4 +37,3 @@ export function Providers({ children }: ProvidersProps) {
     return <div>Ocorreu um erro nos providers globais.</div>;
   }
 }
-
