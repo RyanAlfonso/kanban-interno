@@ -4,7 +4,6 @@ import prisma from "@/lib/prismadb";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
-// Função de utilidade para criar respostas de erro padronizadas
 const createErrorResponse = (message: string, status: number) => {
   return new NextResponse(JSON.stringify({ message }), {
     status,
@@ -12,7 +11,13 @@ const createErrorResponse = (message: string, status: number) => {
   });
 };
 
-// Esquemas de validação com Zod
+const getErrorMessage = (error: unknown): string => {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return String(error);
+};
+
 const getAttachmentsSchema = z.object({
   todoId: z.string().uuid("Invalid Todo ID format"),
 });
@@ -26,9 +31,6 @@ const createAttachmentSchema = z.object({
 const deleteAttachmentSchema = z.object({
   id: z.string().uuid("Invalid Attachment ID format"),
 });
-
-
-// --- MÉTODOS DA API ---
 
 export async function GET(req: NextRequest) {
   const logger = getLogger("info");
@@ -45,13 +47,16 @@ export async function GET(req: NextRequest) {
 
     const attachments = await prisma.attachment.findMany({
       where: { todoId: validation.data.todoId },
-      include: { uploadedBy: { select: { id: true, name: true, image: true } } },
+      include: {
+        uploadedBy: { select: { id: true, name: true, image: true } },
+      },
       orderBy: { createdAt: "desc" },
     });
 
     return NextResponse.json(attachments, { status: 200 });
   } catch (error) {
-    logger.error("Error fetching attachments:", error instanceof Error ? error.message : error);
+    const errorMessage = getErrorMessage(error);
+    logger.error("Error fetching attachments:", errorMessage);
     return createErrorResponse("Internal Server Error", 500);
   }
 }
@@ -68,7 +73,7 @@ export async function POST(req: NextRequest) {
     if (!validation.success) {
       return createErrorResponse(validation.error.errors[0].message, 400);
     }
-    
+
     const { filename, url, todoId } = validation.data;
 
     const todo = await prisma.todo.findUnique({ where: { id: todoId } });
@@ -76,13 +81,18 @@ export async function POST(req: NextRequest) {
 
     const newAttachment = await prisma.attachment.create({
       data: { filename, url, todoId, uploadedById: session.user.id },
-      include: { uploadedBy: { select: { id: true, name: true, image: true } } },
+      include: {
+        uploadedBy: { select: { id: true, name: true, image: true } },
+      },
     });
 
     return NextResponse.json(newAttachment, { status: 201 });
   } catch (error) {
-    if (error instanceof SyntaxError) return createErrorResponse("Invalid JSON in request body", 400);
-    logger.error("Error creating attachment:", error instanceof Error ? error.message : error);
+    if (error instanceof SyntaxError) {
+      return createErrorResponse("Invalid JSON in request body", 400);
+    }
+    const errorMessage = getErrorMessage(error);
+    logger.error("Error creating attachment:", errorMessage);
     return createErrorResponse("Internal Server Error", 500);
   }
 }
@@ -111,14 +121,21 @@ export async function DELETE(req: NextRequest) {
     const isAdmin = session.user.role === "ADMIN";
 
     if (!isOwner && !isAdmin) {
-      return createErrorResponse("Forbidden: You do not have permission to delete this attachment", 403);
+      return createErrorResponse(
+        "Forbidden: You do not have permission to delete this attachment",
+        403
+      );
     }
 
     await prisma.attachment.delete({ where: { id: validation.data.id } });
 
-    return NextResponse.json({ message: "Attachment deleted successfully" }, { status: 200 });
+    return NextResponse.json(
+      { message: "Attachment deleted successfully" },
+      { status: 200 }
+    );
   } catch (error) {
-    logger.error("Error deleting attachment:", error instanceof Error ? error.message : error);
+    const errorMessage = getErrorMessage(error);
+    logger.error("Error deleting attachment:", errorMessage);
     return createErrorResponse("Internal Server Error", 500);
   }
 }
