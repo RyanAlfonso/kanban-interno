@@ -56,7 +56,12 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(attachments, { status: 200 });
   } catch (error) {
     const errorMessage = getErrorMessage(error);
-    logger.error("Error fetching attachments:", errorMessage);
+
+    logger.error({
+      message: "Error fetching attachments",
+      error: errorMessage,
+    });
+
     return createErrorResponse("Internal Server Error", 500);
   }
 }
@@ -91,8 +96,14 @@ export async function POST(req: NextRequest) {
     if (error instanceof SyntaxError) {
       return createErrorResponse("Invalid JSON in request body", 400);
     }
+
     const errorMessage = getErrorMessage(error);
-    logger.error("Error creating attachment:", errorMessage);
+
+    logger.error({
+      message: "Error creating attachment",
+      error: errorMessage,
+    });
+
     return createErrorResponse("Internal Server Error", 500);
   }
 }
@@ -135,7 +146,12 @@ export async function DELETE(req: NextRequest) {
     );
   } catch (error) {
     const errorMessage = getErrorMessage(error);
-    logger.error("Error deleting attachment:", errorMessage);
+
+    logger.error({
+      message: "Error deleting attachment",
+      error: errorMessage,
+    });
+
     return createErrorResponse("Internal Server Error", 500);
   }
 }
