@@ -1,10 +1,10 @@
 
 import prisma from "@/lib/prismadb";
 import { PrismaAdapter } from "@auth/prisma-adapter";
-import { NextAuthOptions, User, getServerSession } from "next-auth";
+import bcrypt from "bcrypt";
+import { NextAuthOptions, getServerSession } from "next-auth";
 import { Adapter } from "next-auth/adapters";
 import CredentialsProvider from "next-auth/providers/credentials";
-import bcrypt from "bcrypt";
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma) as Adapter,
@@ -21,41 +21,46 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
-        const user = await prisma.user.findUnique({
-          where: {
-            email: credentials.email,
-          },
-          include: {
-            areas: true,
-          },
-        });
-
-        if (!user || !user.password) {
-          console.error("Usuário não encontrado ou sem senha definida");
-          return null;
+        try {
+          const user = await prisma.user.findUnique({
+            where: {
+              email: credentials.email,
+            },
+            include: {
+              areas: true,
+            },
+          });
+  
+          if (!user || !user.password) {
+            console.error("Usuário não encontrado ou sem senha definida");
+            return null;
+          }
+  
+          const isPasswordValid = await bcrypt.compare(
+            credentials.password,
+            user.password
+          );
+  
+          if (!isPasswordValid) {
+            console.error("Senha inválida");
+            return null;
+          }
+  
+          console.log("Autorização bem-sucedida para:", user.email);
+          
+          return {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            image: user.image,
+            role: user.role,
+            type: user.type,
+            areas: user.areas,
+          };
+        }catch(err) {
+          console.error({err, message: "Erro ao autorizar usuário"});
+          throw err;
         }
-
-        const isPasswordValid = await bcrypt.compare(
-          credentials.password,
-          user.password
-        );
-
-        if (!isPasswordValid) {
-          console.error("Senha inválida");
-          return null;
-        }
-
-        console.log("Autorização bem-sucedida para:", user.email);
-        
-        return {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          image: user.image,
-          role: user.role,
-          type: user.type,
-          areas: user.areas,
-        };
       },
     }),
   ],
@@ -92,6 +97,17 @@ export const authOptions: NextAuthOptions = {
     signIn: '/login',
   },
   secret: process.env.NEXTAUTH_SECRET,
+  logger: {
+    error(code, metadata) {
+      console.error(code, metadata)
+    },
+    warn(code) {
+      console.warn(code)
+    },
+    debug(code, metadata) {
+      console.debug(code, metadata)
+    }
+  }
 };
 
 export const getAuthSession = () => getServerSession(authOptions);
