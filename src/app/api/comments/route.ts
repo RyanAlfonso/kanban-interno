@@ -1,7 +1,7 @@
 
 import { getAuthSession } from "@/lib/nextAuthOptions";
-import { getLogger } from "@/logger";
 import prisma from "@/lib/prismadb";
+import { getLogger } from "@/logger";
 import { NextRequest } from "next/server";
 
 export async function GET(req: NextRequest) {
@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
 
     return new Response(JSON.stringify(comments), { status: 200 });
   } catch (error) {
-    logger.error("Error fetching comments:", error);
+    logger.error("Error fetching comments:", String(error));
     return new Response("Internal Server Error", { status: 500 });
   }
 }
