@@ -5,14 +5,13 @@ import { getTagColor, PredefinedTag, TagColor } from "@/lib/tags";
 import { cn } from "@/lib/utils";
 import { openTodoEditor } from "@/redux/actions/todoEditorAction";
 import { Todo, User } from "@prisma/client";
+import { Popover, PopoverContent, PopoverTrigger } from "@radix-ui/react-popover";
 import dayjs from "dayjs";
-import { Clock, Folder, Users, History, ArrowUp, ArrowDown, Link, Share2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Clock, Folder, History, Link, Share2, Users } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import { FC, useCallback, useState } from "react";
 import { useDispatch } from "react-redux";
-import { useSearchParams } from "next/navigation";
-import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
-import { Popover, PopoverContent, PopoverTrigger } from "@radix-ui/react-popover";
 import { useToast } from "../ui/use-toast";
 
 interface ExtendedTodo extends Todo {
@@ -75,7 +74,7 @@ const TodoCard: FC<TodoProps> = ({ todo }) => {
     async (e: React.MouseEvent) => {
       e.stopPropagation();
       try {
-        const response = await fetch(`/api/share/${todo.id}`);
+        const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_PATH}/api/share/${todo.id}`);
         if (!response.ok) {
           throw new Error("Failed to generate share link");
         }

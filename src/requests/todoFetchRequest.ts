@@ -10,7 +10,7 @@ const todoFetchRequest = async (
 projectId: string | null, view: string, searchParams: URLSearchParams): Promise<TodoWithRelations[]> => {
   
   // Cria a URL base para a nossa API unificada.
-  const url = new URL("/api/todo", window.location.origin);
+  const url = new URL(process.env.NEXT_PUBLIC_BASE_PATH + "/api/todo", window.location.origin);
 
   // Anexa todos os parâmetros de busca existentes diretamente à URL da API.
   // Isso inclui projectId, view, q, assignedToIds, startDate, endDate, etc.

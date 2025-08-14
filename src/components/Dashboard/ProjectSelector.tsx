@@ -1,22 +1,22 @@
 "use client";
 
-import { FC, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
 import { Project } from "@prisma/client";
-import { useQuery } from "@tanstack/react-query";
-import { Button } from "../ui/button";
-import { Label } from "../ui/label";
-import { ChevronDown } from "lucide-react";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@radix-ui/react-popover";
+import { useQuery } from "@tanstack/react-query";
+import { ChevronDown } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { FC, useState } from "react";
+import { Button } from "../ui/button";
+import { Label } from "../ui/label";
 import { Skeleton } from "../ui/skeleton";
 import { useToast } from "../ui/use-toast";
 
 const fetchProjects = async (): Promise<Project[]> => {
-  const response = await fetch("/api/projects");
+  const response = await fetch(process.env.NEXT_PUBLIC_BASE_PATH + "/api/projects");
   if (!response.ok) {
     throw new Error("Falha ao buscar projetos");
   }

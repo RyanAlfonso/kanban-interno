@@ -1,12 +1,12 @@
 "use client";
 
-import { useParams } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { CalendarIcon, UserIcon, MessageCircleIcon, PaperclipIcon } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useQuery } from "@tanstack/react-query";
 import dayjs from "dayjs";
+import { CalendarIcon, MessageCircleIcon, PaperclipIcon, UserIcon } from "lucide-react";
+import { useParams } from "next/navigation";
 
 interface SharedTodo {
   id: string;
@@ -72,7 +72,7 @@ export default function SharedTaskPage() {
   const { data, isLoading, error } = useQuery<ShareResponse>({
     queryKey: ["shared-todo", todoId],
     queryFn: async () => {
-      const response = await fetch(`/api/share/${todoId}`);
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_PATH}/api/share/${todoId}`);
       if (!response.ok) {
         throw new Error("Failed to fetch shared task");
       }

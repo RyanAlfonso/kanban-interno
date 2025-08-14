@@ -2,18 +2,16 @@
 
 import { FC, useState } from "react";
 import { Button } from "./ui/button";
-import { Input } from "./ui/input";
-import { Label } from "./ui/label";
-import { useToast } from "./ui/use-toast";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
-  DialogClose,
+  DialogTrigger
 } from "./ui/dialog";
-import { X } from "lucide-react";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
+import { useToast } from "./ui/use-toast";
 
 interface ProjectFormProps {
   onSuccess?: () => void;
@@ -42,7 +40,7 @@ const ProjectForm: FC<ProjectFormProps> = ({ onSuccess, trigger }) => {
     setIsLoading(true);
     
     try {
-      const response = await fetch("/api/projects", {
+      const response = await fetch(process.env.NEXT_PUBLIC_BASE_PATH + "/api/projects", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

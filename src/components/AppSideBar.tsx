@@ -1,29 +1,28 @@
 "use client";
 
-import { getLabelColor } from "@/lib/color"; // Keep for potential future use or remove if labels are fully replaced
-import { cn } from "@/lib/utils";
-import { BarChart2, Clock, Folder, Menu, Plus, Tag } from "lucide-react";
-import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { ForwardRefExoticComponent, useEffect, useRef, useState } from "react";
-import { Button } from "./ui/button";
 import useBreakpoint from "@/hooks/useBreakpoint";
-import { useDispatch, useSelector } from "react-redux";
-import { ReduxState } from "@/redux/store";
+import { cn } from "@/lib/utils";
 import {
   closeSidebar,
   openSidebar,
   toggleSidebar,
 } from "@/redux/actions/sidebarAction";
-import { useQuery, useQueryClient } from "@tanstack/react-query"; 
+import { ReduxState } from "@/redux/store";
 import { Project } from "@prisma/client";
-import { useToast } from "./ui/use-toast";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { BarChart2, Clock, Folder, Menu, Plus, Tag } from "lucide-react";
 import { useSession } from 'next-auth/react';
+import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { ForwardRefExoticComponent, useEffect, useRef } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import ProjectForm from "./ProjectForm";
+import { Button } from "./ui/button";
 import { Skeleton } from "./ui/skeleton";
-import ProjectForm from "./ProjectForm"; 
+import { useToast } from "./ui/use-toast";
 
 const fetchUserAreas = async (): Promise<any[]> => {
-  const response = await fetch("/api/user/areas");
+  const response = await fetch(process.env.NEXT_PUBLIC_BASE_PATH + "/api/user/areas");
   if (!response.ok) {
     throw new Error("Failed to fetch user areas");
   }
@@ -32,7 +31,7 @@ const fetchUserAreas = async (): Promise<any[]> => {
 
 const fetchProjects = async (): Promise<Project[]> => {
   try {
-    const response = await fetch("/api/projects");
+    const response = await fetch(process.env.NEXT_PUBLIC_BASE_PATH + "/api/projects");
     if (!response.ok) {
       throw new Error("Falha ao buscar áreas");
     }

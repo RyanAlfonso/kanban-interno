@@ -1,21 +1,25 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
-  CalendarIcon,
-  Filter,
-  Users,
-  Clock,
-  Tag as TagIcon,
   Briefcase,
+  CalendarIcon,
+  Clock,
+  Filter,
+  Tag as TagIcon,
+  Users,
 } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 
 // Componentes de UI
+import { cn } from "@/lib/utils";
+import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
+import { Calendar } from "./ui/calendar";
 import { Label } from "./ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import {
   Select,
   SelectContent,
@@ -23,10 +27,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
-import { Badge } from "./ui/badge";
-import { Calendar } from "./ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
-import { cn } from "@/lib/utils";
 
 import { getAllTagsWithColors } from "@/lib/tags";
 import { useForm } from "react-hook-form";
@@ -58,7 +58,7 @@ const AdvancedFilters = () => {
   const { data: projects = [] } = useQuery<Project[]>({
     queryKey: ["projects"],
     queryFn: async () => {
-      const response = await fetch("/api/projects");
+      const response = await fetch(process.env.NEXT_PUBLIC_BASE_PATH + "/api/projects");
       if (!response.ok) throw new Error("Failed to fetch projects");
       return response.json();
     },
@@ -67,7 +67,7 @@ const AdvancedFilters = () => {
   const { data: users = [] } = useQuery<User[]>({
     queryKey: ["users"],
     queryFn: async () => {
-      const response = await fetch("/api/users");
+      const response = await fetch(process.env.NEXT_PUBLIC_BASE_PATH + "/api/users");
       if (!response.ok) throw new Error("Failed to fetch users");
       return response.json();
     },

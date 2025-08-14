@@ -1,37 +1,36 @@
 "use client";
 
-import React, { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { ProjectColumn as PrismaProjectColumn, Project } from "@prisma/client";
 import {
   useMutation,
+  useQueries,
   useQuery,
   useQueryClient,
-  useQueries,
 } from "@tanstack/react-query";
-import { useSession } from "next-auth/react";
 import { AxiosError } from "axios";
-import { Project, ProjectColumn as PrismaProjectColumn } from "@prisma/client";
-import { PlusCircle, Download } from "lucide-react"; // Importa o ícone de Download
+import { Download, PlusCircle } from "lucide-react"; // Importa o ícone de Download
+import { useSession } from "next-auth/react";
+import { useRouter, useSearchParams } from "next/navigation";
+import React, { useState } from "react";
 
-import { Skeleton } from "../ui/skeleton";
-import { useToast } from "../ui/use-toast";
+import DndContextProvider, { OnDragEndEvent } from "../DnDContextProvider";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Separator } from "../ui/separator";
-import SkeletonColumn from "./SkeletonColumn";
-import TodoColumn from "./TodoColumn";
+import { Skeleton } from "../ui/skeleton";
+import { useToast } from "../ui/use-toast";
 import ViewToggle from "../ViewToggle";
-import DndContextProvider, { OnDragEndEvent } from "../DnDContextProvider";
+import TodoColumn from "./TodoColumn";
 
+import { exportToExcel } from "@/lib/export"; // Importa a função de exportação
 import { TodoEditRequest } from "@/lib/validators/todo";
 import { TodoWithRelations } from "@/types/todo"; // Importa o tipo corrigido
-import { exportToExcel } from "@/lib/export"; // Importa a função de exportação
 
-import todoFetchRequest from "@/requests/todoFetchRequest";
-import todoEditRequest from "@/requests/todoEditRequest";
-import projectColumnsFetchRequest from "@/requests/projectColumnsFetchRequest";
 import projectColumnCreateRequest from "@/requests/projectColumnCreateRequest";
 import projectColumnDeleteRequest from "@/requests/projectColumnDeleteRequest";
+import projectColumnsFetchRequest from "@/requests/projectColumnsFetchRequest";
+import todoEditRequest from "@/requests/todoEditRequest";
+import todoFetchRequest from "@/requests/todoFetchRequest";
 
 interface GroupedProject {
   id: string;
@@ -45,7 +44,7 @@ type MutationContext = {
 };
 
 const fetchPermittedProjects = async (): Promise<Project[]> => {
-  const response = await fetch("/api/projects");
+  const response = await fetch(process.env.NEXT_PUBLIC_BASE_PATH +"/api/projects");
   if (!response.ok) {
     throw new Error("Falha ao buscar projetos permitidos");
   }

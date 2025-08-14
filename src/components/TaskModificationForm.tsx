@@ -9,29 +9,29 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@radix-ui/react-popover";
-import { AxiosError } from "axios";
-import dayjs from "dayjs";
 import {
-  CalendarIcon,
-  X,
-  PaperclipIcon,
-  Download,
-  Trash2,
-  UserCircle,
-  MessageSquare,
-  Send,
-  History, // NOVO: Ícone de histórico
-  ChevronDown, // NOVO: Ícone de seta
-  ChevronUp, // NOVO: Ícone de seta
-} from "lucide-react";
-import { FC, lazy, useState } from "react";
-import { Controller, UseFormReturn } from "react-hook-form";
-import {
+  useMutation,
   UseMutationResult,
   useQuery,
   useQueryClient,
-  useMutation,
 } from "@tanstack/react-query";
+import axios, { AxiosError } from "axios";
+import dayjs from "dayjs";
+import {
+  CalendarIcon, // NOVO: Ícone de histórico
+  ChevronDown, // NOVO: Ícone de seta
+  ChevronUp,
+  Download,
+  History,
+  MessageSquare,
+  PaperclipIcon,
+  Send,
+  Trash2,
+  UserCircle,
+  X,
+} from "lucide-react";
+import { FC, lazy, useState } from "react";
+import { Controller, UseFormReturn } from "react-hook-form";
 import "react-quill/dist/quill.snow.css";
 import CustomizedMultSelect from "./CustomizedMultSelect";
 import CustomizedSelect from "./CustomizedSelect";
@@ -41,7 +41,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { useToast } from "./ui/use-toast";
-import axios from "axios";
 
 type MovementHistoryItem = {
   id: string;
@@ -313,7 +312,7 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
     mutationFn: async (content: string) => {
       if (!task.id) throw new Error("ID da tarefa não encontrado.");
       const payload = { content, todoId: task.id };
-      const { data } = await axios.post("/api/comments", payload);
+      const { data } = await axios.post(process.env.NEXT_PUBLIC_BASE_PATH + "/api/comments", payload);
       return data;
     },
     onSuccess: () => {
@@ -346,7 +345,7 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
     error: projectsError,
   } = useQuery<Project[], Error>({
     queryKey: ["projects"],
-    queryFn: () => robustFetcher<Project[]>("/api/projects"),
+    queryFn: () => robustFetcher<Project[]>(process.env.NEXT_PUBLIC_BASE_PATH + "/api/projects"),
   });
 
   const {
@@ -355,7 +354,7 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
     error: usersError,
   } = useQuery<User[], Error>({
     queryKey: ["users"],
-    queryFn: () => robustFetcher<User[]>("/api/users"),
+    queryFn: () => robustFetcher<User[]>(process.env.NEXT_PUBLIC_BASE_PATH + "/api/users"),
   });
 
   const {
@@ -364,7 +363,7 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
     error: todosError,
   } = useQuery<Todo[], Error>({
     queryKey: ["todos"],
-    queryFn: () => robustFetcher<Todo[]>("/api/todo"),
+    queryFn: () => robustFetcher<Todo[]>(process.env.NEXT_PUBLIC_BASE_PATH + "/api/todo"),
   });
 
   const projectOptions =
@@ -401,7 +400,7 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
       formData.append("files", file);
     }
     try {
-      const response = await fetch(`/api/attachments/upload/${task.id}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_PATH}/api/attachments/upload/${task.id}`, {
         method: "POST",
         body: formData,
       });

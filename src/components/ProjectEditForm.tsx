@@ -1,21 +1,21 @@
 "use client";
 
-import { FC, useState, useEffect } from "react";
+import { Project } from "@prisma/client";
+import { useQueryClient } from "@tanstack/react-query";
+import { Pencil, Trash2, X } from "lucide-react";
+import { FC, useEffect, useState } from "react";
 import { Button } from "./ui/button";
-import { Input } from "./ui/input";
-import { Label } from "./ui/label";
-import { useToast } from "./ui/use-toast";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-  DialogClose,
 } from "./ui/dialog";
-import { X, Pencil, Trash2 } from "lucide-react";
-import { Project } from "@prisma/client";
-import { useQueryClient } from "@tanstack/react-query";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
+import { useToast } from "./ui/use-toast";
 
 interface ProjectEditFormProps {
   project: Project;
@@ -52,7 +52,7 @@ const ProjectEditForm: FC<ProjectEditFormProps> = ({ project, onSuccess, trigger
     setIsLoading(true);
     
     try {
-      const response = await fetch("/api/projects", {
+      const response = await fetch(process.env.NEXT_PUBLIC_BASE_PATH + "/api/projects", {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -99,7 +99,7 @@ const ProjectEditForm: FC<ProjectEditFormProps> = ({ project, onSuccess, trigger
     setIsDeleting(true);
     
     try {
-      const response = await fetch("/api/projects", {
+      const response = await fetch(process.env.NEXT_PUBLIC_BASE_PATH + "/api/projects", {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
