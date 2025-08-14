@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
 
     return new Response(JSON.stringify(comments), { status: 200 });
   } catch (error) {
-    logger.error("Error fetching comments:", String(error));
+    logger.error(`Error fetching comments: ${String(error)}`);
     return new Response("Internal Server Error", { status: 500 });
   }
 }
