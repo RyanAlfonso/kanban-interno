@@ -1,8 +1,8 @@
 import { getAuthSession } from "@/lib/nextAuthOptions";
 import prisma from "@/lib/prismadb";
-import { Prisma } from "@prisma/client";
 import { TodoEditValidator } from "@/lib/validators/todo";
 import { getLogger } from "@/logger";
+import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
@@ -75,8 +75,8 @@ export async function PATCH(req: Request) {
     }
 
     logger.info(
-      "--- API Backend (PATCH /edit): Dados sendo enviados para o Prisma update ---",
-      JSON.stringify(dataToUpdate, null, 2)
+      dataToUpdate,
+      "--- API Backend (PATCH /edit): Dados sendo enviados para o Prisma update ---"
     );
 
     const updatedTodo = await prisma.todo.update({

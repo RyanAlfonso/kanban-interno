@@ -1,9 +1,9 @@
 import { getAuthSession } from "@/lib/nextAuthOptions";
-import { getLogger } from "@/logger";
-import prisma from "@/lib/prismadb";
-import { NextRequest, NextResponse } from "next/server";
-import { isValidTag, PREDEFINED_TAGS } from "@/lib/tags";
 import { canMoveCard } from "@/lib/permissions";
+import prisma from "@/lib/prismadb";
+import { isValidTag, PREDEFINED_TAGS } from "@/lib/tags";
+import { getLogger } from "@/logger";
+import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(req: NextRequest) {
   const logger = getLogger("info");
@@ -106,7 +106,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(todosWithRelations);
   } catch (error) {
-    logger.error("Error fetching todos:", { error });
+    logger.error({ error }, "Error fetching todos:");
     return new NextResponse("Internal Server Error", { status: 500 });
   }
 }
@@ -209,7 +209,7 @@ export async function POST(req: NextRequest) {
     });
     return new Response(JSON.stringify(newTodo), { status: 201 });
   } catch (error) {
-    logger.error("Error creating todo:", { error });
+    logger.error({ error }, "Error creating todo:");
     return new Response("Internal Server Error", { status: 500 });
   }
 }
@@ -380,7 +380,7 @@ export async function PUT(req: NextRequest) {
     return new Response(JSON.stringify(resultWithRelations), { status: 200 });
   } catch (error) {
     console.error("Error updating todo:", error);
-    logger.error("Error updating todo:", { error });
+    logger.error({ error }, "Error updating todo:");
     return new Response("Internal Server Error", { status: 500 });
   }
 }

@@ -76,14 +76,14 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    logger.info("✅ Comentário criado com sucesso no banco de dados.", {
+    logger.info({
       commentId: newComment.id,
       todoId: newComment.todoId,
-    });
+    }, "✅ Comentário criado com sucesso no banco de dados.");
 
     return new Response(JSON.stringify(newComment), { status: 201 });
   } catch (error) {
-    logger.error("❌ Erro ao criar comentário:", error);
+    logger.error(error, "❌ Erro ao criar comentário:");
     return new Response("Internal Server Error", { status: 500 });
   }
 }
@@ -122,7 +122,7 @@ export async function DELETE(req: NextRequest) {
 
     return new Response("Comment deleted successfully", { status: 200 });
   } catch (error) {
-    logger.error("Error deleting comment:", error);
+    logger.error(error, "Error deleting comment:");
     return new Response("Internal Server Error", { status: 500 });
   }
 }

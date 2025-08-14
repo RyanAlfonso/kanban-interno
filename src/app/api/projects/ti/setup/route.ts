@@ -1,8 +1,8 @@
 import { getAuthSession } from "@/lib/nextAuthOptions";
-import { getLogger } from "@/logger";
-import prisma from "@/lib/prismadb";
-import { NextRequest } from "next/server";
 import { COLUMNS } from "@/lib/permissions";
+import prisma from "@/lib/prismadb";
+import { getLogger } from "@/logger";
+import { NextRequest } from "next/server";
 
 const TI_COLUMNS = [
   { name: COLUMNS.BACKLOG, order: 1 },
@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
 
     return new Response(JSON.stringify(updatedProject), { status: 200 });
   } catch (error) {
-    logger.error("Error setting up TI project:", error);
+    logger.error(error, "Error setting up TI project:");
     return new Response("Internal Server Error", { status: 500 });
   }
 }

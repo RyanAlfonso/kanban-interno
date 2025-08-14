@@ -1,8 +1,8 @@
 // File: kanban-interno/src/app/api/projects/route.ts
 
 import { getAuthSession } from "@/lib/nextAuthOptions";
-import { getLogger } from "@/logger";
 import prisma from "@/lib/prismadb";
+import { getLogger } from "@/logger";
 import { NextRequest } from "next/server";
 
 /**
@@ -55,7 +55,7 @@ export async function GET(req: NextRequest) {
     // Se o usuário não for ADMIN e não tiver áreas, retorna uma lista vazia
     return new Response(JSON.stringify([]), { status: 200 });
   } catch (error) {
-    logger.error("Error fetching projects:", error);
+    logger.error(error, "Error fetching projects:");
     return new Response("Internal Server Error", { status: 500 });
   }
 }
@@ -92,7 +92,7 @@ export async function POST(req: NextRequest) {
 
     return new Response(JSON.stringify(newProject), { status: 201 });
   } catch (error) {
-    logger.error("Error creating project:", error);
+    logger.error(error, "Error creating project:");
     return new Response("Internal Server Error", { status: 500 });
   }
 }
@@ -130,7 +130,7 @@ export async function PUT(req: NextRequest) {
 
     return new Response(JSON.stringify(updatedProject), { status: 200 });
   } catch (error) {
-    logger.error("Error updating project:", error);
+    logger.error(error, "Error updating project:");
     return new Response("Internal Server Error", { status: 500 });
   }
 }
@@ -163,7 +163,7 @@ export async function DELETE(req: NextRequest) {
 
     return new Response(JSON.stringify(deletedProject), { status: 200 });
   } catch (error) {
-    logger.error("Error deleting project:", error);
+    logger.error(error, "Error deleting project:");
     return new Response("Internal Server Error", { status: 500 });
   }
 }

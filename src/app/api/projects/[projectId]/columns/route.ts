@@ -1,12 +1,12 @@
-import { NextRequest, NextResponse } from 'next/server';
 import { getAuthSession } from '@/lib/nextAuthOptions';
-import { getLogger } from '@/logger';
+import prisma from '@/lib/prismadb';
 import {
   createProjectColumn,
-  getProjectColumns,
   CreateProjectColumnData,
+  getProjectColumns,
 } from '@/lib/services/projectColumn.service';
-import prisma from '@/lib/prismadb';
+import { getLogger } from '@/logger';
+import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(
   req: NextRequest,
@@ -29,7 +29,7 @@ export async function GET(
     const columns = await getProjectColumns(projectId);
     return NextResponse.json(columns, { status: 200 });
   } catch (error) {
-    logger.error(`Error fetching columns for project ${params.projectId}:`, error);
+    logger.error(error, `Error fetching columns for project ${params.projectId}:`);
     if (error instanceof Error && error.message.includes('not found')) {
         return new NextResponse(error.message, { status: 404 });
     }
@@ -84,7 +84,7 @@ export async function POST(
     const newColumn = await createProjectColumn(columnData);
     return NextResponse.json(newColumn, { status: 201 });
   } catch (error) {
-    logger.error(`Error creating column for project ${params.projectId}:`, error);
+    logger.error(error, `Error creating column for project ${params.projectId}:`);
     if (error instanceof Error) {
         if (error.message.includes('already exists')) {
             return new NextResponse(error.message, { status: 409 }); 

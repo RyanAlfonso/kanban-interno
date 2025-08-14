@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
 import { getAuthSession } from '@/lib/nextAuthOptions';
-import { getLogger } from '@/logger';
 import prisma from '@/lib/prismadb';
+import { getLogger } from '@/logger';
+import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(
   req: NextRequest,
@@ -52,7 +52,7 @@ export async function GET(
 
     return NextResponse.json(response, { status: 200 });
   } catch (error) {
-    logger.error(`Error validating column creation for project ${params.projectId}:`, error);
+    logger.error(error, `Error validating column creation for project ${params.projectId}:`);
     return new NextResponse('Internal Server Error', { status: 500 });
   }
 }

@@ -1,12 +1,12 @@
-import { NextRequest, NextResponse } from 'next/server';
 import { getAuthSession } from '@/lib/nextAuthOptions';
-import { getLogger } from '@/logger';
-import {
-  updateProjectColumn,
-  deleteProjectColumn,
-  UpdateProjectColumnData,
-} from '@/lib/services/projectColumn.service';
 import prisma from '@/lib/prismadb';
+import {
+    deleteProjectColumn,
+    updateProjectColumn,
+    UpdateProjectColumnData,
+} from '@/lib/services/projectColumn.service';
+import { getLogger } from '@/logger';
+import { NextRequest, NextResponse } from 'next/server';
 
 export async function PUT(
   req: NextRequest,
@@ -47,7 +47,7 @@ export async function PUT(
     const updatedColumn = await updateProjectColumn(columnId, { name, order });
     return NextResponse.json(updatedColumn, { status: 200 });
   } catch (error) {
-    logger.error(`Error updating column ${params.columnId}:`, error);
+    logger.error(error, `Error updating column ${params.columnId}:`);
     if (error instanceof Error) {
         if (error.message.includes('already exists')) {
             return new NextResponse(error.message, { status: 409 });
@@ -91,7 +91,7 @@ export async function DELETE(
     const deletedColumn = await deleteProjectColumn(columnId);
     return NextResponse.json(deletedColumn, { status: 200 });
   } catch (error) {
-    logger.error(`Error deleting column ${params.columnId}:`, error);
+    logger.error(error, `Error deleting column ${params.columnId}:`);
      if (error instanceof Error && error.message.includes('not found')) {
         return new NextResponse(error.message, { status: 404 });
     }

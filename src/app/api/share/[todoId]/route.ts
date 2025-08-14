@@ -1,6 +1,6 @@
 import { getAuthSession } from "@/lib/nextAuthOptions";
-import { getLogger } from "@/logger";
 import prisma from "@/lib/prismadb";
+import { getLogger } from "@/logger";
 import { NextRequest } from "next/server";
 
 export async function GET(
@@ -89,7 +89,7 @@ export async function GET(
       }
     });
   } catch (error) {
-    logger.error("Error generating shareable link:", error);
+    logger.error(error, "Error generating shareable link:");
     return new Response("Internal Server Error", { status: 500 });
   }
 }
