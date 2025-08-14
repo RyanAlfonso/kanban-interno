@@ -16,6 +16,7 @@ ENV NEXT_TELEMETRY_DISABLED 1
 ENV MONGODB_URL mongodb+srv://guilhermecandidochagas:0Z4r9FSChwwTBi12@guilherme.nmkm8pe.mongodb.net/Guilherme?retryWrites=true&w=majority&appName=Guilherme
 ENV NEXTAUTH_SECRET 5WDQNscPHAHwuF/BqX/bkJAkH2tMbJK1HF9GUe8UprI=
 ENV PORT 3000
+ENV NEXTAUTH_URL https://servicos.dnit.gov.br/sgplan/prd/kanban-interno/api/auth
 ENV NEXT_PUBLIC_BASE_PATH /sgplan/prd/kanban-interno
 
 RUN npm run build
