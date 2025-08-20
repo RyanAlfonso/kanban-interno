@@ -13,7 +13,7 @@ COPY . .
 ENV NEXT_TELEMETRY_DISABLED 1
 ENV NODE_ENV production
 ENV NEXT_TELEMETRY_DISABLED 1
-ENV MONGODB_URL mongodb+srv://guilhermecandidochagas:0Z4r9FSChwwTBi12@guilherme.nmkm8pe.mongodb.net/Guilherme?retryWrites=true&w=majority&appName=Guilherme
+ENV MONGODB_URL mongodb://10.100.11.194:27017/kanban_interno
 ENV NEXTAUTH_SECRET 5WDQNscPHAHwuF/BqX/bkJAkH2tMbJK1HF9GUe8UprI=
 ENV PORT 3000
 ENV NEXTAUTH_URL https://servicos.dnit.gov.br/sgplan/prd/kanban-interno/api/auth
