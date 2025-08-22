@@ -12,9 +12,11 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-ENV NODE_ENV production
-ENV NEXT_TELEMETRY_DISABLED 1
-ENV NEXT_PUBLIC_BASE_PATH /sgplan/prd/kanban-interno
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV PORT=3000
+
+ENV NEXT_PUBLIC_BASE_PATH=/sgplan/prd/kanban-interno
 
 RUN npm run build
 
@@ -22,15 +24,11 @@ RUN npm run build
 FROM node:20-alpine AS runner
 WORKDIR /app
 
-ENV NODE_ENV production
-ENV NEXT_TELEMETRY_DISABLED 1
-ENV PORT 3000
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV PORT=3000
 
-ENV MONGODB_URL mongodb://kanbanadmin:ZrL4M86@10.100.11.194:27017/kanban_interno?replicaSet=rs0&directConnection=true
-
-ENV NEXTAUTH_SECRET 5WDQNscPHAHwuF/BqX/bkJAkH2tMbJK1HF9GUe8UprI=
-ENV NEXT_PUBLIC_BASE_PATH /sgplan/prd/kanban-interno
-ENV NEXTAUTH_URL https://servicos.dnit.gov.br/sgplan/prd/kanban-interno
+ENV NEXT_PUBLIC_BASE_PATH=/sgplan/prd/kanban-interno
 
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
