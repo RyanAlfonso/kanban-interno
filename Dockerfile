@@ -26,7 +26,7 @@ ENV NODE_ENV production
 ENV NEXT_TELEMETRY_DISABLED 1
 
 ENV PORT 3000
-ENV MONGODB_URL mongodb://kanbanadmin:ZrL4M86@10.100.11.194:27017/kanban_interno/?replicaSet=rs0
+ENV MONGODB_URL mongodb://kanbanadmin:ZrL4M86@10.100.11.194:27017/kanban_interno?replicaSet=rs0
 ENV NEXTAUTH_SECRET 5WDQNscPHAHwuF/BqX/bkJAkH2tMbJK1HF9GUe8UprI=
 ENV NEXT_PUBLIC_BASE_PATH /sgplan/prd/kanban-interno
 ENV NEXTAUTH_URL https://servicos.dnit.gov.br/sgplan/prd/kanban-interno
