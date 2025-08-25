@@ -9,24 +9,24 @@ if (process.env.NODE_ENV !== 'production') {
   globalThis.prisma = client;
 }
 
-const middleware = async (params) => {
-  const data = params.args.data;
+const middleware = async ({ model, operation, args, query }) => {
+  if (['create', 'update', 'upsert'].includes(operation)) {
+    if (args.data && typeof args.data.deadline === 'number') {
+      args.data.deadline = new Date(args.data.deadline);
+    }
+  }
 
-        if (data && typeof data.deadline === 'number') {
-          data.deadline = new Date(data.deadline);
-        }
-
-        return data;
+  return query(args);
 };
 
 const extendedClient = client.$extends({
-  query:{
+  query: {
     todo: {
       create: middleware,
       update: middleware,
       upsert: middleware,
-    }
-  }
+    },
+  },
 });
 
 export default extendedClient;
