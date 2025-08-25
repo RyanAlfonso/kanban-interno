@@ -14,8 +14,7 @@ const roboto = Roboto({
 });
 
 export const metadata: Metadata = {
-  title: "KTodo",
-  description: "KTodo is a kanban board for your todos",
+  title: "KanbanInterno",
 };
 
 export default function RootLayout({ children }: { children: JSX.Element }) {
