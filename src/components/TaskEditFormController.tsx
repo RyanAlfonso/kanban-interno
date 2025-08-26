@@ -5,36 +5,37 @@ import {
   TodoEditRequest,
   TodoEditValidator,
 } from "@/lib/validators/todo";
+import todoDeleteRequest from "@/requests/todoDeleteRequest";
 import todoEditRequest from "@/requests/todoEditRequest";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Todo } from "@prisma/client";
-import axios, { AxiosError } from "axios";
+import { QueryKey, useMutation, useQueryClient } from "@tanstack/react-query";
+import { AxiosError } from "axios";
+import { useSearchParams } from "next/navigation";
 import { FC } from "react";
 import { useForm } from "react-hook-form";
-import { useMutation, useQueryClient } from "@tanstack/react-query"; 
 import "react-quill/dist/quill.snow.css";
 import TaskModificationForm from "./TaskModificationForm";
 import { useToast } from "./ui/use-toast";
-import todoDeleteRequest from "@/requests/todoDeleteRequest";
-import { useSearchParams } from 'next/navigation';
 
 type TaskEditFormProps = {
   handleOnSuccess: () => void;
   handleOnClose: () => void;
   task: Todo;
 };
-
 const TaskEditFormController: FC<TaskEditFormProps> = ({
   handleOnSuccess,
   handleOnClose,
   task,
 }) => {
-  console.log("Rendering TaskEditFormController...");
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
-  const projectId = searchParams.get("projectId") || null;
-
   const { axiosToast } = useToast();
+
+  const mainTodosQueryKey: QueryKey = ["todos", searchParams.toString()];
+
+  const sharedTodoQueryKey: QueryKey = ["shared-todo", task.id];
+
   const form = useForm<TodoEditRequest>({
     resolver: zodResolver(TodoEditValidator),
     defaultValues: {
@@ -42,86 +43,76 @@ const TaskEditFormController: FC<TaskEditFormProps> = ({
       title: task.title || "",
       description: task.description || null,
       columnId: task.columnId || undefined,
-      label: task.label || [], 
+      label: task.label || [],
       deadline: task.deadline || null,
       projectId: task.projectId || null,
       order: task.order,
-      isDeleted: task.isDeleted || false, 
+      isDeleted: task.isDeleted || false,
     },
   });
-
-  const queryKey = ["todos", { projectId }];
-
-  const editMutation = useMutation<Todo[], AxiosError, TodoEditRequest, { prevTodos: Todo[] | undefined }>({
-   // mutationFn: todoEditRequest,
-    onMutate: async (variables: TodoEditRequest) => {
-      console.log("onMutate editMutation:", variables);
-      await queryClient.cancelQueries({ queryKey });
-      const prevTodos = queryClient.getQueryData<Todo[]>(queryKey);
-      console.log("Previous todos (edit):", prevTodos);
-
+  const editMutation = useMutation<
+    Todo,
+    AxiosError,
+    TodoEditRequest,
+    { previousTodos: Todo[] | undefined }
+  >({
+    mutationFn: todoEditRequest,
+    onMutate: async (updatedTodo) => {
+      await queryClient.cancelQueries({ queryKey: mainTodosQueryKey });
+      const previousTodos = queryClient.getQueryData<Todo[]>(mainTodosQueryKey);
       handleOnSuccess();
-      return { prevTodos };
+      return { previousTodos };
     },
     onError: (error, variables, context) => {
-      console.error("onError editMutation:", error);
-      if (context?.prevTodos) {
-        queryClient.setQueryData(queryKey, context.prevTodos);
+      if (context?.previousTodos) {
+        queryClient.setQueryData(mainTodosQueryKey, context.previousTodos);
       }
       axiosToast(error);
     },
-    onSuccess: (data, variables, context) => {
-      console.log("onSuccess editMutation:", data);
-      queryClient.invalidateQueries({ queryKey });
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: mainTodosQueryKey });
+      queryClient.invalidateQueries({ queryKey: sharedTodoQueryKey });
     },
   });
-
-  const deleteMutation = useMutation<Todo[], AxiosError, TodoDeleteRequest, { prevTodos: Todo[] | undefined }>({
+  const deleteMutation = useMutation<
+    Todo[],
+    AxiosError,
+    TodoDeleteRequest,
+    { previousTodos: Todo[] | undefined }
+  >({
     mutationFn: todoDeleteRequest,
-    onMutate: async (variables: TodoDeleteRequest) => {
-      console.log("onMutate deleteMutation:", variables);
-      await queryClient.cancelQueries({ queryKey });
-      const prevTodos = queryClient.getQueryData<Todo[]>(queryKey);
-      console.log("Previous todos (delete):", prevTodos);
-
-      queryClient.setQueryData<Todo[]>(
-        queryKey,
-        (oldTodos = []) => oldTodos.filter((todo) => todo.id !== variables.id)
+    onMutate: async ({ id }) => {
+      await queryClient.cancelQueries({ queryKey: mainTodosQueryKey });
+      const previousTodos = queryClient.getQueryData<Todo[]>(mainTodosQueryKey);
+      queryClient.setQueryData<Todo[]>(mainTodosQueryKey, (old = []) =>
+        old.filter((todo) => todo.id !== id)
       );
-
       handleOnSuccess();
-      return { prevTodos };
+      return { previousTodos };
     },
     onError: (error, variables, context) => {
-      console.error("onError deleteMutation:", error);
-      if (context?.prevTodos) {
-        queryClient.setQueryData(queryKey, context.prevTodos);
+      if (context?.previousTodos) {
+        queryClient.setQueryData(mainTodosQueryKey, context.previousTodos);
       }
       axiosToast(error);
     },
-    onSuccess: (data, variables, context) => {
-      console.log("onSuccess deleteMutation:", data);
-      queryClient.invalidateQueries({ queryKey });
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: mainTodosQueryKey });
+      queryClient.invalidateQueries({ queryKey: sharedTodoQueryKey });
     },
   });
 
-  try {
-    return (
-      <TaskModificationForm
-        handleOnClose={handleOnClose}
-        task={task}
-        title="Edit Task"
-        enableDelete
-        deleteMutationFunctionReturn={deleteMutation}
-        editMutationFunctionReturn={editMutation}
-        formFunctionReturn={form}
-      />
-    );
-  } catch (error) {
-    console.error("Error rendering TaskEditFormController:", error);
-    return <div>Ocorreu um erro ao editar a tarefa.</div>;
-  }
+  return (
+    <TaskModificationForm
+      handleOnClose={handleOnClose}
+      task={task}
+      title="Edit Task"
+      enableDelete
+      deleteMutationFunctionReturn={deleteMutation}
+      editMutationFunctionReturn={editMutation}
+      formFunctionReturn={form}
+    />
+  );
 };
 
 export default TaskEditFormController;
-
