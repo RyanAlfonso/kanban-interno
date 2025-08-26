@@ -22,31 +22,31 @@ export async function GET(
       where: { id: todoId },
       include: {
         owner: {
-          select: { id: true, name: true, email: true, image: true }
+          select: { id: true, name: true, email: true, image: true },
         },
         project: {
-          select: { id: true, name: true }
+          select: { id: true, name: true },
         },
         column: {
-          select: { id: true, name: true }
+          select: { id: true, name: true },
         },
         comments: {
           include: {
             author: {
-              select: { id: true, name: true, image: true }
-            }
+              select: { id: true, name: true, image: true },
+            },
           },
-          orderBy: { createdAt: "asc" }
+          orderBy: { createdAt: "asc" },
         },
         attachments: {
           include: {
             uploadedBy: {
-              select: { id: true, name: true, image: true }
-            }
+              select: { id: true, name: true, image: true },
+            },
           },
-          orderBy: { createdAt: "desc" }
-        }
-      }
+          orderBy: { createdAt: "desc" },
+        },
+      },
     });
 
     if (!todo) {
@@ -77,17 +77,20 @@ export async function GET(
       linkedCards: linkedCards,
     };
 
-    const shareableLink = `${req.nextUrl.origin}/task/${todoId}`;
+    const shareableLink = `${process.env.NEXT_PUBLIC_BASE_PATH}/task/${todoId}`;
 
-    return new Response(JSON.stringify({
-      todo: todoWithRelations,
-      shareableLink
-    }), { 
-      status: 200,
-      headers: {
-        "Content-Type": "application/json"
+    return new Response(
+      JSON.stringify({
+        todo: todoWithRelations,
+        shareableLink,
+      }),
+      {
+        status: 200,
+        headers: {
+          "Content-Type": "application/json",
+        },
       }
-    });
+    );
   } catch (error) {
     logger.error(error, "Error generating shareable link:");
     return new Response("Internal Server Error", { status: 500 });

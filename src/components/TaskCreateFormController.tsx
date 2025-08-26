@@ -1,34 +1,34 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
 import { TodoCreateRequest, TodoCreateValidator } from "@/lib/validators/todo";
 import { TaskCreatorDefaultValues } from "@/redux/actions/todoEditorAction";
 import todoCreateRequest from "@/requests/todoCreateRequest";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Todo } from "@prisma/client";
+import { useMutation, useQueryClient, QueryKey } from "@tanstack/react-query";
 import { AxiosError } from "axios";
+import { useSearchParams } from "next/navigation";
 import { FC } from "react";
 import { useForm } from "react-hook-form";
-import { useMutation, useQueryClient } from "@tanstack/react-query"; 
 import "react-quill/dist/quill.snow.css";
 import TaskModificationForm from "./TaskModificationForm";
 import { useToast } from "./ui/use-toast";
-import { Todo } from "@prisma/client";
 
 type TaskCreateFormProps = {
   handleOnSuccess: () => void;
   handleOnClose: () => void;
   task: TaskCreatorDefaultValues;
 };
-
 const TaskCreateFormController: FC<TaskCreateFormProps> = ({
   handleOnSuccess,
   handleOnClose,
   task,
 }) => {
-  console.log("Rendering TaskCreateFormController (Corrected)...");
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const { axiosToast } = useToast();
+
+  const mainTodosQueryKey: QueryKey = ["todos", searchParams.toString()];
 
   const form = useForm<TodoCreateRequest>({
     resolver: zodResolver(TodoCreateValidator),
@@ -36,7 +36,6 @@ const TaskCreateFormController: FC<TaskCreateFormProps> = ({
       title: "",
       description: "",
       columnId: task.columnId || undefined,
-     // deadline: "",
       label: [],
       tags: [],
       projectId: task.projectId || (searchParams.get("projectId") !== "all" ? searchParams.get("projectId") : null) || undefined,
@@ -44,7 +43,6 @@ const TaskCreateFormController: FC<TaskCreateFormProps> = ({
       assignedToIds: [],
     },
   });
-
   const createMutation = useMutation<Todo, AxiosError, TodoCreateRequest>({
     mutationFn: async (data: TodoCreateRequest) => {
       const payload = {
@@ -54,38 +52,24 @@ const TaskCreateFormController: FC<TaskCreateFormProps> = ({
       return todoCreateRequest(payload);
     },
     onSuccess: (newTodo) => {
-      console.log("onSuccess createMutation:", newTodo);
-      
-      const effectiveProjectId = newTodo.projectId;
+      queryClient.invalidateQueries({ queryKey: mainTodosQueryKey });
 
-      const queryKey = ["todos", { projectId: effectiveProjectId }];
-
-      queryClient.setQueryData<Todo[]>(queryKey, (oldTodos = []) => [
-        ...oldTodos,
-        newTodo,
-      ]);
-      
       queryClient.invalidateQueries({ queryKey: ["todos"] });
-      if (effectiveProjectId) {
-        queryClient.invalidateQueries({ queryKey: ["todos", { projectId: effectiveProjectId }] });
-      }
-      queryClient.invalidateQueries({ queryKey: ["todos", { projectId: null }] });
 
-      handleOnSuccess(); 
+      handleOnSuccess();
     },
     onError: (error) => {
       console.error("onError createMutation:", error);
       axiosToast(error);
     },
   });
-
   try {
     return (
       <TaskModificationForm
         handleOnClose={handleOnClose}
         task={task}
         title="Criar Tarefa"
-        editMutationFunctionReturn={createMutation} 
+        editMutationFunctionReturn={createMutation}
         formFunctionReturn={form}
       />
     );

@@ -738,7 +738,7 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
                     isLoading={isDeleteLoading}
                     disabled={!task.id || isDeleteLoading}
                   >
-                    Excluir Tarefa
+                    Arquivar Tarefa
                   </Button>
                 )}
                 <input

@@ -5,10 +5,24 @@ import { getTagColor, PredefinedTag, TagColor } from "@/lib/tags";
 import { cn } from "@/lib/utils";
 import { openTodoEditor } from "@/redux/actions/todoEditorAction";
 import { Todo, User } from "@prisma/client";
-import { Popover, PopoverContent, PopoverTrigger } from "@radix-ui/react-popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@radix-ui/react-popover";
 import dayjs from "dayjs";
-import { ArrowDown, ArrowUp, Clock, Folder, History, Link, Share2, Users } from "lucide-react";
-import { useSearchParams } from "next/navigation";
+import {
+  ArrowDown,
+  ArrowUp,
+  Clock,
+  Folder,
+  History,
+  Link,
+  Share2,
+  Users,
+} from "lucide-react";
+// --- IMPORTAÇÕES ADICIONADAS ---
+import { usePathname, useSearchParams } from "next/navigation";
 import { FC, useCallback, useState } from "react";
 import { useDispatch } from "react-redux";
 import { Button } from "../ui/button";
@@ -54,36 +68,48 @@ interface ExtendedTodo extends Todo {
 type TodoProps = {
   todo: ExtendedTodo;
 };
-
 const TodoCard: FC<TodoProps> = ({ todo }) => {
   const dispatch = useDispatch();
-  const searchParams = useSearchParams();
-  const currentProjectId = searchParams.get("projectId") || "all";
-  const [showHistory, setShowHistory] = useState(false);
   const { toast } = useToast();
 
+  // --- HOOKS DE NAVEGAÇÃO INICIALIZADOS ---
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const currentProjectId = searchParams.get("projectId") || "all";
+  const [showHistory, setShowHistory] = useState(false);
+
+  // --- FUNÇÃO 'handleClick' CORRIGIDA ---
   const handleClick = useCallback(
     (e: MouseEvent) => {
       e.stopPropagation();
-      dispatch(openTodoEditor(todo, "/", "edit"));
+
+      // Constrói a URL de retorno completa e dinâmica
+      const returnUrl = `${pathname}?${searchParams.toString()}`;
+
+      // Passa a URL correta para a action do Redux
+      dispatch(openTodoEditor(todo, returnUrl, "edit"));
     },
-    [dispatch, todo],
+    [dispatch, todo, pathname, searchParams] // Adiciona dependências
   );
 
   const handleShare = useCallback(
     async (e: React.MouseEvent) => {
       e.stopPropagation();
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_PATH}/api/share/${todo.id}`);
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_BASE_PATH}/api/share/${todo.id}`
+        );
         if (!response.ok) {
           throw new Error("Failed to generate share link");
         }
         const data = await response.json();
-        
+
         await navigator.clipboard.writeText(data.shareableLink);
         toast({
           title: "Link copiado!",
-          description: "O link da tarefa foi copiado para a área de transferência.",
+          description:
+            "O link da tarefa foi copiado para a área de transferência.",
         });
       } catch (error) {
         toast({
@@ -93,7 +119,7 @@ const TodoCard: FC<TodoProps> = ({ todo }) => {
         });
       }
     },
-    [todo.id, toast],
+    [todo.id, toast]
   );
 
   const { setNodeRef, attributes } = useDraggable({
@@ -102,7 +128,6 @@ const TodoCard: FC<TodoProps> = ({ todo }) => {
   });
 
   const showProjectName = currentProjectId === "all" || !currentProjectId;
-
   return (
     <div
       className="border-zinc-100 hover:shadow-md rounded-md mb-2 mx-auto p-3 flex flex-col cursor-pointer bg-white dark:bg-gray-900 relative group"
@@ -122,7 +147,7 @@ const TodoCard: FC<TodoProps> = ({ todo }) => {
         <div className="pb-2 font-bold overflow-hidden whitespace-nowrap text-ellipsis text-card-foreground">
           {todo.title}
         </div>
-        
+
         {showProjectName && todo.project && (
           <div className="mb-2 text-xs text-gray-600 dark:text-gray-300 flex items-center">
             <Folder className="h-3 w-3 mr-1" />
@@ -136,7 +161,9 @@ const TodoCard: FC<TodoProps> = ({ todo }) => {
           <div className="mb-2 text-xs text-gray-600 dark:text-gray-300 flex items-center">
             <Users className="h-3 w-3 mr-1" />
             <span className="truncate">
-              {todo.assignedTo.map(user => user.name || user.email).join(", ")}
+              {todo.assignedTo
+                .map((user) => user.name || user.email)
+                .join(", ")}
             </span>
           </div>
         )}
@@ -144,7 +171,10 @@ const TodoCard: FC<TodoProps> = ({ todo }) => {
         {todo.referenceDocument && (
           <div className="mb-2 text-xs text-gray-600 dark:text-gray-300 flex items-center">
             <Folder className="h-3 w-3 mr-1" />
-            <span className="truncate" title={`Documento: ${todo.referenceDocument}`}>
+            <span
+              className="truncate"
+              title={`Documento: ${todo.referenceDocument}`}
+            >
               Doc: {todo.referenceDocument}
             </span>
           </div>
@@ -176,14 +206,13 @@ const TodoCard: FC<TodoProps> = ({ todo }) => {
             </span>
           </div>
         )}
-        
+
         {todo.deadline && (
           <div className="mt-2 mb-2 text-xs text-gray-500 dark:text-gray-400 flex items-center">
             <Clock className="h-3 w-3 mr-1" />
             {dayjs(todo.deadline).format("DD/MM/YYYY")}
           </div>
         )}
-
         {todo.movementHistory && todo.movementHistory.length > 0 && (
           <div className="mt-2 mb-2">
             <Popover>
@@ -195,12 +224,19 @@ const TodoCard: FC<TodoProps> = ({ todo }) => {
               </PopoverTrigger>
               <PopoverContent className="w-80 p-3 bg-white dark:bg-gray-900 border rounded-md shadow-md z-50">
                 <div className="space-y-2">
-                  <h4 className="font-medium text-sm">Histórico de Movimentação</h4>
+                  <h4 className="font-medium text-sm">
+                    Histórico de Movimentação
+                  </h4>
                   <div className="max-h-40 overflow-y-auto space-y-2">
                     {todo.movementHistory.map((movement) => (
-                      <div key={movement.id} className="text-xs border-l-2 border-gray-200 pl-2">
+                      <div
+                        key={movement.id}
+                        className="text-xs border-l-2 border-gray-200 pl-2"
+                      >
                         <div className="font-medium">
-                          {movement.movedBy.name} moveu de {movement.fromColumn.name} para {movement.toColumn.name}
+                          {movement.movedBy.name} moveu de{" "}
+                          {movement.fromColumn.name} para{" "}
+                          {movement.toColumn.name}
                         </div>
                         <div className="text-gray-500">
                           {dayjs(movement.movedAt).format("DD/MM/YYYY HH:mm")}
@@ -214,7 +250,9 @@ const TodoCard: FC<TodoProps> = ({ todo }) => {
           </div>
         )}
 
-        {((todo.parent) || (todo.childTodos && todo.childTodos.length > 0) || (todo.linkedCards && todo.linkedCards.length > 0)) && (
+        {(todo.parent ||
+          (todo.childTodos && todo.childTodos.length > 0) ||
+          (todo.linkedCards && todo.linkedCards.length > 0)) && (
           <div className="mt-2 mb-2">
             <Popover>
               <PopoverTrigger asChild>
@@ -226,10 +264,13 @@ const TodoCard: FC<TodoProps> = ({ todo }) => {
               <PopoverContent className="w-80 p-3 bg-white dark:bg-gray-900 border rounded-md shadow-md z-50">
                 <div className="space-y-3">
                   <h4 className="font-medium text-sm">Vinculações do Card</h4>
-                  
+
+                  {/* --- CÓDIGO JSX COMPLETO AQUI --- */}
                   {todo.parent && (
                     <div>
-                      <h5 className="text-xs font-medium text-blue-600 dark:text-blue-400 mb-1">Card Pai:</h5>
+                      <h5 className="text-xs font-medium text-blue-600 dark:text-blue-400 mb-1">
+                        Card Pai:
+                      </h5>
                       <div className="text-xs bg-blue-50 dark:bg-blue-900/20 p-2 rounded">
                         {todo.parent.title}
                       </div>
@@ -238,10 +279,15 @@ const TodoCard: FC<TodoProps> = ({ todo }) => {
 
                   {todo.childTodos && todo.childTodos.length > 0 && (
                     <div>
-                      <h5 className="text-xs font-medium text-green-600 dark:text-green-400 mb-1">Cards Filhos:</h5>
+                      <h5 className="text-xs font-medium text-green-600 dark:text-green-400 mb-1">
+                        Cards Filhos:
+                      </h5>
                       <div className="space-y-1">
                         {todo.childTodos.map((child) => (
-                          <div key={child.id} className="text-xs bg-green-50 dark:bg-green-900/20 p-2 rounded">
+                          <div
+                            key={child.id}
+                            className="text-xs bg-green-50 dark:bg-green-900/20 p-2 rounded"
+                          >
                             {child.title}
                           </div>
                         ))}
@@ -251,10 +297,15 @@ const TodoCard: FC<TodoProps> = ({ todo }) => {
 
                   {todo.linkedCards && todo.linkedCards.length > 0 && (
                     <div>
-                      <h5 className="text-xs font-medium text-purple-600 dark:text-purple-400 mb-1">Cards Relacionados:</h5>
+                      <h5 className="text-xs font-medium text-purple-600 dark:text-purple-400 mb-1">
+                        Cards Relacionados:
+                      </h5>
                       <div className="space-y-1">
                         {todo.linkedCards.map((linked) => (
-                          <div key={linked.id} className="text-xs bg-purple-50 dark:bg-purple-900/20 p-2 rounded">
+                          <div
+                            key={linked.id}
+                            className="text-xs bg-purple-50 dark:bg-purple-900/20 p-2 rounded"
+                          >
                             {linked.title}
                           </div>
                         ))}
@@ -278,7 +329,7 @@ const TodoCard: FC<TodoProps> = ({ todo }) => {
                 className={cn(
                   "px-1.5 py-0.5 rounded-full text-xs leading-tight",
                   colors.bg,
-                  colors.text,
+                  colors.text
                 )}
                 title={tag}
               >

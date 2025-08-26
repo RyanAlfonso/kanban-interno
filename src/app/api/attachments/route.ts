@@ -29,7 +29,7 @@ const createAttachmentSchema = z.object({
 });
 
 const deleteAttachmentSchema = z.object({
-  id: z.string().uuid("Invalid Attachment ID format"),
+  id: z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid ID format"),
 });
 
 export async function GET(req: NextRequest) {
