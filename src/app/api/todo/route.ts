@@ -1,10 +1,13 @@
 import { getAuthSession } from "@/lib/nextAuthOptions";
 import { canMoveCard } from "@/lib/permissions";
 import prisma from "@/lib/prismadb";
-import { isValidTag, PREDEFINED_TAGS } from "@/lib/tags";
 import { getLogger } from "@/logger";
 import { NextRequest, NextResponse } from "next/server";
+// Importe os validadores do Zod
+import { TodoCreateValidator, TodoEditValidator } from "@/lib/validators/todo";
+import { z } from "zod";
 
+// A função GET não precisa de alterações.
 export async function GET(req: NextRequest) {
   const logger = getLogger("info");
   try {
@@ -110,7 +113,7 @@ export async function GET(req: NextRequest) {
     return new NextResponse("Internal Server Error", { status: 500 });
   }
 }
-
+// --- FUNÇÃO POST ATUALIZADA ---
 export async function POST(req: NextRequest) {
   const logger = getLogger("info");
   try {
@@ -118,6 +121,8 @@ export async function POST(req: NextRequest) {
     if (!session?.user) return new Response("Unauthorized", { status: 401 });
 
     const body = await req.json();
+
+    // Usando Zod para validar e extrair os dados de forma segura
     const {
       title,
       description,
@@ -130,46 +135,10 @@ export async function POST(req: NextRequest) {
       assignedToIds,
       parentId,
       linkedCardIds,
-    } = body;
+      checklist, // O campo da checklist é extraído aqui
+    } = TodoCreateValidator.parse(body);
 
-    if (!title || !columnId || order === undefined) {
-      return new Response("Missing required fields: title, columnId, order", {
-        status: 400,
-      });
-    }
-    if (
-      !assignedToIds ||
-      !Array.isArray(assignedToIds) ||
-      assignedToIds.length === 0
-    ) {
-      return new Response(
-        "Missing required field: assignedToIds (must be a non-empty array)",
-        { status: 400 }
-      );
-    }
-    if (!deadline) {
-      return new Response("Missing required field: deadline", { status: 400 });
-    }
-    const parsedDeadline = new Date(deadline);
-    if (isNaN(parsedDeadline.getTime())) {
-      return new Response("Invalid deadline format. Must be a valid date.", {
-        status: 400,
-      });
-    }
-    if (tags && Array.isArray(tags)) {
-      for (const tag of tags) {
-        if (!isValidTag(tag)) {
-          return new Response(
-            `Invalid tag: ${tag}. Allowed tags are: ${PREDEFINED_TAGS.join(
-              ", "
-            )}`,
-            { status: 400 }
-          );
-        }
-      }
-    } else if (tags) {
-      return new Response("Tags must be an array of strings.", { status: 400 });
-    }
+    // Opcional: Validações de lógica de negócio que o Zod não cobre
     if (columnId && projectId) {
       const column = await prisma.projectColumn.findUnique({
         where: { id: columnId },
@@ -181,39 +150,36 @@ export async function POST(req: NextRequest) {
         });
       }
     }
-    const validUsers = await prisma.user.findMany({
-      where: { id: { in: assignedToIds } },
-      select: { id: true },
-    });
-    if (validUsers.length !== assignedToIds.length) {
-      return new Response("One or more assigned user IDs are invalid", {
-        status: 400,
-      });
-    }
 
+    // A chamada de criação agora inclui a checklist
     const newTodo = await prisma.todo.create({
       data: {
         title,
-        description: description || null,
+        description,
         columnId,
-        label: label || [],
-        tags: tags || [],
-        deadline: parsedDeadline,
-        projectId: projectId || null,
-        order,
+        label,
+        tags,
+        deadline,
+        projectId,
+        order: order ?? 0, // Garante uma ordem padrão se não for fornecida
         ownerId: session.user.id,
-        assignedToIds: assignedToIds || [],
-        parentId: parentId || null,
-        linkedCardIds: linkedCardIds || [],
+        assignedToIds,
+        parentId,
+        linkedCardIds,
+        checklist: checklist || [], // Salva a checklist (ou um array vazio se for null/undefined)
       },
     });
     return new Response(JSON.stringify(newTodo), { status: 201 });
   } catch (error) {
+    // Se a validação do Zod falhar, retorna um erro 422 com detalhes
+    if (error instanceof z.ZodError) {
+      return new Response(JSON.stringify(error.issues), { status: 422 });
+    }
     logger.error({ error }, "Error creating todo:");
     return new Response("Internal Server Error", { status: 500 });
   }
 }
-
+// --- FUNÇÃO PUT ATUALIZADA E CORRIGIDA ---
 export async function PUT(req: NextRequest) {
   const logger = getLogger("info");
   try {
@@ -223,6 +189,8 @@ export async function PUT(req: NextRequest) {
     }
 
     const body = await req.json();
+
+    // Usando Zod para validar e extrair os dados de edição
     const {
       id,
       columnId,
@@ -236,11 +204,8 @@ export async function PUT(req: NextRequest) {
       assignedToIds,
       parentId,
       linkedCardIds,
-    } = body;
-
-    if (!id) {
-      return new Response("Todo ID is required", { status: 400 });
-    }
+      checklist,
+    } = TodoEditValidator.parse(body);
 
     const currentTodo = await prisma.todo.findUnique({
       where: { id },
@@ -251,38 +216,29 @@ export async function PUT(req: NextRequest) {
       return new Response("Tarefa não encontrada.", { status: 404 });
     }
 
-    const dataForPrismaUpdate: any = {};
+    // Construindo o objeto de dados com tratamento para strings vazias
+    const dataForPrismaUpdate: any = {
+      title,
+      description,
+      label,
+      tags,
+      deadline,
+      order,
+      assignedToIds,
+      linkedCardIds,
+      ...(checklist !== undefined && { checklist }),
 
-    if (title !== undefined) dataForPrismaUpdate.title = title;
-    if (description !== undefined)
-      dataForPrismaUpdate.description = description;
-    if (label !== undefined) dataForPrismaUpdate.label = label;
-    if (tags !== undefined) dataForPrismaUpdate.tags = tags;
-    if (order !== undefined) dataForPrismaUpdate.order = order;
-    if (assignedToIds !== undefined)
-      dataForPrismaUpdate.assignedToIds = assignedToIds;
-    if (linkedCardIds !== undefined)
-      dataForPrismaUpdate.linkedCardIds = linkedCardIds;
-
-    if (projectId !== undefined) {
-      dataForPrismaUpdate.projectId = projectId === "" ? null : projectId;
-    }
-    if (parentId !== undefined) {
-      dataForPrismaUpdate.parentId = parentId === "" ? null : parentId;
-    }
-
-    if (deadline) {
-      const parsedDeadline = new Date(deadline);
-      if (isNaN(parsedDeadline.getTime())) {
-        return new Response("Formato de deadline inválido.", { status: 400 });
-      }
-      dataForPrismaUpdate.deadline = parsedDeadline;
-    }
+      // --- CORREÇÃO PARA O ERRO 'Malformed ObjectID' ---
+      // Converte strings vazias para null antes de enviar ao Prisma
+      projectId: projectId === "" ? null : projectId,
+      parentId: parentId === "" ? null : parentId,
+    };
 
     const isMovingCard =
       columnId && currentTodo.columnId && currentTodo.columnId !== columnId;
 
     if (isMovingCard) {
+      // A sua lógica de permissão de movimento de card permanece intacta
       let hasPermission = false;
       let permissionError = "Você não tem permissão para realizar esta ação.";
 
@@ -297,13 +253,10 @@ export async function PUT(req: NextRequest) {
           where: { id: columnId },
           select: { name: true },
         });
-
-        if (!fromColumn || !toColumn) {
+        if (!fromColumn || !toColumn)
           return new Response("Coluna de origem ou destino não encontrada.", {
             status: 404,
           });
-        }
-
         const permissionCheck = canMoveCard(
           fromColumn.name,
           toColumn.name,
@@ -318,9 +271,7 @@ export async function PUT(req: NextRequest) {
         }
       }
 
-      if (!hasPermission) {
-        return new Response(permissionError, { status: 403 });
-      }
+      if (!hasPermission) return new Response(permissionError, { status: 403 });
 
       dataForPrismaUpdate.columnId = columnId;
       dataForPrismaUpdate.movementHistory = {
@@ -362,6 +313,7 @@ export async function PUT(req: NextRequest) {
       },
     });
 
+    // A sua lógica para popular as relações para o retorno da resposta permanece intacta
     const assignedUsers = await prisma.user.findMany({
       where: { id: { in: updatedTodo.assignedToIds } },
       select: { id: true, name: true, email: true, image: true },
@@ -370,7 +322,6 @@ export async function PUT(req: NextRequest) {
       where: { id: { in: updatedTodo.linkedCardIds } },
       select: { id: true, title: true },
     });
-
     const resultWithRelations = {
       ...updatedTodo,
       assignedTo: assignedUsers,
@@ -379,6 +330,10 @@ export async function PUT(req: NextRequest) {
 
     return new Response(JSON.stringify(resultWithRelations), { status: 200 });
   } catch (error) {
+    // Se a validação do Zod falhar, retorna um erro 422 com detalhes
+    if (error instanceof z.ZodError) {
+      return new Response(JSON.stringify(error.issues), { status: 422 });
+    }
     console.error("Error updating todo:", error);
     logger.error({ error }, "Error updating todo:");
     return new Response("Internal Server Error", { status: 500 });

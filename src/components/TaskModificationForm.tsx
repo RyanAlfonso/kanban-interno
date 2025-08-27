@@ -18,8 +18,8 @@ import {
 import axios, { AxiosError } from "axios";
 import dayjs from "dayjs";
 import {
-  CalendarIcon, // NOVO: Ícone de histórico
-  ChevronDown, // NOVO: Ícone de seta
+  CalendarIcon,
+  ChevronDown,
   ChevronUp,
   Download,
   History,
@@ -33,6 +33,7 @@ import {
 import { FC, lazy, useState } from "react";
 import { Controller, UseFormReturn } from "react-hook-form";
 import "react-quill/dist/quill.snow.css";
+import Checklist, {ChecklistItemType} from "./CheckList";
 import CustomizedMultSelect from "./CustomizedMultSelect";
 import CustomizedSelect from "./CustomizedSelect";
 import { Button } from "./ui/button";
@@ -42,6 +43,7 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { useToast } from "./ui/use-toast";
 
+// Definição do tipo para o histórico de movimentação
 type MovementHistoryItem = {
   id: string;
   movedAt: Date;
@@ -50,24 +52,65 @@ type MovementHistoryItem = {
   toColumn: { name: string };
 };
 
+// Definição do tipo para anexo com dados do uploader
+type AttachmentWithUploader = Attachment & {
+  uploadedBy: Pick<User, "id" | "name" | "image">;
+};
+
+// Definição do tipo para comentário com dados do autor
+type CommentWithAuthor = Comment & {
+  author: Pick<User, "id" | "name" | "image">;
+};
+
+// Tipo estendido para a tarefa, agora com a checklist
 type ExtendedTask = Partial<Todo> & {
   attachments?: AttachmentWithUploader[];
   comments?: CommentWithAuthor[];
   assignedToIds?: string[];
   linkedCardIds?: string[];
   movementHistory?: MovementHistoryItem[];
+  checklist?: ChecklistItemType[]; // NOVO: Adicionada a propriedade checklist
 };
 
-type AttachmentWithUploader = Attachment & {
-  uploadedBy: Pick<User, "id" | "name" | "image">;
+// Props do formulário principal
+type TaskEditFormProps = {
+  handleOnClose: () => void;
+  task: ExtendedTask;
+  title: string;
+  enableDelete?: boolean;
+  deleteMutationFunctionReturn?: UseMutationResult<
+    Todo[],
+    AxiosError,
+    { id: string },
+    any
+  >;
+  editMutationFunctionReturn: UseMutationResult<
+    Todo | Todo[],
+    AxiosError,
+    any,
+    any
+  >;
+  formFunctionReturn: UseFormReturn<any>;
 };
 
+// Props para componentes auxiliares
 type AttachmentItemProps = {
   attachment: AttachmentWithUploader;
   onDelete: (id: string) => void;
   isDeleting: boolean;
 };
 
+type CommentItemProps = {
+  comment: CommentWithAuthor;
+};
+
+type ErrorMessageProps = {
+  msg?: string;
+};
+
+// Carregamento dinâmico do editor de texto
+const CustomizedReactQuill = lazy(() => import("./CustomizedReactQuill"));
+// Componente para exibir um item de anexo
 const AttachmentItem: FC<AttachmentItemProps> = ({
   attachment,
   onDelete,
@@ -123,14 +166,7 @@ const AttachmentItem: FC<AttachmentItemProps> = ({
   );
 };
 
-type CommentWithAuthor = Comment & {
-  author: Pick<User, "id" | "name" | "image">;
-};
-
-type CommentItemProps = {
-  comment: CommentWithAuthor;
-};
-
+// Componente para exibir um item de comentário
 const CommentItem: FC<CommentItemProps> = ({ comment }) => {
   return (
     <div className="flex items-start gap-3 p-2">
@@ -160,6 +196,7 @@ const CommentItem: FC<CommentItemProps> = ({ comment }) => {
   );
 };
 
+// Componente para exibir o histórico de movimentação
 const MovementHistory: FC<{ history: MovementHistoryItem[] }> = ({
   history,
 }) => {
@@ -213,33 +250,7 @@ const MovementHistory: FC<{ history: MovementHistoryItem[] }> = ({
     </div>
   );
 };
-
-type TaskEditFormProps = {
-  handleOnClose: () => void;
-  task: ExtendedTask;
-  title: string;
-  enableDelete?: boolean;
-  deleteMutationFunctionReturn?: UseMutationResult<
-    Todo[],
-    AxiosError,
-    { id: string },
-    any
-  >;
-  editMutationFunctionReturn: UseMutationResult<
-    Todo | Todo[],
-    AxiosError,
-    any,
-    any
-  >;
-  formFunctionReturn: UseFormReturn<any>;
-};
-
-const CustomizedReactQuill = lazy(() => import("./CustomizedReactQuill"));
-
-type ErrorMessageProps = {
-  msg?: string;
-};
-
+// Função de busca de dados robusta
 async function robustFetcher<T>(url: string): Promise<T> {
   const response = await fetch(url);
   if (!response.ok) {
@@ -259,6 +270,7 @@ async function robustFetcher<T>(url: string): Promise<T> {
   return response.json();
 }
 
+// Componente principal do formulário
 const TaskModificationForm: FC<TaskEditFormProps> = ({
   handleOnClose,
   task,
@@ -441,7 +453,7 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
       event.target.value = "";
     }
   };
-
+  // Componente para os campos da barra lateral
   const ExtraInfoField = () => (
     <>
       <div className="relative grid gap-1 pb-4">
@@ -666,6 +678,23 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
                 />
                 <ErrorMessage msg={errors.description?.message?.toString()} />
               </div>
+
+              {/* NOVO: Seção da Checklist integrada com o formulário */}
+              <div className="relative grid gap-1">
+                <Controller
+                  control={control}
+                  name="checklist"
+                  defaultValue={task.checklist || []}
+                  render={({ field }) => (
+                    <Checklist
+                      items={field.value || []}
+                      onChange={field.onChange}
+                    />
+                  )}
+                />
+                <ErrorMessage msg={errors.checklist?.message?.toString()} />
+              </div>
+
               {task.id && task.attachments && task.attachments.length > 0 && (
                 <div className="relative grid gap-2 pt-4">
                   <Label className="text-sm font-medium" htmlFor="attachments">
