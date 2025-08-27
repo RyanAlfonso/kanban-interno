@@ -1,56 +1,59 @@
 "use client";
 
 import { FC, useMemo } from "react";
-import ReactQuill from "react-quill";
+import ReactQuill, { ReactQuillProps } from "react-quill";
+
 import "react-quill/dist/quill.snow.css";
 import "../app/quill.css";
 
-type CustomizedReactQuillProps = {
-  theme: string;
-  value?: string;
-  onChange: (value: string) => void;
+type CustomizedReactQuillProps = ReactQuillProps & {
   className?: string;
 };
 
 const CustomizedReactQuill: FC<CustomizedReactQuillProps> = ({
-  theme,
-  value = "",
-  onChange,
   className,
+  ...props
 }) => {
-  const Toolbar = useMemo(() => {
-    return (
+  const toolbarContent = useMemo(
+    () => (
       <div id="toolbar">
-        <select
-          className="ql-header"
-          defaultValue={""}
-          onChange={(e) => e.persist()}
-        ></select>
+        <span className="ql-formats">
+          <select className="ql-header" defaultValue="">
+            <option value="1">Título 1</option>
+            <option value="2">Título 2</option>
+            <option value="">Normal</option>
+          </select>
+        </span>
         <span className="ql-formats">
           <button className="ql-bold" />
           <button className="ql-italic" />
           <button className="ql-underline" />
-          <button className="ql-link" />
         </span>
         <span className="ql-formats">
           <button className="ql-list" value="ordered" />
           <button className="ql-list" value="bullet" />
         </span>
+        <span className="ql-formats">
+          <button className="ql-link" />
+        </span>
       </div>
-    );
-  }, []);
+    ),
+    []
+  );
 
   return (
-    <>
-      {Toolbar}
+    <div className={className}>
+      {toolbarContent}
+
       <ReactQuill
-        theme={theme}
-        value={value}
-        onChange={onChange}
-        modules={{ toolbar: "#toolbar" }}
-        className={className}
+        {...props}
+        modules={{
+          toolbar: {
+            container: "#toolbar",
+          },
+        }}
       />
-    </>
+    </div>
   );
 };
 

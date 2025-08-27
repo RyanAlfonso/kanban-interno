@@ -312,7 +312,10 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
     mutationFn: async (content: string) => {
       if (!task.id) throw new Error("ID da tarefa não encontrado.");
       const payload = { content, todoId: task.id };
-      const { data } = await axios.post(process.env.NEXT_PUBLIC_BASE_PATH + "/api/comments", payload);
+      const { data } = await axios.post(
+        process.env.NEXT_PUBLIC_BASE_PATH + "/api/comments",
+        payload
+      );
       return data;
     },
     onSuccess: () => {
@@ -345,7 +348,10 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
     error: projectsError,
   } = useQuery<Project[], Error>({
     queryKey: ["projects"],
-    queryFn: () => robustFetcher<Project[]>(process.env.NEXT_PUBLIC_BASE_PATH + "/api/projects"),
+    queryFn: () =>
+      robustFetcher<Project[]>(
+        process.env.NEXT_PUBLIC_BASE_PATH + "/api/projects"
+      ),
   });
 
   const {
@@ -354,7 +360,8 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
     error: usersError,
   } = useQuery<User[], Error>({
     queryKey: ["users"],
-    queryFn: () => robustFetcher<User[]>(process.env.NEXT_PUBLIC_BASE_PATH + "/api/users"),
+    queryFn: () =>
+      robustFetcher<User[]>(process.env.NEXT_PUBLIC_BASE_PATH + "/api/users"),
   });
 
   const {
@@ -363,7 +370,8 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
     error: todosError,
   } = useQuery<Todo[], Error>({
     queryKey: ["todos"],
-    queryFn: () => robustFetcher<Todo[]>(process.env.NEXT_PUBLIC_BASE_PATH + "/api/todo"),
+    queryFn: () =>
+      robustFetcher<Todo[]>(process.env.NEXT_PUBLIC_BASE_PATH + "/api/todo"),
   });
 
   const projectOptions =
@@ -400,10 +408,13 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
       formData.append("files", file);
     }
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_PATH}/api/attachments/upload/${task.id}`, {
-        method: "POST",
-        body: formData,
-      });
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_BASE_PATH}/api/attachments/upload/${task.id}`,
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
       if (!response.ok) {
         let errorData = { message: `Falha no upload: ${response.statusText}` };
         try {
@@ -635,7 +646,7 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
                 />
               </div>
               {!md && <ExtraInfoField />}
-              <div className="relative grid gap-1 h-80">
+              <div className="relative grid gap-1">
                 <Label className="text-sm font-medium" htmlFor="description">
                   Descrição
                 </Label>
@@ -645,16 +656,16 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
                   defaultValue={task.description || ""}
                   render={({ field }) => (
                     <CustomizedReactQuill
+                      className="h-80"
                       theme="snow"
                       value={field.value || ""}
                       onChange={field.onChange}
-                      className="h-[calc(100%-1.75rem)]"
+                      placeholder="Descrição"
                     />
                   )}
                 />
                 <ErrorMessage msg={errors.description?.message?.toString()} />
               </div>
-
               {task.id && task.attachments && task.attachments.length > 0 && (
                 <div className="relative grid gap-2 pt-4">
                   <Label className="text-sm font-medium" htmlFor="attachments">
@@ -672,7 +683,6 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
                   </div>
                 </div>
               )}
-
               {task.id && (
                 <div className="relative grid gap-2 pt-4">
                   <Label
@@ -719,11 +729,9 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
                   </div>
                 </div>
               )}
-
               {task.id && task.movementHistory && (
                 <MovementHistory history={task.movementHistory} />
               )}
-
               <div className="relative flex gap-2 pt-4">
                 <Button type="submit" isLoading={isEditLoading}>
                   {title === "Create Task"
