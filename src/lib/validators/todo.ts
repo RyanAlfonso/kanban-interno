@@ -1,6 +1,11 @@
-
 import { z } from "zod";
 import { PREDEFINED_TAGS } from '@/lib/tags';
+
+const ChecklistItemValidator = z.object({
+  id: z.string(),
+  text: z.string().min(1, { message: "O texto do item não pode ser vazio." }),
+  completed: z.boolean(),
+});
 
 export const TodoCreateValidator = z.object({
   title: z.string().min(1, { message: "O título é obrigatório." }).max(100, { message: "O título não pode exceder 100 caracteres." }),
@@ -19,6 +24,8 @@ export const TodoCreateValidator = z.object({
   parentId: z.string().optional().nullable(),
   linkedCardIds: z.array(z.string()).optional(),
   referenceDocument: z.string().max(500, { message: "O documento de referência não pode exceder 500 caracteres." }).optional().nullable(),
+
+  checklist: z.array(ChecklistItemValidator).optional().nullable(),
 });
 
 export const TodoEditValidator = z.object({
@@ -38,6 +45,8 @@ export const TodoEditValidator = z.object({
   parentId: z.string().optional().nullable(),
   linkedCardIds: z.array(z.string()).optional(),
   referenceDocument: z.string().max(500, { message: "O documento de referência não pode exceder 500 caracteres." }).optional().nullable(),
+
+  checklist: z.array(ChecklistItemValidator).optional().nullable(),
 });
 
 export const TodoDeleteValidator = z.object({
