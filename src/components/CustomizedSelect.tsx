@@ -73,14 +73,10 @@ const CustomizedSelect: FC<CustomizedSelectProps> = ({
     : filteredOptions;
 
   return (
-    // Esta é a div que você apontou. Ela é apenas um container posicional.
     <div className="relative text-sm text-left" ref={selectorWrapperRef}>
-      {/* --- ESTILO APLICADO NO LUGAR CORRETO --- */}
-      {/* Este é o botão clicável que deve ter o estilo. */}
       <div
         ref={selectorRef}
         onClick={handleOpen}
-        // Usando as classes que se adaptam ao tema via variáveis CSS.
         className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
       >
         <span

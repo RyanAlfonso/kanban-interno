@@ -1,8 +1,5 @@
-// Localização provável: lib/permissions.ts
-
 import { UserType } from "@prisma/client";
 
-// Constantes para os nomes das colunas, garantindo consistência
 export const COLUMNS = {
   BACKLOG: "BackLog",
   EM_EXECUCAO: "Em execução",
@@ -11,7 +8,6 @@ export const COLUMNS = {
   CONCLUIDA: "Concluída",
 };
 
-// Constantes para os tipos de usuário
 export const USER_TYPES = {
   SERVIDOR: "SERVIDOR",
   COLABORADOR: "COLABORADOR",
@@ -37,13 +33,10 @@ export function canMoveCard(
   fromColumnName: string,
   toColumnName: string,
   userType: UserType,
-  // --- ALTERAÇÃO: Adicionado um novo parâmetro para os dados do card ---
   cardData: { deadline: Date | null | undefined }
 ): PermissionResult {
   const movement = `${fromColumnName} -> ${toColumnName}`;
 
-  // --- INÍCIO: NOVA REGRA DE VALIDAÇÃO DE DATA ---
-  // Esta verificação é a primeira. Se falhar, a função retorna imediatamente.
   if (toColumnName === COLUMNS.EM_EXECUCAO && !cardData.deadline) {
     return {
       allowed: false,

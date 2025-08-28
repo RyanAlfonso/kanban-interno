@@ -1,5 +1,3 @@
-// Localização: app/api/todo/route.ts
-
 import { getAuthSession } from "@/lib/nextAuthOptions";
 import { canMoveCard } from "@/lib/permissions";
 import prisma from "@/lib/prismadb";
@@ -8,7 +6,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { TodoCreateValidator, TodoEditValidator } from "@/lib/validators/todo";
 import { z } from "zod";
 
-// A função GET está correta.
 export async function GET(req: NextRequest) {
   const logger = getLogger("info");
   try {
@@ -116,7 +113,6 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// --- FUNÇÃO POST CORRIGIDA ---
 export async function POST(req: NextRequest) {
   const logger = getLogger("info");
   try {
@@ -165,9 +161,6 @@ export async function POST(req: NextRequest) {
         });
       }
     }
-
-    // --- CORREÇÃO FINAL APLICADA AQUI ---
-    // Construindo o objeto de dados de forma segura para o Prisma.
     const dataToCreate: any = {
       title,
       description,
@@ -183,7 +176,6 @@ export async function POST(req: NextRequest) {
       checklist: checklist || [],
     };
 
-    // Adiciona a chave 'deadline' ao objeto SOMENTE se ela tiver um valor válido (não nulo).
     if (deadline) {
       dataToCreate.deadline = deadline;
     }
@@ -201,7 +193,6 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// A função PUT está correta.
 export async function PUT(req: NextRequest) {
   const logger = getLogger("info");
   try {

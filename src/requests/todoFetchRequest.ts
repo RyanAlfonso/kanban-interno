@@ -1,4 +1,4 @@
-import { TodoWithRelations } from "@/types/todo"; // Use o tipo completo que definimos
+import { TodoWithRelations } from "@/types/todo";
 
 /**
  * Função adaptada para buscar todos (cards) da nossa API unificada.
@@ -12,8 +12,6 @@ projectId: string | null, view: string, searchParams: URLSearchParams): Promise<
   // Cria a URL base para a nossa API unificada.
   const url = new URL(process.env.NEXT_PUBLIC_BASE_PATH + "/api/todo", window.location.origin);
 
-  // Anexa todos os parâmetros de busca existentes diretamente à URL da API.
-  // Isso inclui projectId, view, q, assignedToIds, startDate, endDate, etc.
   searchParams.forEach((value, key) => {
     url.searchParams.append(key, value);
   });
@@ -35,7 +33,6 @@ projectId: string | null, view: string, searchParams: URLSearchParams): Promise<
 
   } catch (error) {
     console.error("Falha na requisição todoFetchRequest:", error);
-    // Re-lança o erro para que o React Query possa tratá-lo.
     throw error;
   }
 };

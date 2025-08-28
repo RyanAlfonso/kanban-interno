@@ -1,5 +1,3 @@
-// Caminho: src/types/todo.ts
-
 import { Prisma, User } from "@prisma/client";
 
 type PickNullable<T> = {
