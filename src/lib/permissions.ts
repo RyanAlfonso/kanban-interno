@@ -1,6 +1,8 @@
+// Localização provável: lib/permissions.ts
 
 import { UserType } from "@prisma/client";
 
+// Constantes para os nomes das colunas, garantindo consistência
 export const COLUMNS = {
   BACKLOG: "BackLog",
   EM_EXECUCAO: "Em execução",
@@ -9,29 +11,48 @@ export const COLUMNS = {
   CONCLUIDA: "Concluída",
 };
 
+// Constantes para os tipos de usuário
 export const USER_TYPES = {
   SERVIDOR: "SERVIDOR",
   COLABORADOR: "COLABORADOR",
 } as const;
 
+// Interface para o resultado da verificação de permissão
 interface PermissionResult {
   allowed: boolean;
   error?: string;
 }
 
 /**
+ * Verifica se um usuário pode mover um card de uma coluna para outra,
+ * considerando o tipo de usuário e as regras de negócio do card (como a data).
+ *
  * @param fromColumnName - O nome da coluna de origem.
  * @param toColumnName - O nome da coluna de destino.
  * @param userType - O tipo do usuário ('SERVIDOR' ou 'COLABORADOR').
+ * @param cardData - Os dados do card, especificamente o deadline, para validações de regras de negócio.
  * @returns Um objeto { allowed: boolean, error?: string }.
  */
 export function canMoveCard(
   fromColumnName: string,
   toColumnName: string,
-  userType: UserType
+  userType: UserType,
+  // --- ALTERAÇÃO: Adicionado um novo parâmetro para os dados do card ---
+  cardData: { deadline: Date | null | undefined }
 ): PermissionResult {
   const movement = `${fromColumnName} -> ${toColumnName}`;
 
+  // --- INÍCIO: NOVA REGRA DE VALIDAÇÃO DE DATA ---
+  // Esta verificação é a primeira. Se falhar, a função retorna imediatamente.
+  if (toColumnName === COLUMNS.EM_EXECUCAO && !cardData.deadline) {
+    return {
+      allowed: false,
+      error: "O prazo é obrigatório para mover um card para 'Em Execução'.",
+    };
+  }
+  // --- FIM: NOVA REGRA DE VALIDAÇÃO DE DATA ---
+
+  // Lógica de permissão de movimento baseada no tipo de usuário (inalterada)
   const allowedMovements: { [key: string]: "ALL" | UserType[] } = {
     // 1.1 - Iniciar demanda (Todos)
     [`${COLUMNS.BACKLOG} -> ${COLUMNS.EM_EXECUCAO}`]: "ALL",
@@ -76,12 +97,22 @@ export function canMoveCard(
   };
 }
 
+/**
+ * Retorna uma lista de nomes de colunas para as quais um usuário pode mover um card
+ * a partir de uma coluna de origem.
+ *
+ * @param fromColumnName - O nome da coluna de origem.
+ * @param userType - O tipo do usuário.
+ * @returns Um array de strings com os nomes das colunas de destino permitidas.
+ */
 export function getAvailableMovements(
   fromColumnName: string,
   userType: UserType
 ): string[] {
   const availableColumns: string[] = [];
 
+  // A definição de allowedMovements é repetida aqui.
+  // Para melhor manutenção, você poderia definir isso uma vez fora das funções.
   const allowedMovements: { [key: string]: "ALL" | UserType[] } = {
     [`${COLUMNS.BACKLOG} -> ${COLUMNS.EM_EXECUCAO}`]: "ALL",
     [`${COLUMNS.EM_EXECUCAO} -> ${COLUMNS.EM_APROVACAO}`]: "ALL",
