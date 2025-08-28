@@ -1,15 +1,12 @@
 "use client";
 
-// Importações de hooks e utilitários do projeto
 import useDraggable from "@/hooks/useDraggable";
 import { getTagColor, PredefinedTag, TagColor } from "@/lib/tags";
 import { cn } from "@/lib/utils";
 import { openTodoEditor } from "@/redux/actions/todoEditorAction";
 
-// Importações de tipos do Prisma
 import { Todo, User } from "@prisma/client";
 
-// Importações de componentes de UI
 import {
   Popover,
   PopoverContent,
@@ -24,7 +21,6 @@ import {
 import { Button } from "../ui/button";
 import { useToast } from "../ui/use-toast";
 
-// Importações de bibliotecas e ícones
 import dayjs from "dayjs";
 import {
   ArrowDown,
@@ -45,7 +41,6 @@ import {
 import { useDispatch } from "react-redux";
 import { usePathname, useSearchParams } from "next/navigation";
 
-// A interface que estende o tipo Todo para incluir relações populadas
 interface ExtendedTodo extends Todo {
   project?: { id: string; name: string } | null;
   tags: string[];
@@ -66,7 +61,6 @@ type TodoProps = {
   todo: ExtendedTodo;
 };
 
-// --- Componente reutilizável para o Tooltip com Hover ---
 type RelationshipTooltipProps = {
   triggerIcon: ReactNode;
   title: string;
@@ -82,7 +76,6 @@ const RelationshipTooltip: FC<RelationshipTooltipProps> = ({
   colorClass,
   onItemClick,
 }) => {
-  // Não renderiza o ícone se não houver nenhuma relação correspondente
   if (!items || items.length === 0) {
     return null;
   }
@@ -94,7 +87,7 @@ const RelationshipTooltip: FC<RelationshipTooltipProps> = ({
       </TooltipTrigger>
       <TooltipContent
         side="top"
-        align="start" // Alinha o início do tooltip com o início do ícone
+        align="start"
         className="w-72 z-30 bg-background p-3"
         onPointerDownOutside={(e) => e.preventDefault()}
       >
@@ -105,7 +98,7 @@ const RelationshipTooltip: FC<RelationshipTooltipProps> = ({
               <button
                 key={item.id}
                 onClick={(e) => {
-                  e.stopPropagation(); // Impede que o clique se propague para o card principal
+                  e.stopPropagation();
                   onItemClick(item.id);
                 }}
                 className="w-full text-left text-xs p-2 rounded bg-accent text-accent-foreground hover:ring-2 hover:ring-ring transition-all"
@@ -128,13 +121,11 @@ const TodoCard: FC<TodoProps> = ({ todo }) => {
 
   const currentProjectId = searchParams.get("projectId") || "all";
 
-  // Função para abrir o editor do card principal
   const handleCardClick = useCallback(() => {
     const returnUrl = `${pathname}?${searchParams.toString()}`;
     dispatch(openTodoEditor(todo, returnUrl, "edit"));
   }, [dispatch, todo, pathname, searchParams]);
 
-  // Função para buscar e abrir um card vinculado
   const handleOpenLinkedCard = useCallback(
     async (cardId: string) => {
       try {
@@ -187,7 +178,6 @@ const TodoCard: FC<TodoProps> = ({ todo }) => {
     [todo.id, toast]
   );
 
-  // O hook de arrastar não lida mais com o clique
   const { setNodeRef, attributes } = useDraggable({
     id: todo.id,
   });
@@ -197,7 +187,7 @@ const TodoCard: FC<TodoProps> = ({ todo }) => {
   return (
     <TooltipProvider delayDuration={200}>
       <div
-        onClick={handleCardClick} // O clique principal é definido aqui
+        onClick={handleCardClick}
         className="border-zinc-100 hover:shadow-xl rounded-lg mb-2 mx-auto p-3 flex flex-col cursor-pointer bg-white dark:bg-gray-900 relative group transition-shadow duration-200"
         ref={setNodeRef}
         {...attributes}

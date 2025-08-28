@@ -11,8 +11,6 @@ const TI_COLUMNS = [
   { name: COLUMNS.MONITORAMENTO, order: 4 },
   { name: COLUMNS.CONCLUIDA, order: 5 }
 ];
-// ============================================================
-
 export async function POST(req: NextRequest) {
   const logger = getLogger("info");
   try {

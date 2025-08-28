@@ -2,7 +2,6 @@
 
 import { Todo as PrismaTodo } from "@prisma/client";
 
-// Extend Todo type to include 'state' if missing
 type Todo = PrismaTodo & {
   state: string;
 };
@@ -20,7 +19,7 @@ import { State } from "@/lib/types/prisma-types";
 import { View } from "lucide-react";
 
 const TodoTableManager = () => {
-  console.log("Rendering TodoTableManager..."); // Added log
+  console.log("Rendering TodoTableManager...");
   const [isMounted, setIsMounted] = useState(false);
   const { toast } = useToast();
 
@@ -40,10 +39,9 @@ const TodoTableManager = () => {
     queryKey: ["todos", searchParams.toString()],
     queryFn: async () => {
       const rawTodos = await todoFetchRequest(projectId, view, searchParams);
-      // Ensure each todo has a 'state' property
       return rawTodos.map((todo: any) => ({
         ...todo,
-        state: todo.state ?? "", // fallback to empty string if missing
+        state: todo.state ?? "",
       }));
     },
     // onError: (err) => {
@@ -78,7 +76,7 @@ const TodoTableManager = () => {
         <div className="truncate max-w-xs" title={row.original.title}>
           {row.original.title}
         </div>
-      ), // Add truncate and title
+      ),
     },
     {
       accessorKey: "state",
@@ -110,7 +108,7 @@ const TodoTableManager = () => {
         <span className="capitalize">
           {row.original.state.toLowerCase().replace("_", " ")}
         </span>
-      ), // Format state
+      ),
     },
     {
       accessorKey: "deadline",
