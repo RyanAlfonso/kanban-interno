@@ -1,30 +1,19 @@
 "use client";
-
 import useDraggable from "@/hooks/useDraggable";
 import { getTagColor, PredefinedTag, TagColor } from "@/lib/tags";
 import { cn } from "@/lib/utils";
 import { openTodoEditor } from "@/redux/actions/todoEditorAction";
-
 import { Todo, User } from "@prisma/client";
-
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { Button } from "../ui/button";
 import { useToast } from "../ui/use-toast";
-
 import dayjs from "dayjs";
 import {
-  ArrowDown,
-  ArrowUp,
   Clock,
   Folder,
   History,
@@ -32,14 +21,9 @@ import {
   Share2,
   Users,
 } from "lucide-react";
-import {
-  FC,
-  MouseEvent as ReactMouseEvent,
-  ReactNode,
-  useCallback,
-} from "react";
-import { useDispatch } from "react-redux";
 import { usePathname, useSearchParams } from "next/navigation";
+import { FC, MouseEvent as ReactMouseEvent, useCallback } from "react";
+import { useDispatch } from "react-redux";
 
 interface ExtendedTodo extends Todo {
   project?: { id: string; name: string } | null;
@@ -60,59 +44,62 @@ interface ExtendedTodo extends Todo {
 type TodoProps = {
   todo: ExtendedTodo;
 };
-
-type RelationshipTooltipProps = {
-  triggerIcon: ReactNode;
-  title: string;
-  items: { id: string; title: string }[] | undefined | null;
-  colorClass: string;
+const RelationshipContent: FC<{
+  parent: { id: string; title: string } | null | undefined;
+  childTodos: { id: string; title: string }[] | null | undefined;
+  linkedCards: { id: string; title: string }[] | null | undefined;
   onItemClick: (cardId: string) => void;
-};
+}> = ({ parent, childTodos, linkedCards, onItemClick }) => (
+  <div className="space-y-3">
+    <h4 className="font-bold text-sm text-foreground">Vinculações do Card</h4>
 
-const RelationshipTooltip: FC<RelationshipTooltipProps> = ({
-  triggerIcon,
-  title,
-  items,
-  colorClass,
-  onItemClick,
-}) => {
-  if (!items || items.length === 0) {
-    return null;
-  }
+    {parent && (
+      <div>
+        <h5 className="text-xs font-semibold text-blue-500 mb-1">Card Pai:</h5>
+        <button
+          onClick={(e) => { e.stopPropagation(); onItemClick(parent.id); }}
+          className="w-full text-left text-xs p-2 rounded bg-accent text-accent-foreground hover:ring-2 hover:ring-ring transition-all"
+        >
+          {parent.title}
+        </button>
+      </div>
+    )}
 
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <div className="p-1">{triggerIcon}</div>
-      </TooltipTrigger>
-      <TooltipContent
-        side="top"
-        align="start"
-        className="w-72 z-30 bg-background p-3"
-        onPointerDownOutside={(e) => e.preventDefault()}
-      >
-        <div className="space-y-2">
-          <h4 className={cn("font-bold text-sm", colorClass)}>{title}</h4>
-          <div className="space-y-1 max-h-40 overflow-y-auto p-1">
-            {items.map((item) => (
-              <button
-                key={item.id}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onItemClick(item.id);
-                }}
-                className="w-full text-left text-xs p-2 rounded bg-accent text-accent-foreground hover:ring-2 hover:ring-ring transition-all"
-              >
-                {item.title}
-              </button>
-            ))}
-          </div>
+    {childTodos && childTodos.length > 0 && (
+      <div>
+        <h5 className="text-xs font-semibold text-green-500 mb-1">Cards Filhos ({childTodos.length}):</h5>
+        <div className="space-y-1 max-h-28 overflow-y-auto p-1">
+          {childTodos.map((item) => (
+            <button
+              key={item.id}
+              onClick={(e) => { e.stopPropagation(); onItemClick(item.id); }}
+              className="w-full text-left text-xs p-2 rounded bg-accent text-accent-foreground hover:ring-2 hover:ring-ring transition-all"
+            >
+              {item.title}
+            </button>
+          ))}
         </div>
-      </TooltipContent>
-    </Tooltip>
-  );
-};
+      </div>
+    )}
 
+    {linkedCards && linkedCards.length > 0 && (
+      <div>
+        <h5 className="text-xs font-semibold text-purple-500 mb-1">Cards Relacionados ({linkedCards.length}):</h5>
+        <div className="space-y-1 max-h-28 overflow-y-auto p-1">
+          {linkedCards.map((item) => (
+            <button
+              key={item.id}
+              onClick={(e) => { e.stopPropagation(); onItemClick(item.id); }}
+              className="w-full text-left text-xs p-2 rounded bg-accent text-accent-foreground hover:ring-2 hover:ring-ring transition-all"
+            >
+              {item.title}
+            </button>
+          ))}
+        </div>
+      </div>
+    )}
+  </div>
+);
 const TodoCard: FC<TodoProps> = ({ todo }) => {
   const dispatch = useDispatch();
   const { toast } = useToast();
@@ -121,34 +108,30 @@ const TodoCard: FC<TodoProps> = ({ todo }) => {
 
   const currentProjectId = searchParams.get("projectId") || "all";
 
-  const handleCardClick = useCallback(() => {
+  const handleCardClick = useCallback((e: MouseEvent) => {
     const returnUrl = `${pathname}?${searchParams.toString()}`;
     dispatch(openTodoEditor(todo, returnUrl, "edit"));
   }, [dispatch, todo, pathname, searchParams]);
 
-  const handleOpenLinkedCard = useCallback(
-    async (cardId: string) => {
-      try {
-        const response = await fetch(`/api/todo/${cardId}`);
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || "Card não encontrado.");
-        }
-        const cardToOpen: ExtendedTodo = await response.json();
-        const returnUrl = `${pathname}?${searchParams.toString()}`;
-        dispatch(openTodoEditor(cardToOpen, returnUrl, "edit"));
-      } catch (error: any) {
-        console.error("Erro ao abrir card vinculado:", error);
-        toast({
-          title: "Erro",
-          description:
-            error.message || "Não foi possível carregar o card selecionado.",
-          variant: "destructive",
-        });
+  const handleOpenLinkedCard = useCallback(async (cardId: string) => {
+    try {
+      const response = await fetch(`/api/todo/${cardId}`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Card não encontrado.");
       }
-    },
-    [dispatch, pathname, searchParams, toast]
-  );
+      const cardToOpen: ExtendedTodo = await response.json();
+      const returnUrl = `${pathname}?${searchParams.toString()}`;
+      dispatch(openTodoEditor(cardToOpen, returnUrl, "edit"));
+    } catch (error: any) {
+      console.error("Erro ao abrir card vinculado:", error);
+      toast({
+        title: "Erro",
+        description: error.message || "Não foi possível carregar o card selecionado.",
+        variant: "destructive",
+      });
+    }
+  }, [dispatch, pathname, searchParams, toast]);
 
   const handleShare = useCallback(
     async (e: ReactMouseEvent) => {
@@ -177,20 +160,21 @@ const TodoCard: FC<TodoProps> = ({ todo }) => {
     },
     [todo.id, toast]
   );
-
   const { setNodeRef, attributes } = useDraggable({
     id: todo.id,
+    handleClick: handleCardClick,
   });
+
+  const hasRelationships = !!todo.parent || (todo.childTodos && todo.childTodos.length > 0) || (todo.linkedCards && todo.linkedCards.length > 0);
 
   const showProjectName = currentProjectId === "all" || !currentProjectId;
 
   return (
     <TooltipProvider delayDuration={200}>
       <div
-        onClick={handleCardClick}
-        className="border-zinc-100 hover:shadow-xl rounded-lg mb-2 mx-auto p-3 flex flex-col cursor-pointer bg-white dark:bg-gray-900 relative group transition-shadow duration-200"
         ref={setNodeRef}
         {...attributes}
+        className="border-zinc-100 hover:shadow-xl rounded-lg mb-2 mx-auto p-3 flex flex-col cursor-pointer bg-white dark:bg-gray-900 relative group transition-shadow duration-200"
       >
         <Button
           variant="ghost"
@@ -242,31 +226,35 @@ const TodoCard: FC<TodoProps> = ({ todo }) => {
 
         <div className="flex items-center justify-between mt-2 px-2 pt-2 border-t border-gray-100 dark:border-gray-800">
           <div className="flex items-center gap-3 text-gray-500">
-            <RelationshipTooltip
-              triggerIcon={<ArrowUp className="h-4 w-4 text-blue-500" />}
-              title="Card Pai"
-              items={todo.parent ? [todo.parent] : []}
-              colorClass="text-blue-500"
-              onItemClick={handleOpenLinkedCard}
-            />
-            <RelationshipTooltip
-              triggerIcon={<ArrowDown className="h-4 w-4 text-green-500" />}
-              title={`Cards Filhos (${todo.childTodos?.length || 0})`}
-              items={todo.childTodos}
-              colorClass="text-green-500"
-              onItemClick={handleOpenLinkedCard}
-            />
-            <RelationshipTooltip
-              triggerIcon={<Link className="h-4 w-4 text-purple-500" />}
-              title={`Cards Relacionados (${todo.linkedCards?.length || 0})`}
-              items={todo.linkedCards}
-              colorClass="text-purple-500"
-              onItemClick={handleOpenLinkedCard}
-            />
+            {hasRelationships && (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className="flex items-center p-1 rounded-md hover:bg-accent focus:outline-none focus:ring-2 focus:ring-ring"
+                    aria-label="Ver vinculações"
+                  >
+                    <Link className="h-4 w-4" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent
+                  side="top"
+                  align="start"
+                  className="w-72 z-30 bg-background p-3"
+                >
+                  <RelationshipContent
+                    parent={todo.parent}
+                    childTodos={todo.childTodos}
+                    linkedCards={todo.linkedCards}
+                    onItemClick={handleOpenLinkedCard}
+                  />
+                </PopoverContent>
+              </Popover>
+            )}
 
             {todo.deadline && (
               <div
-                className="flex items-center text-xs"
+                className="flex items-center text-xs p-1"
                 title={dayjs(todo.deadline).format("DD/MM/YYYY")}
               >
                 <Clock className="h-3 w-3 mr-1" />
@@ -276,28 +264,25 @@ const TodoCard: FC<TodoProps> = ({ todo }) => {
 
             {todo.movementHistory && todo.movementHistory.length > 0 && (
               <Popover>
-                <PopoverTrigger asChild onClick={(e) => e.stopPropagation()}>
-                  <div
-                    className="flex items-center cursor-pointer p-1"
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className="flex items-center p-1 rounded-md hover:bg-accent focus:outline-none focus:ring-2 focus:ring-ring"
                     title="Ver histórico"
+                    aria-label="Ver histórico de movimentação"
                   >
                     <History className="h-3 w-3" />
-                  </div>
+                  </button>
                 </PopoverTrigger>
                 <PopoverContent
                   className="w-80 p-3 bg-background border rounded-md shadow-md z-50"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <div className="space-y-2">
-                    <h4 className="font-medium text-sm">
-                      Histórico de Movimentação
-                    </h4>
+                    <h4 className="font-medium text-sm">Histórico de Movimentação</h4>
                     <div className="max-h-40 overflow-y-auto space-y-2">
                       {todo.movementHistory.map((movement) => (
-                        <div
-                          key={movement.id}
-                          className="text-xs border-l-2 border-border pl-2"
-                        >
+                        <div key={movement.id} className="text-xs border-l-2 border-border pl-2">
                           <div className="font-medium text-foreground">
                             {movement.movedBy.name} moveu de{" "}
                             {movement.fromColumn.name} para{" "}

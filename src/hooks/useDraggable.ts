@@ -13,7 +13,6 @@ type UseDraggableArgs = {
   handleClick?: (e: MouseEvent) => void;
   handleDragging?: (e: MouseEvent | React.MouseEvent<HTMLDivElement>) => void;
 };
-
 type Attributes = Partial<HtmlHTMLAttributes<HTMLDivElement>>;
 
 type UseDraggableReturn = {
@@ -69,6 +68,12 @@ const useDraggable = ({
   const onMouseDown: React.MouseEventHandler<HTMLDivElement> = (
     e: React.MouseEvent<HTMLDivElement>,
   ) => {
+    const target = e.target as HTMLElement;
+    const isInteractive = target.closest('button, a, [role="button"]');
+    if (isInteractive) {
+      return;
+    }
+
     e.preventDefault();
     e.stopPropagation();
 
