@@ -1,5 +1,3 @@
-// Localização: hooks/useDraggable.ts
-
 import { DnDContext, DnDId } from "@/components/DnDContextProvider";
 import {
   HtmlHTMLAttributes,
@@ -15,9 +13,6 @@ type UseDraggableArgs = {
   handleClick?: (e: MouseEvent) => void;
   handleDragging?: (e: MouseEvent | React.MouseEvent<HTMLDivElement>) => void;
 };
-
-// --- TIPO CORRIGIDO AQUI ---
-// O tipo 'Attributes' já inclui 'style', então não precisamos de uma propriedade 'style' separada.
 type Attributes = Partial<HtmlHTMLAttributes<HTMLDivElement>>;
 
 type UseDraggableReturn = {

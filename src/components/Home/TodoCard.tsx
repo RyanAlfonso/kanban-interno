@@ -1,31 +1,23 @@
 "use client";
-
-// Importações de hooks e utilitários do projeto
 import useDraggable from "@/hooks/useDraggable";
 import { getTagColor, PredefinedTag, TagColor } from "@/lib/tags";
 import { cn } from "@/lib/utils";
 import { openTodoEditor } from "@/redux/actions/todoEditorAction";
-
-// Importações de tipos do Prisma
 import { Todo, User } from "@prisma/client";
-
-// Importações de componentes de UI
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { TooltipProvider } from "@/components/ui/tooltip"; // Mantido para outros tooltips, se houver
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { Button } from "../ui/button";
 import { useToast } from "../ui/use-toast";
-
-// Importações de bibliotecas e ícones
 import dayjs from "dayjs";
 import {
   Clock,
   Folder,
   History,
-  Link, // Ícone unificado
+  Link,
   Share2,
   Users,
 } from "lucide-react";
@@ -33,7 +25,6 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { FC, MouseEvent as ReactMouseEvent, useCallback } from "react";
 import { useDispatch } from "react-redux";
 
-// A interface que estende o tipo Todo para incluir relações populadas
 interface ExtendedTodo extends Todo {
   project?: { id: string; name: string } | null;
   tags: string[];
@@ -53,8 +44,6 @@ interface ExtendedTodo extends Todo {
 type TodoProps = {
   todo: ExtendedTodo;
 };
-
-// --- Componente de conteúdo reutilizável para o pop-up ---
 const RelationshipContent: FC<{
   parent: { id: string; title: string } | null | undefined;
   childTodos: { id: string; title: string }[] | null | undefined;
@@ -171,8 +160,6 @@ const TodoCard: FC<TodoProps> = ({ todo }) => {
     },
     [todo.id, toast]
   );
-
-  // Utiliza a versão corrigida do useDraggable, que gerencia os cliques internamente.
   const { setNodeRef, attributes } = useDraggable({
     id: todo.id,
     handleClick: handleCardClick,
@@ -186,7 +173,7 @@ const TodoCard: FC<TodoProps> = ({ todo }) => {
     <TooltipProvider delayDuration={200}>
       <div
         ref={setNodeRef}
-        {...attributes} // 'attributes' contém o onMouseDown inteligente que ignora botões.
+        {...attributes}
         className="border-zinc-100 hover:shadow-xl rounded-lg mb-2 mx-auto p-3 flex flex-col cursor-pointer bg-white dark:bg-gray-900 relative group transition-shadow duration-200"
       >
         <Button
@@ -239,8 +226,6 @@ const TodoCard: FC<TodoProps> = ({ todo }) => {
 
         <div className="flex items-center justify-between mt-2 px-2 pt-2 border-t border-gray-100 dark:border-gray-800">
           <div className="flex items-center gap-3 text-gray-500">
-
-            {/* --- LÓGICA SIMPLIFICADA: Usando Popover diretamente --- */}
             {hasRelationships && (
               <Popover>
                 <PopoverTrigger asChild>
