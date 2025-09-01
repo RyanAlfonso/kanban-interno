@@ -100,7 +100,11 @@ const TodoColumn: FC<TodoColumnProp> = ({
         {todos
           ?.sort((a, b) => a.order - b.order)
           .map((todo) => {
-            return <TodoCard todo={todo} key={todo.id.toString()} />;
+            const extendedTodo = {
+              ...todo,
+              tags: (todo as any).tags ?? [],
+            };
+            return <TodoCard todo={extendedTodo} key={todo.id.toString()} />;
           })}
       </div>
       {canCreateTask && (
