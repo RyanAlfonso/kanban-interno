@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import axios from "axios"; // Adicionado para chamadas de API
 import { format } from "date-fns";
 import {
   Briefcase,
@@ -12,6 +13,7 @@ import {
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
 
 import { cn } from "@/lib/utils";
 import { Badge } from "./ui/badge";
@@ -27,9 +29,9 @@ import {
   SelectValue,
 } from "./ui/select";
 
-import { getAllTagsWithColors } from "@/lib/tags";
-import { useForm } from "react-hook-form";
+// REMOVIDO: import { getAllTagsWithColors } from "@/lib/tags";
 
+// --- Interfaces ---
 interface Project {
   id: string;
   name: string;
@@ -41,6 +43,24 @@ interface User {
   email: string;
   image?: string;
 }
+
+// NOVA INTERFACE: Define a estrutura de uma tag, conforme a API
+interface Tag {
+  id: string;
+  name: string;
+  color: string;
+  projectId: string;
+}
+
+// --- Função de Busca de Dados (Data Fetching) ---
+const fetchTagsByProjectId = async (projectId: string): Promise<Tag[]> => {
+  if (!projectId) {
+    return []; // Retorna array vazio se nenhum projeto for selecionado
+  }
+  const { data } = await axios.get<Tag[]>(`/api/projects/tags?projectId=${projectId}`);
+  return data;
+};
+
 
 const AdvancedFilters = () => {
   const router = useRouter();
@@ -72,7 +92,14 @@ const AdvancedFilters = () => {
     },
   });
 
-  const allTags = getAllTagsWithColors();
+  // --- NOVA LÓGICA: Busca de tags via API com useQuery ---
+  const { data: allTags = [], isLoading: isLoadingTags } = useQuery<Tag[]>({
+    queryKey: ['tags', selectedProject],
+    queryFn: () => fetchTagsByProjectId(selectedProject),
+    enabled: !!selectedProject, // A busca só é ativada se um projeto for selecionado
+  });
+
+  // REMOVIDO: const allTags = getAllTagsWithColors();
 
   useEffect(() => {
     const projectId = searchParams.get("projectId") || "";
@@ -89,6 +116,11 @@ const AdvancedFilters = () => {
     if (startDateParam) setStartDate(new Date(startDateParam));
     if (endDateParam) setEndDate(new Date(endDateParam));
   }, [searchParams]);
+
+  // NOVO useEffect: Limpa as tags selecionadas se o projeto mudar
+  useEffect(() => {
+    setSelectedTags([]);
+  }, [selectedProject]);
 
   const applyFilters = () => {
     const params = new URLSearchParams(Array.from(searchParams.entries()));
@@ -202,27 +234,34 @@ const AdvancedFilters = () => {
               Tags
             </Label>
             <div className="space-y-2 max-h-32 overflow-y-auto pr-2">
+              {/* --- Lógica de renderização das tags atualizada --- */}
+              {isLoadingTags && <p className="text-xs text-gray-500">Carregando tags...</p>}
+              {!isLoadingTags && !selectedProject && <p className="text-xs text-gray-500">Selecione um projeto para ver as tags.</p>}
+              {!isLoadingTags && selectedProject && allTags.length === 0 && <p className="text-xs text-gray-500">Nenhuma tag encontrada.</p>}
               {allTags.map((tag) => (
-                <div key={tag.name} className="flex items-center space-x-2">
+                <div key={tag.id} className="flex items-center space-x-2">
                   <input
                     type="checkbox"
-                    id={`tag-${tag.name}`}
-                    checked={selectedTags.includes(tag.name)}
+                    id={`tag-${tag.id}`}
+                    // ATUALIZADO: usa tag.id para o estado
+                    checked={selectedTags.includes(tag.id)}
                     onChange={(e) =>
                       setSelectedTags(
                         e.target.checked
-                          ? [...selectedTags, tag.name]
-                          : selectedTags.filter((name) => name !== tag.name)
+                          ? [...selectedTags, tag.id]
+                          : selectedTags.filter((id) => id !== tag.id)
                       )
                     }
                     className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
                   />
                   <label
-                    htmlFor={`tag-${tag.name}`}
+                    htmlFor={`tag-${tag.id}`}
                     className="flex items-center space-x-2 text-sm cursor-pointer"
                   >
+                    {/* ATUALIZADO: usa tag.color diretamente */}
                     <span
-                      className={cn("h-3 w-3 rounded-full", tag.colors.bg)}
+                      className="h-3 w-3 rounded-full"
+                      style={{ backgroundColor: tag.color }}
                     />
                     <span className="font-medium">{tag.name}</span>
                   </label>
@@ -231,6 +270,7 @@ const AdvancedFilters = () => {
             </div>
           </div>
 
+          {/* O restante do seu código permanece o mesmo */}
           <div className="space-y-2">
             <Label className="text-sm font-medium flex items-center">
               <Users className="h-4 w-4 mr-2" />
@@ -293,7 +333,7 @@ const AdvancedFilters = () => {
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
                     <Calendar
-                      register={register("startDate")}
+                      {...register("startDate")}
                       mode="single"
                       selected={startDate}
                       onSelect={setStartDate}
@@ -319,7 +359,7 @@ const AdvancedFilters = () => {
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
                     <Calendar
-                      register={register("startDate")}
+                      {...register("endDate")}
                       mode="single"
                       selected={endDate}
                       onSelect={setEndDate}

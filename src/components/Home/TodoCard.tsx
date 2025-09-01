@@ -1,9 +1,9 @@
 "use client";
+
 import useDraggable from "@/hooks/useDraggable";
-import { getTagColor, PredefinedTag, TagColor } from "@/lib/tags";
 import { cn } from "@/lib/utils";
 import { openTodoEditor } from "@/redux/actions/todoEditorAction";
-import { Todo, User } from "@prisma/client";
+import { Todo, User, Project, Tag } from "@prisma/client"; // Importando os tipos corretos do Prisma
 import {
   Popover,
   PopoverContent,
@@ -25,9 +25,12 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { FC, MouseEvent as ReactMouseEvent, useCallback } from "react";
 import { useDispatch } from "react-redux";
 
+// --- INTERFACE ATUALIZADA ---
+// A interface agora reflete a estrutura de dados correta vinda da API,
+// com 'tags' sendo um array de objetos Tag.
 interface ExtendedTodo extends Todo {
-  project?: { id: string; name: string } | null;
-  tags: string[];
+  project?: Project | null;
+  tags: Tag[]; // CORRIGIDO
   assignedTo?: User[];
   movementHistory?: {
     id: string;
@@ -37,13 +40,14 @@ interface ExtendedTodo extends Todo {
     toColumn: { id: string; name: string };
   }[];
   parent?: { id: string; title: string } | null;
-  childTodos?: { id: string; title: string }[];
+  childTodos?: { id:string; title: string }[];
   linkedCards?: { id: string; title: string }[];
 }
 
 type TodoProps = {
   todo: ExtendedTodo;
 };
+
 const RelationshipContent: FC<{
   parent: { id: string; title: string } | null | undefined;
   childTodos: { id: string; title: string }[] | null | undefined;
@@ -100,6 +104,7 @@ const RelationshipContent: FC<{
     )}
   </div>
 );
+
 const TodoCard: FC<TodoProps> = ({ todo }) => {
   const dispatch = useDispatch();
   const { toast } = useToast();
@@ -300,23 +305,19 @@ const TodoCard: FC<TodoProps> = ({ todo }) => {
             )}
           </div>
 
+          {/* --- BLOCO DE RENDERIZAÇÃO DAS TAGS CORRIGIDO --- */}
           <div className="flex flex-wrap gap-1 justify-end">
-            {todo.tags.slice(0, 2).map((tag) => {
-              const colors: TagColor = getTagColor(tag as PredefinedTag);
-              return (
-                <div
-                  key={tag}
-                  className={cn(
-                    "px-1.5 py-0.5 rounded-full text-xs leading-tight",
-                    colors.bg,
-                    colors.text
-                  )}
-                  title={tag}
-                >
-                  {tag}
-                </div>
-              );
-            })}
+            {/* Adicionado '?' para segurança (optional chaining) */}
+            {todo.tags?.slice(0, 2).map((tag) => (
+              <div
+                key={tag.id} // CORRIGIDO: Usar tag.id como chave única
+                className="px-1.5 py-0.5 rounded-full text-xs leading-tight text-white"
+                style={{ backgroundColor: tag.color }} // CORRIGIDO: Usar a cor vinda da API
+                title={tag.name} // CORRIGIDO: Usar tag.name para o tooltip
+              >
+                {tag.name} {/* CORRIGIDO: Exibir o nome da tag */}
+              </div>
+            ))}
           </div>
         </div>
       </div>

@@ -2,6 +2,7 @@ import { getAuthSession } from "@/lib/nextAuthOptions";
 import { getLogger } from "@/logger";
 import prisma from "@/lib/prismadb";
 import { NextRequest } from "next/server";
+import { AVAILABLE_TAG_COLORS, PRIORITY_TAG_COLOR, isValidTagColor } from "@/lib/tagColors";
 
 export async function GET(req: NextRequest) {
   const logger = getLogger("info");
@@ -71,6 +72,16 @@ export async function POST(req: NextRequest) {
       return new Response("Name and Project ID are required", { status: 400 });
     }
 
+    // Validar cor da tag
+    if (color && !isValidTagColor(color)) {
+      return new Response("Invalid color. Please select from the available color palette.", { status: 400 });
+    }
+
+    // Verificar se está tentando usar a cor vermelha para uma tag que não seja "Prioridade"
+    if (color === PRIORITY_TAG_COLOR && name !== "Prioridade") {
+      return new Response("Red color is reserved for 'Prioridade' tag only.", { status: 400 });
+    }
+
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },
       include: { areas: true },
@@ -138,6 +149,16 @@ export async function PUT(req: NextRequest) {
 
     if (!id) {
       return new Response("Tag ID is required", { status: 400 });
+    }
+
+    // Validar cor da tag se fornecida
+    if (color && !isValidTagColor(color)) {
+      return new Response("Invalid color. Please select from the available color palette.", { status: 400 });
+    }
+
+    // Verificar se está tentando usar a cor vermelha para uma tag que não seja "Prioridade"
+    if (color === PRIORITY_TAG_COLOR && name !== "Prioridade") {
+      return new Response("Red color is reserved for 'Prioridade' tag only.", { status: 400 });
     }
 
     const existingTag = await prisma.tag.findUnique({

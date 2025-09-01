@@ -1,6 +1,5 @@
 
 import { z } from "zod";
-import { PREDEFINED_TAGS } from "@/lib/tags";
 
 const ChecklistItemValidator = z.object({
   id: z.string(),
@@ -34,7 +33,7 @@ export const TodoCreateValidator = z.object({
         .max(100, { message: "A etiqueta não pode exceder 100 caracteres." })
     )
     .optional(),
-  tags: z.array(z.enum(PREDEFINED_TAGS)).optional(),
+  tags: z.array(z.string()).optional(),
   projectId: z.string().optional().nullable(),
   order: z
     .number()
@@ -81,7 +80,7 @@ export const TodoEditValidator = z.object({
         .max(100, { message: "A etiqueta não pode exceder 100 caracteres." })
     )
     .optional(),
-  tags: z.array(z.enum(PREDEFINED_TAGS)).optional(),
+  tags: z.array(z.string()).optional(),
   order: z
     .number()
     .int()
