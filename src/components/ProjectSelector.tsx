@@ -1,28 +1,25 @@
 "use client";
 
-import { FC, useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
 import { Project } from "@prisma/client";
-import { Label } from "./ui/label";
-import { Button } from "./ui/button";
-import { ChevronDown, Plus } from "lucide-react";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@radix-ui/react-popover";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useToast } from "./ui/use-toast";
+import { ChevronDown } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { FC, useState } from "react";
+import { Button } from "./ui/button";
+import { Label } from "./ui/label";
 import { Skeleton } from "./ui/skeleton";
+import { useToast } from "./ui/use-toast";
 
 const fetchProjects = async (): Promise<Project[]> => {
   console.log("Fetching projects for selector...");
-  const response = await fetch("/api/projects");
+  const response = await fetch(process.env.NEXT_PUBLIC_BASE_PATH + "/api/projects");
   if (!response.ok) {
-    console.error(
-      "Failed to fetch projects for selector, status:",
-      response.status
-    );
+    console.error("Failed to fetch projects for selector, status:", response.status);
     throw new Error("Falha ao buscar projetos");
   }
   const data = await response.json();
@@ -30,7 +27,8 @@ const fetchProjects = async (): Promise<Project[]> => {
   return data;
 };
 
-interface ProjectSelectorProps {}
+interface ProjectSelectorProps {
+}
 
 const ProjectSelector: FC<ProjectSelectorProps> = () => {
   console.log("Rendering ProjectSelector...");
@@ -40,47 +38,41 @@ const ProjectSelector: FC<ProjectSelectorProps> = () => {
   const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();
 
-  const {
-    data: projects,
-    isLoading,
-    error,
-  } = useQuery<Project[], Error>({
-    queryKey: ["projects"],
-    queryFn: fetchProjects,
-    onError: (err) => {
-      console.error("Error fetching projects in ProjectSelector:", err);
-      toast({
-        title: "Erro ao Carregar Projetos",
-        description:
-          err.message || "Não foi possível carregar a lista de projetos.",
-        variant: "destructive",
+  const { data: projects, isLoading, error } = useQuery<Project[], Error>({
+    queryKey: ["projects"], 
+    queryFn: fetchProjects, 
+    //onError: (err) => {
+    //  console.error("Error fetching projects in ProjectSelector:", err);
+    //  toast({
+    //    title: "Erro ao Carregar Projetos",
+    //    description: err.message || "Não foi possível carregar a lista de projetos.",
+     //   variant: "destructive",
       });
-    },
-  });
+  //  },
+//  });
 
-  const currentProjectId = searchParams.get("projectId") || "all";
+  const currentProjectId = searchParams.get("projectId") || "all"; // Default to "all"
   console.log("ProjectSelector - Current Project ID:", currentProjectId);
 
-  const currentProjectName = isLoading
-    ? "Carregando..."
-    : currentProjectId === "all"
-    ? "Todas as áreas"
-    : projects?.find((p) => p.id === currentProjectId)?.name ||
-      "Projeto não encontrado";
+  const currentProjectName = 
+      isLoading ? "Carregando..." 
+    : currentProjectId === "all" ? "Todas as áreas" 
+    : projects?.find(p => p.id === currentProjectId)?.name || "Projeto não encontrado"; // Handle case where project might not be found
 
   const handleProjectChange = (projectId: string) => {
     console.log("ProjectSelector - Handling project change:", projectId);
     const params = new URLSearchParams(Array.from(searchParams.entries()));
-
+    
     if (projectId === "all") {
       params.delete("projectId");
     } else {
       params.set("projectId", projectId);
     }
-
+    
     router.push(`/?${params.toString()}`);
     setOpen(false);
   };
+
 
   try {
     return (
@@ -103,7 +95,7 @@ const ProjectSelector: FC<ProjectSelectorProps> = () => {
               <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
             </Button>
           </PopoverTrigger>
-          <PopoverContent
+          <PopoverContent 
             className="w-[--radix-popover-trigger-width] p-0 bg-white dark:bg-gray-900 shadow-lg rounded-md border border-gray-200 dark:border-gray-800 z-50"
             align="start"
           >
@@ -125,40 +117,32 @@ const ProjectSelector: FC<ProjectSelectorProps> = () => {
                 >
                   Todas as áreas
                 </Button>
-
+                
                 {projects?.map((project) => (
                   <Button
                     key={project.id}
-                    variant={
-                      currentProjectId === project.id ? "secondary" : "ghost"
-                    }
+                    variant={currentProjectId === project.id ? "secondary" : "ghost"}
                     className="w-full justify-start font-normal h-8 px-2 text-sm"
                     onClick={() => handleProjectChange(project.id)}
                   >
-                    <span className="truncate" title={project.name}>
-                      {project.name}
-                    </span>
+                    <span className="truncate" title={project.name}>{project.name}</span>
                   </Button>
                 ))}
                 {projects?.length === 0 && (
-                  <div className="p-2 text-sm text-muted-foreground">
-                    Nenhum projeto encontrado.
-                  </div>
+                    <div className="p-2 text-sm text-muted-foreground">Nenhum projeto encontrado.</div>
                 )}
               </div>
             )}
           </PopoverContent>
         </Popover>
+        
       </div>
     );
   } catch (renderError) {
-    console.error("Error rendering ProjectSelector:", renderError);
-    return (
-      <div className="text-red-500">
-        Erro ao renderizar seletor de projetos.
-      </div>
-    );
+      console.error("Error rendering ProjectSelector:", renderError);
+      return <div className="text-red-500">Erro ao renderizar seletor de projetos.</div>;
   }
 };
 
 export default ProjectSelector;
+

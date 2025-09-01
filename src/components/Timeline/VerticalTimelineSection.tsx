@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils";
 import { TodoWithColumn } from "@/types/todo";
 import { FC } from "react";
 import TimelineItem from "./TimelineItem";
+import dayjs from "dayjs";
 
 type VerticalTimelineSectionProps = {
   title: string;
@@ -14,6 +15,7 @@ const VerticalTimelineSection: FC<VerticalTimelineSectionProps> = ({
   todos,
 }) => {
   if (todos.length === 0) return null;
+
 
   return (
     <div className="mb-8">

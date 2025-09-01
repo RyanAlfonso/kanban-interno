@@ -3,10 +3,10 @@
 import { useState } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import { Label } from "./ui/label";
 import { useToast } from "./ui/use-toast";
 import { signIn } from "next-auth/react";
-import { useRouter } from 'next/navigation';
+import { useRouter } from "next/navigation";
+import { Label } from "@radix-ui/react-label";
 
 const UserAuthForm = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -21,7 +21,7 @@ const UserAuthForm = () => {
 
     try {
       const result = await signIn("credentials", {
-        redirect: false, 
+        redirect: false,
         email: email,
         password: password,
       });
@@ -30,7 +30,10 @@ const UserAuthForm = () => {
         console.error("Erro de login:", result.error);
         toast({
           title: "Falha no Login",
-          description: result.error === 'CredentialsSignin' ? "Credenciais inválidas. Verifique seu email e senha." : "Ocorreu um erro durante o login. Tente novamente.",
+          description:
+            result.error === "CredentialsSignin"
+              ? "Credenciais inválidas. Verifique seu email e senha."
+              : "Ocorreu um erro durante o login. Tente novamente.",
           variant: "destructive",
         });
       } else if (result?.ok) {
@@ -38,7 +41,7 @@ const UserAuthForm = () => {
           title: "Login bem-sucedido",
           description: "Redirecionando para a página principal...",
         });
-        router.push('/'); 
+        router.push("/");
         router.refresh();
       } else {
         toast({
@@ -98,4 +101,3 @@ const UserAuthForm = () => {
 };
 
 export default UserAuthForm;
-

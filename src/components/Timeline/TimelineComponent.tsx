@@ -9,28 +9,28 @@ import dayjs from "dayjs";
 import { useQuery } from "@tanstack/react-query";
 import VerticalTimelineSection from "./VerticalTimelineSection";
 import { VerticalTimelineSkeleton } from "./VerticalTimelineSkeleton";
-import { useToast } from "../ui/use-toast";
-import { useSearchParams } from "next/navigation"; 
+import { useToast } from "../ui/use-toast"; 
+import { useSearchParams } from "next/navigation";
 
 const TimelineComponent = () => {
-  console.log("Rendering TimelineComponent..."); 
+  console.log("Rendering TimelineComponent...");
   const { toast } = useToast();
-  const searchParams = useSearchParams();
-  const projectId = searchParams.get("projectId") || null;
+  const searchParams = useSearchParams(); 
+  const projectId = searchParams.get("projectId") || null; 
   const view = searchParams.get("view") || "all";
 
   const { data: todos, isLoading, error } = useQuery<TodoWithColumn[], Error>({
     queryKey: ["todos", { projectId, view }],
-    queryFn: () => todoFetchRequest(projectId, view) as Promise<TodoWithColumn[]>,
-    onError: (err) => {
-      console.error("Error fetching todos for timeline:", err);
-      toast({
-        title: "Erro ao Carregar Tarefas",
-        description: err.message || "Não foi possível buscar as tarefas para a linha do tempo.",
-        variant: "destructive",
+    queryFn: () => todoFetchRequest(projectId, view, searchParams) as Promise<TodoWithColumn[]>,
+   // onError: (err) => {
+   //   console.error("Error fetching todos for timeline:", err);
+   //   toast({
+  //      title: "Erro ao Carregar Tarefas",
+   //     description: err.message || "Não foi possível buscar as tarefas para a linha do tempo.",
+   //     variant: "destructive",
       });
-    }
-  });
+  //  }
+ // });
 
   const groupedTasks =
     todos && todos.length > 0

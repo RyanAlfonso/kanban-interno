@@ -1,8 +1,22 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { format } from "date-fns";
+import {
+  Briefcase,
+  CalendarIcon,
+  Clock,
+  Filter,
+  Tag as TagIcon,
+  Users,
+} from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
+
+import { cn } from "@/lib/utils";
+import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
+import { Calendar } from "./ui/calendar";
 import { Label } from "./ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import {
@@ -12,29 +26,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
-import { Badge } from "./ui/badge";
-import { Calendar } from "./ui/calendar";
-import {
-  CalendarIcon,
-  Filter,
-  Users,
-  Clock,
-  Tag as TagIcon,
-  Briefcase,
-} from "lucide-react";
-import { format } from "date-fns";
-import { cn } from "@/lib/utils";
-import { useQuery } from "@tanstack/react-query";
+
+import { getAllTagsWithColors } from "@/lib/tags";
+import { useForm } from "react-hook-form";
 
 interface Project {
   id: string;
   name: string;
-}
-
-interface Tag {
-  id: string;
-  name: string;
-  color: string;
 }
 
 interface User {
@@ -48,6 +46,7 @@ const AdvancedFilters = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
 
+  const { register } = useForm();
   const [isOpen, setIsOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState("");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
@@ -58,62 +57,49 @@ const AdvancedFilters = () => {
   const { data: projects = [] } = useQuery<Project[]>({
     queryKey: ["projects"],
     queryFn: async () => {
-      const response = await fetch("/api/projects");
+      const response = await fetch(process.env.NEXT_PUBLIC_BASE_PATH + "/api/projects");
       if (!response.ok) throw new Error("Failed to fetch projects");
       return response.json();
     },
   });
 
-  const { data: tags = [], isLoading: isLoadingTags } = useQuery<Tag[]>({
-    queryKey: ["tags", selectedProject],
-    queryFn: async () => {
-      if (!selectedProject) return [];
-      const response = await fetch(`/api/tags?projectId=${selectedProject}`);
-      if (!response.ok) throw new Error("Failed to fetch tags");
-      return response.json();
-    },
-    enabled: !!selectedProject,
-  });
-
   const { data: users = [] } = useQuery<User[]>({
     queryKey: ["users"],
     queryFn: async () => {
-      const response = await fetch("/api/users");
+      const response = await fetch(process.env.NEXT_PUBLIC_BASE_PATH + "/api/users");
       if (!response.ok) throw new Error("Failed to fetch users");
       return response.json();
     },
   });
 
+  const allTags = getAllTagsWithColors();
+
   useEffect(() => {
     const projectId = searchParams.get("projectId") || "";
-    const tagIds = searchParams.get("tagIds")?.split(",").filter(Boolean) || [];
     const assignedToIds =
       searchParams.get("assignedToIds")?.split(",").filter(Boolean) || [];
+    const tagsParam =
+      searchParams.get("tags")?.split(",").filter(Boolean) || [];
     const startDateParam = searchParams.get("startDate");
     const endDateParam = searchParams.get("endDate");
 
     setSelectedProject(projectId);
-    setSelectedTags(tagIds);
     setSelectedUsers(assignedToIds);
+    setSelectedTags(tagsParam);
     if (startDateParam) setStartDate(new Date(startDateParam));
     if (endDateParam) setEndDate(new Date(endDateParam));
   }, [searchParams]);
 
-  useEffect(() => {
-    setSelectedTags([]);
-  }, [selectedProject]);
-
   const applyFilters = () => {
     const params = new URLSearchParams(Array.from(searchParams.entries()));
-
     const setOrDeleteParam = (key: string, value: string) => {
       if (value) params.set(key, value);
       else params.delete(key);
     };
 
     setOrDeleteParam("projectId", selectedProject);
-    setOrDeleteParam("tagIds", selectedTags.join(","));
     setOrDeleteParam("assignedToIds", selectedUsers.join(","));
+    setOrDeleteParam("tags", selectedTags.join(","));
     setOrDeleteParam(
       "startDate",
       startDate ? format(startDate, "yyyy-MM-dd") : ""
@@ -127,18 +113,19 @@ const AdvancedFilters = () => {
   const clearFilters = () => {
     const params = new URLSearchParams(Array.from(searchParams.entries()));
     params.delete("projectId");
-    params.delete("tagIds");
     params.delete("assignedToIds");
+    params.delete("tags");
     params.delete("startDate");
     params.delete("endDate");
 
     setSelectedProject("");
-    setSelectedTags([]);
     setSelectedUsers([]);
+    setSelectedTags([]);
     setStartDate(undefined);
     setEndDate(undefined);
 
     router.replace(`/?${params.toString()}`);
+    setIsOpen(false);
   };
 
   const activeFiltersCount = [
@@ -209,51 +196,40 @@ const AdvancedFilters = () => {
             </Select>
           </div>
 
-          {selectedProject && (
-            <div className="space-y-2">
-              <Label className="text-sm font-medium flex items-center">
-                <TagIcon className="h-4 w-4 mr-2" />
-                Tags do Projeto
-              </Label>
-              <div className="space-y-2 max-h-32 overflow-y-auto pr-2">
-                {isLoadingTags ? (
-                  <p className="text-sm text-gray-500">Carregando tags...</p>
-                ) : tags.length > 0 ? (
-                  tags.map((tag) => (
-                    <div key={tag.id} className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        id={`tag-${tag.id}`}
-                        checked={selectedTags.includes(tag.id)}
-                        onChange={(e) =>
-                          setSelectedTags(
-                            e.target.checked
-                              ? [...selectedTags, tag.id]
-                              : selectedTags.filter((id) => id !== tag.id)
-                          )
-                        }
-                        className="rounded border-gray-300"
-                      />
-                      <label
-                        htmlFor={`tag-${tag.id}`}
-                        className="flex items-center space-x-2 text-sm cursor-pointer"
-                      >
-                        <div
-                          className="w-3 h-3 rounded-full"
-                          style={{ backgroundColor: tag.color || "#ccc" }}
-                        />
-                        <span>{tag.name}</span>
-                      </label>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-sm text-gray-500">
-                    Nenhuma tag encontrada para este projeto.
-                  </p>
-                )}
-              </div>
+          <div className="space-y-2">
+            <Label className="text-sm font-medium flex items-center">
+              <TagIcon className="h-4 w-4 mr-2" />
+              Tags
+            </Label>
+            <div className="space-y-2 max-h-32 overflow-y-auto pr-2">
+              {allTags.map((tag) => (
+                <div key={tag.name} className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id={`tag-${tag.name}`}
+                    checked={selectedTags.includes(tag.name)}
+                    onChange={(e) =>
+                      setSelectedTags(
+                        e.target.checked
+                          ? [...selectedTags, tag.name]
+                          : selectedTags.filter((name) => name !== tag.name)
+                      )
+                    }
+                    className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <label
+                    htmlFor={`tag-${tag.name}`}
+                    className="flex items-center space-x-2 text-sm cursor-pointer"
+                  >
+                    <span
+                      className={cn("h-3 w-3 rounded-full", tag.colors.bg)}
+                    />
+                    <span className="font-medium">{tag.name}</span>
+                  </label>
+                </div>
+              ))}
             </div>
-          )}
+          </div>
 
           <div className="space-y-2">
             <Label className="text-sm font-medium flex items-center">
@@ -274,7 +250,7 @@ const AdvancedFilters = () => {
                           : selectedUsers.filter((id) => id !== user.id)
                       );
                     }}
-                    className="rounded border-gray-300"
+                    className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
                   />
                   <label
                     htmlFor={`user-${user.id}`}
@@ -284,7 +260,7 @@ const AdvancedFilters = () => {
                       <img
                         src={user.image}
                         alt={user.name || user.email}
-                        className="w-4 h-4 rounded-full"
+                        className="w-5 h-5 rounded-full"
                       />
                     )}
                     <span>{user.name || user.email}</span>
@@ -312,13 +288,12 @@ const AdvancedFilters = () => {
                       )}
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
-                      {startDate
-                        ? format(startDate, "dd/MM/yyyy")
-                        : "Selecionar"}
+                      {startDate ? format(startDate, "dd/MM/yy") : "De"}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
                     <Calendar
+                      register={register("startDate")}
                       mode="single"
                       selected={startDate}
                       onSelect={setStartDate}
@@ -339,11 +314,12 @@ const AdvancedFilters = () => {
                       )}
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
-                      {endDate ? format(endDate, "dd/MM/yyyy") : "Selecionar"}
+                      {endDate ? format(endDate, "dd/MM/yy") : "Até"}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
                     <Calendar
+                      register={register("startDate")}
                       mode="single"
                       selected={endDate}
                       onSelect={setEndDate}

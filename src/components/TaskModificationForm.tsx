@@ -1,38 +1,39 @@
 "use client";
 
 import useBreakpoint from "@/hooks/useBreakpoint";
+import { PREDEFINED_TAGS } from "@/lib/tags";
 import { cn } from "@/lib/utils";
-import { Attachment, Comment, Project, Todo, User, Tag } from "@prisma/client";
+import { Attachment, Comment, Project, Todo, User } from "@prisma/client";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@radix-ui/react-popover";
-import { AxiosError } from "axios";
-import dayjs from "dayjs";
 import {
-  CalendarIcon,
-  X,
-  PaperclipIcon,
-  Download,
-  Trash2,
-  UserCircle,
-  MessageSquare,
-  Send,
-  History,
-  ChevronDown,
-  ChevronUp,
-  PlusCircle,
-} from "lucide-react";
-import { FC, lazy, useState, useEffect } from "react";
-import { Controller, UseFormReturn, useWatch } from "react-hook-form";
-import {
+  useMutation,
   UseMutationResult,
   useQuery,
   useQueryClient,
-  useMutation,
 } from "@tanstack/react-query";
+import axios, { AxiosError } from "axios";
+import dayjs from "dayjs";
+import {
+  CalendarIcon,
+  ChevronDown,
+  ChevronUp,
+  Download,
+  History,
+  MessageSquare,
+  PaperclipIcon,
+  Send,
+  Trash2,
+  UserCircle,
+  X,
+} from "lucide-react";
+import { FC, lazy, useState } from "react";
+import { Controller, UseFormReturn } from "react-hook-form";
 import "react-quill/dist/quill.snow.css";
+import Checklist, {ChecklistItemType} from "./CheckList";
 import CustomizedMultSelect from "./CustomizedMultSelect";
 import CustomizedSelect from "./CustomizedSelect";
 import { Button } from "./ui/button";
@@ -41,9 +42,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { useToast } from "./ui/use-toast";
-import axios from "axios";
 
-// Tipagens
 type MovementHistoryItem = {
   id: string;
   movedAt: Date;
@@ -51,19 +50,22 @@ type MovementHistoryItem = {
   fromColumn: { name: string };
   toColumn: { name: string };
 };
+
 type AttachmentWithUploader = Attachment & {
   uploadedBy: Pick<User, "id" | "name" | "image">;
 };
+
 type CommentWithAuthor = Comment & {
   author: Pick<User, "id" | "name" | "image">;
 };
+
 type ExtendedTask = Partial<Todo> & {
   attachments?: AttachmentWithUploader[];
   comments?: CommentWithAuthor[];
   assignedToIds?: string[];
   linkedCardIds?: string[];
   movementHistory?: MovementHistoryItem[];
-  tags?: Tag[];
+  checklist?: ChecklistItemType[];
 };
 
 type TaskEditFormProps = {
@@ -71,16 +73,41 @@ type TaskEditFormProps = {
   task: ExtendedTask;
   title: string;
   enableDelete?: boolean;
-  deleteMutationFunctionReturn?: UseMutationResult<any, AxiosError, any, any>;
-  editMutationFunctionReturn: UseMutationResult<any, AxiosError, any, any>;
+  deleteMutationFunctionReturn?: UseMutationResult<
+    Todo[],
+    AxiosError,
+    { id: string },
+    any
+  >;
+  editMutationFunctionReturn: UseMutationResult<
+    Todo | Todo[],
+    AxiosError,
+    any,
+    any
+  >;
   formFunctionReturn: UseFormReturn<any>;
 };
 
-const AttachmentItem: FC<{
+type AttachmentItemProps = {
   attachment: AttachmentWithUploader;
   onDelete: (id: string) => void;
   isDeleting: boolean;
-}> = ({ attachment, onDelete, isDeleting }) => {
+};
+
+type CommentItemProps = {
+  comment: CommentWithAuthor;
+};
+
+type ErrorMessageProps = {
+  msg?: string;
+};
+
+const CustomizedReactQuill = lazy(() => import("./CustomizedReactQuill"));
+const AttachmentItem: FC<AttachmentItemProps> = ({
+  attachment,
+  onDelete,
+  isDeleting,
+}) => {
   return (
     <div className="flex items-center justify-between p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
       <div className="flex items-center gap-3 overflow-hidden">
@@ -131,7 +158,7 @@ const AttachmentItem: FC<{
   );
 };
 
-const CommentItem: FC<{ comment: CommentWithAuthor }> = ({ comment }) => {
+const CommentItem: FC<CommentItemProps> = ({ comment }) => {
   return (
     <div className="flex items-start gap-3 p-2">
       {comment.author.image ? (
@@ -164,15 +191,19 @@ const MovementHistory: FC<{ history: MovementHistoryItem[] }> = ({
   history,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
-  if (!history || history.length === 0) return null;
+
+  if (!history || history.length === 0) {
+    return null;
+  }
+
   return (
     <div className="relative grid gap-2 pt-4">
       <Label
         className="text-sm font-medium flex items-center gap-2 cursor-pointer"
         onClick={() => setIsOpen(!isOpen)}
       >
-        <History className="h-4 w-4" /> Histórico de Movimentação (
-        {history.length}){" "}
+        <History className="h-4 w-4" />
+        Histórico de Movimentação ({history.length})
         {isOpen ? (
           <ChevronUp className="h-4 w-4 ml-auto" />
         ) : (
@@ -190,16 +221,13 @@ const MovementHistory: FC<{ history: MovementHistoryItem[] }> = ({
                 <span className="font-bold">
                   {movement.movedBy?.name || "Usuário desconhecido"}
                 </span>{" "}
-                moveu de{" "}
+                moveu de
                 <span className="font-semibold">
                   {" "}
-                  "{movement.fromColumn.name}"
+                  {movement.fromColumn.name}
                 </span>{" "}
-                para{" "}
-                <span className="font-semibold">
-                  {" "}
-                  "{movement.toColumn.name}"
-                </span>
+                para
+                <span className="font-semibold"> {movement.toColumn.name}</span>
                 .
               </p>
               <p className="text-gray-500 dark:text-gray-400 mt-1">
@@ -212,18 +240,17 @@ const MovementHistory: FC<{ history: MovementHistoryItem[] }> = ({
     </div>
   );
 };
-
-const CustomizedReactQuill = lazy(() => import("./CustomizedReactQuill"));
-type ErrorMessageProps = { msg?: string };
 async function robustFetcher<T>(url: string): Promise<T> {
   const response = await fetch(url);
   if (!response.ok) {
-    const errorData = {
+    let errorData = {
       message: `Erro ${response.status}: ${response.statusText}`,
     };
     try {
       const jsonError = await response.json();
-      if (jsonError && jsonError.message) errorData.message = jsonError.message;
+      if (jsonError && jsonError.message) {
+        errorData.message = jsonError.message;
+      }
     } catch (e) {
       console.error("A resposta de erro não era JSON:", e);
     }
@@ -251,129 +278,12 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
     register,
     formState: { errors },
     control,
-    setValue,
   } = formFunctionReturn;
-
-  const [showNewTagForm, setShowNewTagForm] = useState(false);
-  const [newTagName, setNewTagName] = useState("");
-  const [newTagColor, setNewTagColor] = useState("#3B82F6");
 
   const { mutate: submitEditTodoTask, isPending: isEditLoading } =
     editMutationFunctionReturn;
   const { mutate: deleteFunc, isPending: isDeleteLoading } =
     deleteMutationFunctionReturn ?? { mutate: () => {}, isPending: false };
-
-  const watchedProjectId = useWatch({
-    control,
-    name: "projectId",
-    defaultValue: task.projectId,
-  });
-
-  const {
-    data: projects,
-    isLoading: projectsLoading,
-    error: projectsError,
-  } = useQuery<Project[], Error>({
-    queryKey: ["projects"],
-    queryFn: () => robustFetcher<Project[]>("/api/projects"),
-  });
-
-  const {
-    data: users,
-    isLoading: usersLoading,
-    error: usersError,
-  } = useQuery<User[], Error>({
-    queryKey: ["users"],
-    queryFn: () => robustFetcher<User[]>("/api/users"),
-  });
-
-  const {
-    data: todos,
-    isLoading: todosLoading,
-    error: todosError,
-  } = useQuery<Todo[], Error>({
-    queryKey: ["todos"],
-    queryFn: () => robustFetcher<Todo[]>("/api/todo"),
-  });
-
-  const { data: availableTags = [], isLoading: tagsLoading } = useQuery<Tag[]>({
-    queryKey: ["tags", watchedProjectId],
-    queryFn: async () => {
-      if (!watchedProjectId) return [];
-      return robustFetcher<Tag[]>(`/api/tags?projectId=${watchedProjectId}`);
-    },
-    enabled: !!watchedProjectId,
-  });
-
-  const { mutate: createTag, isPending: isCreatingTag } = useMutation<
-    Tag,
-    AxiosError,
-    { name: string; color: string; projectId: string }
-  >({
-    mutationFn: async (variables) => {
-      const { data } = await axios.post("/api/tags", variables);
-      return data;
-    },
-    onSuccess: (newTag) => {
-      toast({ title: "Sucesso!", description: `Tag "${newTag.name}" criada.` });
-      queryClient.invalidateQueries({ queryKey: ["tags", watchedProjectId] });
-
-      const currentTags = control._getWatch("tags") || [];
-      setValue("tags", [...currentTags, newTag]);
-
-      setNewTagName("");
-      setNewTagColor("#3B82F6");
-      setShowNewTagForm(false);
-    },
-    onError: (error) => {
-      const errorData = error.response?.data as { message?: string };
-      toast({
-        title: "Erro ao criar tag",
-        description: errorData?.message || "Não foi possível criar a tag.",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const handleCreateTag = () => {
-    if (!newTagName.trim() || !watchedProjectId) return;
-    createTag({
-      name: newTagName.trim(),
-      color: newTagColor,
-      projectId: watchedProjectId,
-    });
-  };
-
-  useEffect(() => {
-    if (formFunctionReturn.formState.isSubmitSuccessful === false) {
-      setValue("tags", []);
-    }
-  }, [
-    watchedProjectId,
-    setValue,
-    formFunctionReturn.formState.isSubmitSuccessful,
-  ]);
-
-  const tagOptions = availableTags.map((tag) => ({
-    value: tag.id,
-    title: tag.name,
-  }));
-
-  const projectOptions =
-    projects?.map((project) => ({ value: project.id, title: project.name })) ||
-    [];
-  const userOptions =
-    users?.map((user) => ({
-      value: user.id,
-      title: user.name || user.email || "Usuário sem nome",
-    })) || [];
-  const todoOptions =
-    todos
-      ?.filter((t) => t.id !== task.id)
-      .map((todo) => ({ value: todo.id, title: todo.title })) || [];
-
-  const ErrorMessage = ({ msg }: ErrorMessageProps) =>
-    msg ? <span className="text-red-500 text-xs">{msg}</span> : null;
 
   const { mutate: deleteAttachment, isPending: isDeletingAttachment } =
     useMutation({
@@ -402,7 +312,10 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
     mutationFn: async (content: string) => {
       if (!task.id) throw new Error("ID da tarefa não encontrado.");
       const payload = { content, todoId: task.id };
-      const { data } = await axios.post("/api/comments", payload);
+      const { data } = await axios.post(
+        process.env.NEXT_PUBLIC_BASE_PATH + "/api/comments",
+        payload
+      );
       return data;
     },
     onSuccess: () => {
@@ -427,6 +340,56 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
     }
   };
 
+  const tagOptions = [...PREDEFINED_TAGS];
+
+  const {
+    data: projects,
+    isLoading: projectsLoading,
+    error: projectsError,
+  } = useQuery<Project[], Error>({
+    queryKey: ["projects"],
+    queryFn: () =>
+      robustFetcher<Project[]>(
+        process.env.NEXT_PUBLIC_BASE_PATH + "/api/projects"
+      ),
+  });
+
+  const {
+    data: users,
+    isLoading: usersLoading,
+    error: usersError,
+  } = useQuery<User[], Error>({
+    queryKey: ["users"],
+    queryFn: () =>
+      robustFetcher<User[]>(process.env.NEXT_PUBLIC_BASE_PATH + "/api/users"),
+  });
+
+  const {
+    data: todos,
+    isLoading: todosLoading,
+    error: todosError,
+  } = useQuery<Todo[], Error>({
+    queryKey: ["todos"],
+    queryFn: () =>
+      robustFetcher<Todo[]>(process.env.NEXT_PUBLIC_BASE_PATH + "/api/todo"),
+  });
+
+  const projectOptions =
+    projects?.map((project) => ({ value: project.id, title: project.name })) ||
+    [];
+  const userOptions =
+    users?.map((user) => ({
+      value: user.id,
+      title: user.name || user.email || "Usuário sem nome",
+    })) || [];
+  const todoOptions =
+    todos
+      ?.filter((t) => t.id !== task.id)
+      .map((todo) => ({ value: todo.id, title: todo.title })) || [];
+
+  const ErrorMessage = ({ msg }: ErrorMessageProps) =>
+    msg ? <span className="text-red-500 text-xs">{msg}</span> : null;
+
   const handleAttachmentChange = async (
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
@@ -445,10 +408,13 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
       formData.append("files", file);
     }
     try {
-      const response = await fetch(`/api/attachments/upload/${task.id}`, {
-        method: "POST",
-        body: formData,
-      });
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_BASE_PATH}/api/attachments/upload/${task.id}`,
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
       if (!response.ok) {
         let errorData = { message: `Falha no upload: ${response.statusText}` };
         try {
@@ -484,15 +450,20 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
         <Controller
           control={control}
           name="projectId"
+          defaultValue={task.projectId?.toString() || ""}
           render={({ field }) => (
             <CustomizedSelect
               options={projectOptions}
               placeholder="Selecione a área"
               onChange={field.onChange}
-              value={field.value || ""}
+              value={field.value?.toString() || ""}
             />
           )}
         />
+        {projectsError && <ErrorMessage msg={projectsError.message} />}
+        {!projectsLoading && projectOptions.length === 0 && (
+          <ErrorMessage msg="Nenhuma área disponível." />
+        )}
         <ErrorMessage msg={errors.projectId?.message?.toString()} />
       </div>
       <div className="relative grid gap-1 pb-4">
@@ -512,6 +483,10 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
             />
           )}
         />
+        {usersError && <ErrorMessage msg={usersError.message} />}
+        {!usersLoading && userOptions.length === 0 && (
+          <ErrorMessage msg="Nenhum usuário disponível." />
+        )}
         <ErrorMessage msg={errors.assignedToIds?.message?.toString()} />
       </div>
       <div className="relative grid gap-1 pb-4">
@@ -531,6 +506,7 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
             />
           )}
         />
+        {todosError && <ErrorMessage msg={todosError.message} />}
         <ErrorMessage msg={errors.parentId?.message?.toString()} />
       </div>
       <div className="relative grid gap-1 pb-4">
@@ -550,6 +526,7 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
             />
           )}
         />
+        {todosError && <ErrorMessage msg={todosError.message} />}
         <ErrorMessage msg={errors.linkedCardIds?.message?.toString()} />
       </div>
       <div className="relative grid gap-1 pb-4">
@@ -580,6 +557,7 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0 bg-white dark:bg-gray-900 z-50 border rounded-md shadow-md">
                 <Calendar
+                  register={register("startDate")}
                   mode="single"
                   selected={field.value ? new Date(field.value) : undefined}
                   onSelect={(date) => field.onChange(date || null)}
@@ -591,74 +569,23 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
         />
         <ErrorMessage msg={errors.deadline?.message?.toString()} />
       </div>
-
       <div className="relative grid gap-1 pb-4">
-        <div className="flex items-center justify-between">
-          <Label className="text-sm font-medium" htmlFor="tags">
-            Tags
-          </Label>
-          {watchedProjectId && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-6 px-1"
-              onClick={() => setShowNewTagForm(!showNewTagForm)}
-            >
-              <PlusCircle className="h-4 w-4" />
-            </Button>
-          )}
-        </div>
-
-        {showNewTagForm && (
-          <div className="flex items-center gap-2 p-2 border rounded-md bg-slate-50 dark:bg-slate-800">
-            <Input
-              type="color"
-              value={newTagColor}
-              onChange={(e) => setNewTagColor(e.target.value)}
-              className="p-1 h-8 w-10"
-            />
-            <Input
-              type="text"
-              placeholder="Nome da nova tag"
-              value={newTagName}
-              onChange={(e) => setNewTagName(e.target.value)}
-              className="h-8"
-            />
-            <Button
-              type="button"
-              size="sm"
-              onClick={handleCreateTag}
-              disabled={isCreatingTag || !newTagName.trim()}
-              isLoading={isCreatingTag}
-            >
-              Criar
-            </Button>
-          </div>
-        )}
-
+        <Label className="text-sm font-medium" htmlFor="tags">
+          Tags
+        </Label>
         <Controller
           control={control}
           name="tags"
           defaultValue={task.tags || []}
           render={({ field }) => (
             <CustomizedMultSelect
-              value={(field.value || []).map((tag: any) => tag.id || tag)}
-              onChange={(selectedIds: string[]) => {
-                const selectedObjects = availableTags.filter((tag) =>
-                  selectedIds.includes(tag.id)
-                );
-                field.onChange(selectedObjects);
-              }}
+              value={field.value || []}
+              onChange={field.onChange}
               placeholder="Selecione tags"
-              options={tagOptions}
-              disabled={tagsLoading || !watchedProjectId}
+              options={tagOptions.map((tag) => ({ value: tag, title: tag }))}
             />
           )}
         />
-        {!watchedProjectId && (
-          <ErrorMessage msg="Selecione um projeto para ver as tags." />
-        )}
         <ErrorMessage msg={errors.tags?.message?.toString()} />
       </div>
     </>
@@ -667,7 +594,8 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
   return (
     <form
       onSubmit={handleSubmit((data) => {
-        const payload = { ...data, id: task.id };
+        const payload =
+          title === "Edit Task" && task.id ? { ...data, id: task.id } : data;
         submitEditTodoTask(payload);
       })}
     >
@@ -717,7 +645,7 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
                 />
               </div>
               {!md && <ExtraInfoField />}
-              <div className="relative grid gap-1 h-80">
+              <div className="relative grid gap-1">
                 <Label className="text-sm font-medium" htmlFor="description">
                   Descrição
                 </Label>
@@ -727,14 +655,29 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
                   defaultValue={task.description || ""}
                   render={({ field }) => (
                     <CustomizedReactQuill
+                      className="h-80"
                       theme="snow"
                       value={field.value || ""}
                       onChange={field.onChange}
-                      className="h-[calc(100%-1.75rem)]"
+                      placeholder="Descrição"
                     />
                   )}
                 />
                 <ErrorMessage msg={errors.description?.message?.toString()} />
+              </div>
+              <div className="relative grid gap-1">
+                <Controller
+                  control={control}
+                  name="checklist"
+                  defaultValue={task.checklist || []}
+                  render={({ field }) => (
+                    <Checklist
+                      items={field.value || []}
+                      onChange={field.onChange}
+                    />
+                  )}
+                />
+                <ErrorMessage msg={errors.checklist?.message?.toString()} />
               </div>
 
               {task.id && task.attachments && task.attachments.length > 0 && (
@@ -754,7 +697,6 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
                   </div>
                 </div>
               )}
-
               {task.id && (
                 <div className="relative grid gap-2 pt-4">
                   <Label
@@ -801,11 +743,9 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
                   </div>
                 </div>
               )}
-
               {task.id && task.movementHistory && (
                 <MovementHistory history={task.movementHistory} />
               )}
-
               <div className="relative flex gap-2 pt-4">
                 <Button type="submit" isLoading={isEditLoading}>
                   {title === "Create Task"
@@ -820,7 +760,7 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
                     isLoading={isDeleteLoading}
                     disabled={!task.id || isDeleteLoading}
                   >
-                    Excluir Tarefa
+                    Arquivar Tarefa
                   </Button>
                 )}
                 <input

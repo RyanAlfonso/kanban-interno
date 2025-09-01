@@ -52,8 +52,7 @@ const TimelineItem: FC<TimelineItemProps> = ({ todo, isLast = false }) => {
   const createdDate = dayjs(todo.createdAt);
 
   const isOverdue = !!dueDate && createdDate.isAfter(dueDate);
-  const isFinished =
-    derivedState === State.DONE || derivedState === State.REVIEW;
+  const isFinished = derivedState === State.DONE || derivedState === State.REVIEW;
 
   const getStatusIcon = (state: State) => {
     switch (state) {
@@ -103,7 +102,7 @@ const TimelineItem: FC<TimelineItemProps> = ({ todo, isLast = false }) => {
           <div
             className={cn(
               "flex items-center justify-center w-10 h-10 rounded-full z-0",
-              getStatusColor(derivedState)
+              getStatusColor(derivedState),
             )}
           >
             {getStatusIcon(derivedState)}
@@ -132,10 +131,10 @@ const TimelineItem: FC<TimelineItemProps> = ({ todo, isLast = false }) => {
                     derivedState === State.REVIEW &&
                       "bg-purple-500/10 text-purple-500 border-purple-500/20",
                     derivedState === State.DONE &&
-                      "bg-green-500/10 text-green-500 border-green-500/20"
+                      "bg-green-500/10 text-green-500 border-green-500/20",
                   )}
                 >
-                  {derivedState.replace("_", " ")}
+                  {derivedState.replace("_", " ")} {/* Use derivedState */}
                 </Badge>
               </div>
 
@@ -147,7 +146,7 @@ const TimelineItem: FC<TimelineItemProps> = ({ todo, isLast = false }) => {
                       className={cn(
                         "px-2 py-0.5 rounded-full leading-5 text-sm",
                         getLabelColor(label).bg,
-                        getLabelColor(label).badge
+                        getLabelColor(label).badge,
                       )}
                     >
                       {label}
@@ -170,7 +169,7 @@ const TimelineItem: FC<TimelineItemProps> = ({ todo, isLast = false }) => {
                         isOverdue && !isFinished
                           ? "text-red-500 font-medium"
                           : "",
-                        isFinished && "text-green-500 font-medium"
+                        isFinished && "text-green-500 font-medium",
                       )}
                     >
                       Due {dayjs(dueDate).format("MMM D")}

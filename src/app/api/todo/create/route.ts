@@ -1,3 +1,4 @@
+
 import { getAuthSession } from "@/lib/nextAuthOptions";
 import prisma from "@/lib/prismadb";
 import { TodoCreateValidator } from "@/lib/validators/todo";
@@ -19,7 +20,7 @@ export async function POST(req: Request) {
       description = "",
       columnId,
       deadline,
-      tagIds = [],
+      tags,
       assignedToIds,
       parentId,
       linkedCardIds,
@@ -34,47 +35,25 @@ export async function POST(req: Request) {
       return new Response("Project column not found", { status: 404 });
     }
 
-    if (tagIds.length > 0) {
-      const tags = await prisma.tag.findMany({
-        where: {
-          id: { in: tagIds },
-          projectId: projectColumn.projectId
-        }
-      });
-
-      if (tags.length !== tagIds.length) {
-        return new Response("One or more tags not found or don't belong to this project", { status: 400 });
-      }
-    }
-
     const order = await getNextOrderInColumn(columnId);
+
 
     const createData = {
       title,
       description,
       column: { connect: { id: columnId } },
       project: { connect: { id: projectColumn.projectId } },
+      tags,
       order,
       owner: { connect: { id: session.user.id } },
       assignedToIds,
       linkedCardIds,
       deadline,
       ...(parentId && { parent: { connect: { id: parentId } } }),
-      ...(tagIds.length > 0 && { 
-        tags: { 
-          connect: tagIds.map(id => ({ id })) 
-        } 
-      }),
     };
 
     const result = await prisma.todo.create({
       data: createData,
-      include: {
-        tags: true,
-        owner: true,
-        column: true,
-        project: true
-      }
     });
 
     return new Response(JSON.stringify(result), { status: 201 });
@@ -95,3 +74,4 @@ async function getNextOrderInColumn(columnId: string): Promise<number> {
   });
   return lastTodo ? lastTodo.order + 1 : 1;
 }
+

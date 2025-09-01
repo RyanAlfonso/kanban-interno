@@ -14,13 +14,13 @@ export default function AdminUsersPage() {
   }, []);
 
   const fetchUsers = async () => {
-    const res = await fetch('/api/users');
+    const res = await fetch(process.env.NEXT_PUBLIC_BASE_PATH +'/api/users');
     const data = await res.json();
     setUsers(data);
   };
 
   const handleSubmit = async (data: any) => {
-    const url = editingUser ? `/api/users/${editingUser.id}` : '/api/users';
+    const url = editingUser ? `${process.env.NEXT_PUBLIC_BASE_PATH}/api/users/${editingUser.id}` : process.env.NEXT_PUBLIC_BASE_PATH + '/api/users';
     const method = editingUser ? 'PUT' : 'POST';
 
     const res = await fetch(url, {
@@ -43,7 +43,7 @@ export default function AdminUsersPage() {
 
   const handleDelete = async (user: User) => {
     if (confirm(`Tem certeza que deseja excluir o usuário ${user.name}?`)) {
-      const res = await fetch(`/api/users/${user.id}`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_PATH}/api/users/${user.id}`, {
         method: 'DELETE',
       });
 

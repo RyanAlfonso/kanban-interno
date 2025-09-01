@@ -1,4 +1,3 @@
-// src/app/api/attachments/upload/[todoId]/route.ts
 
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthSession } from "@/lib/nextAuthOptions";
@@ -6,7 +5,7 @@ import prisma from "@/lib/prismadb";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import { Prisma } from "@prisma/client";
-import { stat } from "fs/promises"; 
+import { stat } from "fs/promises";
 
 type AttachmentWithUploader = Prisma.AttachmentGetPayload<{
   include: { uploadedBy: { select: { id: true; name: true; image: true } } };

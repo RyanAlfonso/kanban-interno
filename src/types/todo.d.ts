@@ -14,43 +14,55 @@ type OptionalNullable<T> = {
   [K in keyof PickNotNullable<T>]: T[K];
 };
 
-export type TodoWithRelations = Prisma.TodoGetPayload<{
+const todoFromPrisma = Prisma.validator<Prisma.TodoDefaultArgs>()({
   include: {
-    project: true;
-    column: true;
+    project: true,
+    column: true,
     owner: {
-      select: { id: true; name: true; image: true };
-    };
-    assignedTo: {
-      select: { id: true; name: true; email: true; image: true };
-    };
-    linkedCards: {
-      select: { id: true; title: true };
-    };
+      select: { id: true, name: true, image: true },
+    },
     parent: {
-      select: { id: true; title: true };
-    };
+      select: { id: true, title: true },
+    },
     childTodos: {
-      select: { id: true; title: true };
-    };
+      select: { id: true, title: true },
+    },
     attachments: {
       include: {
         uploadedBy: {
-          select: { id: true; name: true; image: true };
-        };
-      };
-    };
+          select: { id: true, name: true, image: true },
+        },
+      },
+    },
     comments: {
       include: {
         author: {
-          select: { id: true; name: true; image: true };
-        };
-      };
-    };
-  };
-}>;
+          select: { id: true, name: true, image: true },
+        },
+      },
+    },
+  },
+});
+
+type ManualTodoRelations = {
+  assignedTo: {
+    id: string;
+    name: string | null;
+    email: string | null;
+    image: string | null;
+  }[];
+  linkedCards: {
+    id: string;
+    title: string;
+  }[];
+};
+
+export type TodoWithRelations = Prisma.TodoGetPayload<typeof todoFromPrisma> & ManualTodoRelations;
 
 
+/**
+ * @deprecated Use `TodoWithRelations` para uma tipagem mais precisa e completa.
+ */
 export type TodoWithColumn = Prisma.TodoGetPayload<{
   include: {
     column: true;

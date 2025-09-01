@@ -1,10 +1,8 @@
-// Caminho do arquivo: src/app/api/todo/edit/route.ts
-
 import { getAuthSession } from "@/lib/nextAuthOptions";
 import prisma from "@/lib/prismadb";
-import { Prisma } from "@prisma/client";
 import { TodoEditValidator } from "@/lib/validators/todo";
 import { getLogger } from "@/logger";
+import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
@@ -22,13 +20,7 @@ export async function PATCH(req: Request) {
 
     const currentTodo = await prisma.todo.findUnique({
       where: { id },
-      select: { 
-        ownerId: true, 
-        columnId: true, 
-        parentId: true,
-        projectId: true,
-        tags: { select: { id: true } }
-      }
+      select: { ownerId: true, columnId: true, parentId: true },
     });
 
     if (!currentTodo) {
@@ -41,35 +33,16 @@ export async function PATCH(req: Request) {
     const dataToUpdate: Prisma.TodoUpdateInput = {};
 
     if (updateData.title) dataToUpdate.title = updateData.title;
-    if (updateData.description !== undefined) dataToUpdate.description = updateData.description;
+    if (updateData.description !== undefined)
+      dataToUpdate.description = updateData.description;
     if (updateData.label) dataToUpdate.label = updateData.label;
-    if (updateData.assignedToIds) dataToUpdate.assignedToIds = updateData.assignedToIds;
-    if (updateData.linkedCardIds) dataToUpdate.linkedCardIds = updateData.linkedCardIds;
-    if (updateData.referenceDocument !== undefined) dataToUpdate.referenceDocument = updateData.referenceDocument;
-
-    if (updateData.tagIds !== undefined) {
-      if (updateData.tagIds.length > 0 && currentTodo.projectId) {
-        const tags = await prisma.tag.findMany({
-          where: {
-            id: { in: updateData.tagIds },
-            projectId: currentTodo.projectId
-          }
-        });
-
-        if (tags.length !== updateData.tagIds.length) {
-          return new Response("One or more tags not found or don't belong to this project", { status: 400 });
-        }
-      }
-
-      const currentTagIds = currentTodo.tags.map(tag => tag.id);
-      
-      dataToUpdate.tags = {
-        disconnect: currentTagIds.map(id => ({ id })),
-        ...(updateData.tagIds.length > 0 && {
-          connect: updateData.tagIds.map(id => ({ id }))
-        })
-      };
-    }
+    if (updateData.tags) dataToUpdate.tags = updateData.tags;
+    if (updateData.assignedToIds)
+      dataToUpdate.assignedToIds = updateData.assignedToIds;
+    if (updateData.linkedCardIds)
+      dataToUpdate.linkedCardIds = updateData.linkedCardIds;
+    if (updateData.referenceDocument !== undefined)
+      dataToUpdate.referenceDocument = updateData.referenceDocument;
 
     if (updateData.deadline) {
       dataToUpdate.deadline = new Date(updateData.deadline);
@@ -83,8 +56,11 @@ export async function PATCH(req: Request) {
       }
     }
 
-
-    if (updateData.columnId && currentTodo.columnId && updateData.columnId !== currentTodo.columnId) {
+    if (
+      updateData.columnId &&
+      currentTodo.columnId &&
+      updateData.columnId !== currentTodo.columnId
+    ) {
       dataToUpdate.column = { connect: { id: updateData.columnId } };
       dataToUpdate.movementHistory = {
         create: {
@@ -92,13 +68,16 @@ export async function PATCH(req: Request) {
           fromColumn: { connect: { id: currentTodo.columnId } },
           toColumn: { connect: { id: updateData.columnId } },
           movedAt: new Date(),
-        }
+        },
       };
     } else if (updateData.columnId && !currentTodo.columnId) {
       dataToUpdate.column = { connect: { id: updateData.columnId } };
     }
 
-    logger.info("--- API Backend (PATCH /edit): Dados sendo enviados para o Prisma update ---", JSON.stringify(dataToUpdate, null, 2));
+    logger.info(
+      dataToUpdate,
+      "--- API Backend (PATCH /edit): Dados sendo enviados para o Prisma update ---"
+    );
 
     const updatedTodo = await prisma.todo.update({
       where: { id },
@@ -107,7 +86,6 @@ export async function PATCH(req: Request) {
         project: true,
         column: true,
         owner: true,
-        tags: true,
         movementHistory: {
           include: {
             movedBy: { select: { id: true, name: true } },
@@ -118,7 +96,7 @@ export async function PATCH(req: Request) {
         },
         parent: { select: { id: true, title: true } },
         childTodos: { select: { id: true, title: true } },
-      }
+      },
     });
 
     const assignedUsers = await prisma.user.findMany({
@@ -136,8 +114,9 @@ export async function PATCH(req: Request) {
     revalidatePath("/dashboard");
     revalidatePath("/");
 
-    return new Response(JSON.stringify(resultWithAssignedUsers), { status: 200 });
-
+    return new Response(JSON.stringify(resultWithAssignedUsers), {
+      status: 200,
+    });
   } catch (error) {
     logger.error(error);
     if (error instanceof z.ZodError) {

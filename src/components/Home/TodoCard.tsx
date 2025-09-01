@@ -1,100 +1,149 @@
 "use client";
-
 import useDraggable from "@/hooks/useDraggable";
+import { getTagColor, PredefinedTag, TagColor } from "@/lib/tags";
+import { cn } from "@/lib/utils";
 import { openTodoEditor } from "@/redux/actions/todoEditorAction";
 import { Todo, User } from "@prisma/client";
-import dayjs from "dayjs";
-import {
-  Clock,
-  Folder,
-  Users,
-  History,
-  ArrowUp,
-  ArrowDown,
-  Link,
-  Share2,
-} from "lucide-react";
-import { FC, useCallback, useState } from "react";
-import { useDispatch } from "react-redux";
-import { useSearchParams } from "next/navigation";
-import { Button } from "../ui/button";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@radix-ui/react-popover";
+} from "@/components/ui/popover";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { Button } from "../ui/button";
 import { useToast } from "../ui/use-toast";
+import dayjs from "dayjs";
+import {
+  Clock,
+  Folder,
+  History,
+  Link,
+  Share2,
+  Users,
+} from "lucide-react";
+import { usePathname, useSearchParams } from "next/navigation";
+import { FC, MouseEvent as ReactMouseEvent, useCallback } from "react";
+import { useDispatch } from "react-redux";
 
 interface ExtendedTodo extends Todo {
-  project?: {
-    id: string;
-    name: string;
-  } | null;
-  tags: {
-    id: string;
-    name: string;
-    color: string;
-  }[];
+  project?: { id: string; name: string } | null;
+  tags: string[];
   assignedTo?: User[];
   movementHistory?: {
     id: string;
     movedAt: Date;
-    movedBy: {
-      id: string;
-      name: string;
-    };
-    fromColumn: {
-      id: string;
-      name: string;
-    };
-    toColumn: {
-      id: string;
-      name: string;
-    };
+    movedBy: { id: string; name: string };
+    fromColumn: { id: string; name: string };
+    toColumn: { id: string; name: string };
   }[];
-  parent?: {
-    id: string;
-    title: string;
-  } | null;
-  childTodos?: {
-    id: string;
-    title: string;
-  }[];
-  linkedCards?: {
-    id: string;
-    title: string;
-  }[];
+  parent?: { id: string; title: string } | null;
+  childTodos?: { id: string; title: string }[];
+  linkedCards?: { id: string; title: string }[];
 }
 
 type TodoProps = {
   todo: ExtendedTodo;
 };
+const RelationshipContent: FC<{
+  parent: { id: string; title: string } | null | undefined;
+  childTodos: { id: string; title: string }[] | null | undefined;
+  linkedCards: { id: string; title: string }[] | null | undefined;
+  onItemClick: (cardId: string) => void;
+}> = ({ parent, childTodos, linkedCards, onItemClick }) => (
+  <div className="space-y-3">
+    <h4 className="font-bold text-sm text-foreground">Vinculações do Card</h4>
 
+    {parent && (
+      <div>
+        <h5 className="text-xs font-semibold text-blue-500 mb-1">Card Pai:</h5>
+        <button
+          onClick={(e) => { e.stopPropagation(); onItemClick(parent.id); }}
+          className="w-full text-left text-xs p-2 rounded bg-accent text-accent-foreground hover:ring-2 hover:ring-ring transition-all"
+        >
+          {parent.title}
+        </button>
+      </div>
+    )}
+
+    {childTodos && childTodos.length > 0 && (
+      <div>
+        <h5 className="text-xs font-semibold text-green-500 mb-1">Cards Filhos ({childTodos.length}):</h5>
+        <div className="space-y-1 max-h-28 overflow-y-auto p-1">
+          {childTodos.map((item) => (
+            <button
+              key={item.id}
+              onClick={(e) => { e.stopPropagation(); onItemClick(item.id); }}
+              className="w-full text-left text-xs p-2 rounded bg-accent text-accent-foreground hover:ring-2 hover:ring-ring transition-all"
+            >
+              {item.title}
+            </button>
+          ))}
+        </div>
+      </div>
+    )}
+
+    {linkedCards && linkedCards.length > 0 && (
+      <div>
+        <h5 className="text-xs font-semibold text-purple-500 mb-1">Cards Relacionados ({linkedCards.length}):</h5>
+        <div className="space-y-1 max-h-28 overflow-y-auto p-1">
+          {linkedCards.map((item) => (
+            <button
+              key={item.id}
+              onClick={(e) => { e.stopPropagation(); onItemClick(item.id); }}
+              className="w-full text-left text-xs p-2 rounded bg-accent text-accent-foreground hover:ring-2 hover:ring-ring transition-all"
+            >
+              {item.title}
+            </button>
+          ))}
+        </div>
+      </div>
+    )}
+  </div>
+);
 const TodoCard: FC<TodoProps> = ({ todo }) => {
   const dispatch = useDispatch();
-  const searchParams = useSearchParams();
-  const currentProjectId = searchParams.get("projectId") || "all";
-  const [showHistory, setShowHistory] = useState(false);
   const { toast } = useToast();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
-  const handleClick = useCallback(
-    (e: MouseEvent) => {
-      e.stopPropagation();
-      dispatch(openTodoEditor(todo, "/", "edit"));
-    },
-    [dispatch, todo]
-  );
+  const currentProjectId = searchParams.get("projectId") || "all";
+
+  const handleCardClick = useCallback((e: MouseEvent) => {
+    const returnUrl = `${pathname}?${searchParams.toString()}`;
+    dispatch(openTodoEditor(todo, returnUrl, "edit"));
+  }, [dispatch, todo, pathname, searchParams]);
+
+  const handleOpenLinkedCard = useCallback(async (cardId: string) => {
+    try {
+      const response = await fetch(`/api/todo/${cardId}`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Card não encontrado.");
+      }
+      const cardToOpen: ExtendedTodo = await response.json();
+      const returnUrl = `${pathname}?${searchParams.toString()}`;
+      dispatch(openTodoEditor(cardToOpen, returnUrl, "edit"));
+    } catch (error: any) {
+      console.error("Erro ao abrir card vinculado:", error);
+      toast({
+        title: "Erro",
+        description: error.message || "Não foi possível carregar o card selecionado.",
+        variant: "destructive",
+      });
+    }
+  }, [dispatch, pathname, searchParams, toast]);
 
   const handleShare = useCallback(
-    async (e: React.MouseEvent) => {
+    async (e: ReactMouseEvent) => {
       e.stopPropagation();
       try {
-        const response = await fetch(`/api/share/${todo.id}`);
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_BASE_PATH}/api/share/${todo.id}`
+        );
         if (!response.ok) {
           throw new Error("Failed to generate share link");
         }
         const data = await response.json();
-
         await navigator.clipboard.writeText(data.shareableLink);
         toast({
           title: "Link copiado!",
@@ -111,221 +160,167 @@ const TodoCard: FC<TodoProps> = ({ todo }) => {
     },
     [todo.id, toast]
   );
-
   const { setNodeRef, attributes } = useDraggable({
     id: todo.id,
-    handleClick,
+    handleClick: handleCardClick,
   });
+
+  const hasRelationships = !!todo.parent || (todo.childTodos && todo.childTodos.length > 0) || (todo.linkedCards && todo.linkedCards.length > 0);
 
   const showProjectName = currentProjectId === "all" || !currentProjectId;
 
   return (
-    <div
-      className="border-zinc-100 hover:shadow-md rounded-md mb-2 mx-auto p-3 flex flex-col cursor-pointer bg-white dark:bg-gray-900 relative group"
-      ref={setNodeRef}
-      {...attributes}
-    >
-      <Button
-        variant="ghost"
-        size="sm"
-        className="absolute top-2 right-2 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity z-10"
-        onClick={handleShare}
-        title="Compartilhar tarefa"
+    <TooltipProvider delayDuration={200}>
+      <div
+        ref={setNodeRef}
+        {...attributes}
+        className="border-zinc-100 hover:shadow-xl rounded-lg mb-2 mx-auto p-3 flex flex-col cursor-pointer bg-white dark:bg-gray-900 relative group transition-shadow duration-200"
       >
-        <Share2 className="h-3 w-3" />
-      </Button>
-      <div className="px-2 py-1 flex-grow">
-        <div className="pb-2 font-bold overflow-hidden whitespace-nowrap text-ellipsis text-card-foreground">
-          {todo.title}
-        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="absolute top-2 right-2 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity z-20"
+          onClick={handleShare}
+          title="Compartilhar tarefa"
+        >
+          <Share2 className="h-3 w-3" />
+        </Button>
 
-        {showProjectName && todo.project && (
-          <div className="mb-2 text-xs text-gray-600 dark:text-gray-300 flex items-center">
-            <Folder className="h-3 w-3 mr-1" />
-            <span className="truncate" title={todo.project.name}>
-              {todo.project.name}
-            </span>
+        <div className="px-2 py-1 flex-grow">
+          <div className="pb-2 font-bold overflow-hidden whitespace-nowrap text-ellipsis text-card-foreground">
+            {todo.title}
           </div>
-        )}
 
-        {todo.assignedTo && todo.assignedTo.length > 0 && (
-          <div className="mb-2 text-xs text-gray-600 dark:text-gray-300 flex items-center">
-            <Users className="h-3 w-3 mr-1" />
-            <span className="truncate">
-              {todo.assignedTo
-                .map((user) => user.name || user.email)
-                .join(", ")}
-            </span>
-          </div>
-        )}
-
-        {/* Documento de Referência */}
-        {todo.referenceDocument && (
-          <div className="mb-2 text-xs text-gray-600 dark:text-gray-300 flex items-center">
-            <Folder className="h-3 w-3 mr-1" />
-            <span
-              className="truncate"
-              title={`Documento: ${todo.referenceDocument}`}
-            >
-              Doc: {todo.referenceDocument}
-            </span>
-          </div>
-        )}
-
-        {todo.parent && (
-          <div className="mb-2 text-xs text-blue-600 dark:text-blue-400 flex items-center">
-            <ArrowUp className="h-3 w-3 mr-1" />
-            <span className="truncate" title={`Card pai: ${todo.parent.title}`}>
-              Pai: {todo.parent.title}
-            </span>
-          </div>
-        )}
-
-        {todo.childTodos && todo.childTodos.length > 0 && (
-          <div className="mb-2 text-xs text-green-600 dark:text-green-400 flex items-center">
-            <ArrowDown className="h-3 w-3 mr-1" />
-            <span className="truncate">
-              Filhos: {todo.childTodos.length} card(s)
-            </span>
-          </div>
-        )}
-
-        {todo.linkedCards && todo.linkedCards.length > 0 && (
-          <div className="mb-2 text-xs text-purple-600 dark:text-purple-400 flex items-center">
-            <Link className="h-3 w-3 mr-1" />
-            <span className="truncate">
-              Relacionados: {todo.linkedCards.length} card(s)
-            </span>
-          </div>
-        )}
-
-        {todo.deadline && (
-          <div className="mt-2 mb-2 text-xs text-gray-500 dark:text-gray-400 flex items-center">
-            <Clock className="h-3 w-3 mr-1" />
-            {dayjs(todo.deadline).format("DD/MM/YYYY")}
-          </div>
-        )}
-
-        {todo.movementHistory && todo.movementHistory.length > 0 && (
-          <div className="mt-2 mb-2">
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-6 p-1 text-xs">
-                  <History className="h-3 w-3 mr-1" />
-                  Histórico ({todo.movementHistory.length})
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-80 p-3 bg-white dark:bg-gray-900 border rounded-md shadow-md z-50">
-                <div className="space-y-2">
-                  <h4 className="font-medium text-sm">
-                    Histórico de Movimentação
-                  </h4>
-                  <div className="max-h-40 overflow-y-auto space-y-2">
-                    {todo.movementHistory.map((movement) => (
-                      <div
-                        key={movement.id}
-                        className="text-xs border-l-2 border-gray-200 pl-2"
-                      >
-                        <div className="font-medium">
-                          {movement.movedBy.name} moveu de "
-                          {movement.fromColumn.name}" para "
-                          {movement.toColumn.name}"
-                        </div>
-                        <div className="text-gray-500">
-                          {dayjs(movement.movedAt).format("DD/MM/YYYY HH:mm")}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </PopoverContent>
-            </Popover>
-          </div>
-        )}
-
-        {(todo.parent ||
-          (todo.childTodos && todo.childTodos.length > 0) ||
-          (todo.linkedCards && todo.linkedCards.length > 0)) && (
-          <div className="mt-2 mb-2">
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-6 p-1 text-xs">
-                  <Link className="h-3 w-3 mr-1" />
-                  Vinculações
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-80 p-3 bg-white dark:bg-gray-900 border rounded-md shadow-md z-50">
-                <div className="space-y-3">
-                  <h4 className="font-medium text-sm">Vinculações do Card</h4>
-
-                  {todo.parent && (
-                    <div>
-                      <h5 className="text-xs font-medium text-blue-600 dark:text-blue-400 mb-1">
-                        Card Pai:
-                      </h5>
-                      <div className="text-xs bg-blue-50 dark:bg-blue-900/20 p-2 rounded">
-                        {todo.parent.title}
-                      </div>
-                    </div>
-                  )}
-
-                  {todo.childTodos && todo.childTodos.length > 0 && (
-                    <div>
-                      <h5 className="text-xs font-medium text-green-600 dark:text-green-400 mb-1">
-                        Cards Filhos:
-                      </h5>
-                      <div className="space-y-1">
-                        {todo.childTodos.map((child) => (
-                          <div
-                            key={child.id}
-                            className="text-xs bg-green-50 dark:bg-green-900/20 p-2 rounded"
-                          >
-                            {child.title}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {todo.linkedCards && todo.linkedCards.length > 0 && (
-                    <div>
-                      <h5 className="text-xs font-medium text-purple-600 dark:text-purple-400 mb-1">
-                        Cards Relacionados:
-                      </h5>
-                      <div className="space-y-1">
-                        {todo.linkedCards.map((linked) => (
-                          <div
-                            key={linked.id}
-                            className="text-xs bg-purple-50 dark:bg-purple-900/20 p-2 rounded"
-                          >
-                            {linked.title}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </PopoverContent>
-            </Popover>
-          </div>
-        )}
-      </div>
-
-      {todo.tags && todo.tags.length > 0 && (
-        <div className="absolute bottom-2 right-2 flex flex-wrap gap-1 justify-end mt-2">
-          {todo.tags.map((tag) => (
-            <div
-              key={tag.id}
-              className="px-1.5 py-0.5 rounded-full text-xs leading-tight text-white"
-              style={{ backgroundColor: tag.color }}
-              title={tag.name}
-            >
-              {tag.name}
+          {showProjectName && todo.project && (
+            <div className="mb-2 text-xs text-gray-600 dark:text-gray-300 flex items-center">
+              <Folder className="h-3 w-3 mr-1" />
+              <span className="truncate" title={todo.project.name}>
+                {todo.project.name}
+              </span>
             </div>
-          ))}
+          )}
+
+          {todo.assignedTo && todo.assignedTo.length > 0 && (
+            <div className="mb-2 text-xs text-gray-600 dark:text-gray-300 flex items-center">
+              <Users className="h-3 w-3 mr-1" />
+              <span className="truncate">
+                {todo.assignedTo
+                  .map((user) => user.name || user.email)
+                  .join(", ")}
+              </span>
+            </div>
+          )}
+
+          {todo.referenceDocument && (
+            <div className="mb-2 text-xs text-gray-600 dark:text-gray-300 flex items-center">
+              <Folder className="h-3 w-3 mr-1" />
+              <span
+                className="truncate"
+                title={`Documento: ${todo.referenceDocument}`}
+              >
+                Doc: {todo.referenceDocument}
+              </span>
+            </div>
+          )}
         </div>
-      )}
-    </div>
+
+        <div className="flex items-center justify-between mt-2 px-2 pt-2 border-t border-gray-100 dark:border-gray-800">
+          <div className="flex items-center gap-3 text-gray-500">
+            {hasRelationships && (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className="flex items-center p-1 rounded-md hover:bg-accent focus:outline-none focus:ring-2 focus:ring-ring"
+                    aria-label="Ver vinculações"
+                  >
+                    <Link className="h-4 w-4" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent
+                  side="top"
+                  align="start"
+                  className="w-72 z-30 bg-background p-3"
+                >
+                  <RelationshipContent
+                    parent={todo.parent}
+                    childTodos={todo.childTodos}
+                    linkedCards={todo.linkedCards}
+                    onItemClick={handleOpenLinkedCard}
+                  />
+                </PopoverContent>
+              </Popover>
+            )}
+
+            {todo.deadline && (
+              <div
+                className="flex items-center text-xs p-1"
+                title={dayjs(todo.deadline).format("DD/MM/YYYY")}
+              >
+                <Clock className="h-3 w-3 mr-1" />
+                <span>{dayjs(todo.deadline).format("DD/MM/YYYY")}</span>
+              </div>
+            )}
+
+            {todo.movementHistory && todo.movementHistory.length > 0 && (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className="flex items-center p-1 rounded-md hover:bg-accent focus:outline-none focus:ring-2 focus:ring-ring"
+                    title="Ver histórico"
+                    aria-label="Ver histórico de movimentação"
+                  >
+                    <History className="h-3 w-3" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent
+                  className="w-80 p-3 bg-background border rounded-md shadow-md z-50"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="space-y-2">
+                    <h4 className="font-medium text-sm">Histórico de Movimentação</h4>
+                    <div className="max-h-40 overflow-y-auto space-y-2">
+                      {todo.movementHistory.map((movement) => (
+                        <div key={movement.id} className="text-xs border-l-2 border-border pl-2">
+                          <div className="font-medium text-foreground">
+                            {movement.movedBy.name} moveu de{" "}
+                            {movement.fromColumn.name} para{" "}
+                            {movement.toColumn.name}
+                          </div>
+                          <div className="text-muted-foreground">
+                            {dayjs(movement.movedAt).format("DD/MM/YYYY HH:mm")}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            )}
+          </div>
+
+          <div className="flex flex-wrap gap-1 justify-end">
+            {todo.tags.slice(0, 2).map((tag) => {
+              const colors: TagColor = getTagColor(tag as PredefinedTag);
+              return (
+                <div
+                  key={tag}
+                  className={cn(
+                    "px-1.5 py-0.5 rounded-full text-xs leading-tight",
+                    colors.bg,
+                    colors.text
+                  )}
+                  title={tag}
+                >
+                  {tag}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </TooltipProvider>
   );
 };
 

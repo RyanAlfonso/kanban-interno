@@ -1,95 +1,38 @@
-import { Todo } from "@prisma/client";
+import { TodoWithRelations } from "@/types/todo";
+
 /**
- * @param projectId
- * @param view
- * @param searchParams
- * @returns
+ * Função adaptada para buscar todos (cards) da nossa API unificada.
+ * Ela constrói uma URL com todos os parâmetros de filtro e faz uma única chamada.
+ * @param searchParams - Objeto URLSearchParams contendo todos os filtros da URL.
+ * @returns Promise com um array de todos (com todas as relações).
  */
 const todoFetchRequest = async (
-  projectId?: string | null, 
-  view?: string | null,
-  searchParams?: URLSearchParams
-): Promise<Todo[]> => {
-  console.log(`Fetching todos with projectId: ${projectId}, view: ${view}`);
+projectId: string | null, view: string, searchParams: URLSearchParams): Promise<TodoWithRelations[]> => {
   
-  const hasAdvancedFilters = searchParams && (
-    searchParams.get("tagIds") ||
-    searchParams.get("assignedToIds") ||
-    searchParams.get("startDate") ||
-    searchParams.get("endDate")
-  );
+  // Cria a URL base para a nossa API unificada.
+  const url = new URL(process.env.NEXT_PUBLIC_BASE_PATH + "/api/todo", window.location.origin);
 
-  if (hasAdvancedFilters) {
-    const url = new URL("/api/todo/filter", window.location.origin);
-    
-    if (view === "mine") {
-      url.searchParams.append("view", "mine");
-    }
-    
-    if (projectId && projectId !== "all") {
-      url.searchParams.append("projectId", projectId);
-    }
-    
-    const tagIds = searchParams.get("tagIds");
-    if (tagIds) {
-      url.searchParams.append("tagIds", tagIds);
-    }
-    
-    const assignedToIds = searchParams.get("assignedToIds");
-    if (assignedToIds) {
-      url.searchParams.append("assignedToIds", assignedToIds);
-    }
-    
-    const startDate = searchParams.get("startDate");
-    if (startDate) {
-      url.searchParams.append("startDate", startDate);
-    }
-    
-    const endDate = searchParams.get("endDate");
-    if (endDate) {
-      url.searchParams.append("endDate", endDate);
-    }
-    
-    try {
-      const response = await fetch(url.toString());
-      
-      if (!response.ok) {
-        console.error("Error fetching filtered todos:", response.status, response.statusText);
-        throw new Error(`Erro ao buscar cards filtrados: ${response.statusText}`);
-      }
-      
-      const data = await response.json();
-      console.log(`Fetched ${data.todos?.length || 0} filtered todos`);
-      return data.todos || [];
-    } catch (error) {
-      console.error("Error in filtered todoFetchRequest:", error);
-      throw error;
-    }
-  }
-  
-  const url = new URL("/api/todo", window.location.origin);
-  
-  if (view === "mine") {
-    url.searchParams.append("view", "mine");
-  }
-  
-  if (projectId && projectId !== "all") {
-    url.searchParams.append("projectId", projectId);
-  }
-  
+  searchParams.forEach((value, key) => {
+    url.searchParams.append(key, value);
+  });
+
+  console.log(`Buscando todos da API com a URL: ${url.toString()}`);
+
   try {
     const response = await fetch(url.toString());
-    
+
     if (!response.ok) {
-      console.error("Error fetching todos:", response.status, response.statusText);
-      throw new Error(`Erro ao buscar cards: ${response.statusText}`);
+      const errorText = await response.text();
+      console.error("Erro ao buscar os cards:", response.status, errorText);
+      throw new Error(`Erro ao buscar cards: ${errorText || response.statusText}`);
     }
-    
+
     const data = await response.json();
-    console.log(`Fetched ${data.length} todos`);
+    console.log(`Recebidos ${data.length || 0} cards.`);
     return data;
+
   } catch (error) {
-    console.error("Error in todoFetchRequest:", error);
+    console.error("Falha na requisição todoFetchRequest:", error);
     throw error;
   }
 };

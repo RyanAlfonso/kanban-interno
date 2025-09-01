@@ -1,23 +1,22 @@
 "use client";
 
-import { FC, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
 import { Project } from "@prisma/client";
-import { useQuery } from "@tanstack/react-query";
-import { Button } from "../ui/button";
-import { Label } from "../ui/label";
-import { ChevronDown } from "lucide-react";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@radix-ui/react-popover";
+import { useQuery } from "@tanstack/react-query";
+import { ChevronDown } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { FC, useState } from "react";
+import { Button } from "../ui/button";
+import { Label } from "../ui/label";
 import { Skeleton } from "../ui/skeleton";
 import { useToast } from "../ui/use-toast";
 
-// Função para buscar projetos da API
 const fetchProjects = async (): Promise<Project[]> => {
-  const response = await fetch("/api/projects");
+  const response = await fetch(process.env.NEXT_PUBLIC_BASE_PATH + "/api/projects");
   if (!response.ok) {
     throw new Error("Falha ao buscar projetos");
   }
@@ -37,13 +36,6 @@ const DashboardProjectSelector: FC<DashboardProjectSelectorProps> = ({ className
   const { data: projects, isLoading, error } = useQuery<Project[], Error>({
     queryKey: ["projects"],
     queryFn: fetchProjects,
-    onError: (err) => {
-      toast({
-        title: "Erro ao Carregar Projetos",
-        description: err.message || "Não foi possível carregar a lista de projetos.",
-        variant: "destructive",
-      });
-    },
   });
 
   const currentProjectId = searchParams.get("projectId") || "all";
@@ -51,7 +43,9 @@ const DashboardProjectSelector: FC<DashboardProjectSelectorProps> = ({ className
   const currentProjectName = 
       isLoading ? "Carregando..." 
     : currentProjectId === "all" ? "Todas as áreas" 
-    : projects?.find(p => p.id === currentProjectId)?.name || "Projeto não encontrado";
+    : Array.isArray(projects)
+      ? projects.find(p => p.id === currentProjectId)?.name || "Projeto não encontrado"
+      : "Projeto não encontrado";
 
   const handleProjectChange = (projectId: string) => {
     const params = new URLSearchParams(Array.from(searchParams.entries()));
@@ -89,6 +83,7 @@ const DashboardProjectSelector: FC<DashboardProjectSelectorProps> = ({ className
         <PopoverContent
           align="start"
         >
+          {/* Loading state */}
           {isLoading && (
             <div className="p-2">
               <Skeleton className="h-8 w-full mb-1" />
@@ -110,7 +105,7 @@ const DashboardProjectSelector: FC<DashboardProjectSelectorProps> = ({ className
                 Todas as áreas
               </Button>
               
-              {projects?.map((project) => (
+              {Array.isArray(projects) && projects.map((project) => (
                 <Button
                   key={project.id}
                   variant={currentProjectId === project.id ? "secondary" : "ghost"}
@@ -121,7 +116,7 @@ const DashboardProjectSelector: FC<DashboardProjectSelectorProps> = ({ className
                 </Button>
               ))}
               
-              {projects?.length === 0 && (
+              {Array.isArray(projects) && projects.length === 0 && (
                 <div className="p-2 text-sm text-muted-foreground">Nenhum projeto encontrado.</div>
               )}
             </div>

@@ -1,6 +1,6 @@
 import { getAuthSession } from "@/lib/nextAuthOptions";
-import { getLogger } from "@/logger";
 import prisma from "@/lib/prismadb";
+import { getLogger } from "@/logger";
 import { NextRequest } from "next/server";
 
 export async function GET(req: NextRequest) {
@@ -24,21 +24,15 @@ export async function GET(req: NextRequest) {
 
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },
-      include: {
-        areas: { 
-          select: {
-            name: true
-          }
-        }
-      }
+      select: {
+        areaIds: true,
+      },
     });
 
-    if (user && user.areas.length > 0) {
-      const userAreaNames = user.areas.map(area => area.name);
-
+    if (user && user.areaIds.length > 0) {
       const projects = await prisma.project.findMany({
         where: {
-          name: { in: userAreaNames },
+          id: { in: user.areaIds },
         },
         orderBy: {
           name: "asc",
@@ -47,13 +41,18 @@ export async function GET(req: NextRequest) {
       return new Response(JSON.stringify(projects), { status: 200 });
     }
 
+    // Se o usuário não for ADMIN e não tiver áreas, retorna uma lista vazia
     return new Response(JSON.stringify([]), { status: 200 });
   } catch (error) {
-    logger.error("Error fetching projects:", error);
+    logger.error(error, "Error fetching projects:");
     return new Response("Internal Server Error", { status: 500 });
   }
 }
 
+/**
+ * POST /api/projects
+ * Cria um novo projeto. Apenas para ADMINs.
+ */
 export async function POST(req: NextRequest) {
   const logger = getLogger("info");
   try {
@@ -82,11 +81,15 @@ export async function POST(req: NextRequest) {
 
     return new Response(JSON.stringify(newProject), { status: 201 });
   } catch (error) {
-    logger.error("Error creating project:", error);
+    logger.error(error, "Error creating project:");
     return new Response("Internal Server Error", { status: 500 });
   }
 }
 
+/**
+ * PUT /api/projects
+ * Atualiza um projeto existente. Apenas para ADMINs.
+ */
 export async function PUT(req: NextRequest) {
   const logger = getLogger("info");
   try {
@@ -109,19 +112,22 @@ export async function PUT(req: NextRequest) {
     const updatedProject = await prisma.project.update({
       where: { id: id },
       data: {
-        name: name || undefined,
-        description: description || undefined,
+        name: name,
+        description: description,
       },
     });
 
     return new Response(JSON.stringify(updatedProject), { status: 200 });
   } catch (error) {
-    logger.error("Error updating project:", error);
+    logger.error(error, "Error updating project:");
     return new Response("Internal Server Error", { status: 500 });
   }
 }
 
-// DELETE /api/projects - Deleta um projeto
+/**
+ * DELETE /api/projects
+ * Deleta um projeto. Apenas para ADMINs.
+ */
 export async function DELETE(req: NextRequest) {
   const logger = getLogger("info");
   try {
@@ -134,8 +140,7 @@ export async function DELETE(req: NextRequest) {
       return new Response("Forbidden: User is not an Admin", { status: 403 });
     }
 
-    const body = await req.json();
-    const { id } = body;
+    const { id } = await req.json();
 
     if (!id) {
       return new Response("Project ID is required", { status: 400 });
@@ -147,7 +152,7 @@ export async function DELETE(req: NextRequest) {
 
     return new Response(JSON.stringify(deletedProject), { status: 200 });
   } catch (error) {
-    logger.error("Error deleting project:", error);
+    logger.error(error, "Error deleting project:");
     return new Response("Internal Server Error", { status: 500 });
   }
 }

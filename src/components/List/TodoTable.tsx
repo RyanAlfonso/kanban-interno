@@ -22,12 +22,12 @@ import {
   TableRow,
 } from "../ui/table";
 
-type TodoTableProps<TValue> = {
-  columns: ColumnDef<Todo, TValue>[];
-  data: Todo[];
+type TodoTableProps<TData, TValue> = {
+  columns: ColumnDef<TData, TValue>[];
+  data: TData[];
 };
 
-const TodoTable = <TValue,>({ columns, data }: TodoTableProps<TValue>) => {
+const TodoTable = <TData, TValue>({ columns, data }: TodoTableProps<TData, TValue>) => {
   const dispatch = useDispatch();
   const tableRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
@@ -112,7 +112,7 @@ const TodoTable = <TValue,>({ columns, data }: TodoTableProps<TValue>) => {
               <TableRow
                 key={row.id}
                 data-state={row.getIsSelected() && "selected"}
-                onClick={() => handleRowClick(row)}
+                //onClick={() => handleRowClick(row)}
               >
                 {row.getVisibleCells().map((cell) => (
                   <TableCell key={cell.id}>

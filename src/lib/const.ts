@@ -1,4 +1,3 @@
-// Path: kanban-interno/src/lib/const.ts
 export const COLUMN_COLORS: Record<string, { bg: string; header: string }> = Object.freeze({
   "Backlog": {
     bg: "bg-slate-50 dark:bg-slate-950",

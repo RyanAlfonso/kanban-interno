@@ -1,19 +1,19 @@
 "use client";
 
-import { FC } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { Project } from "@prisma/client";
-import { useToast } from "./ui/use-toast";
-import { Skeleton } from "./ui/skeleton";
-import ProjectForm from "./ProjectForm";
-import ProjectEditForm from "./ProjectEditForm";
-import { useRouter, useSearchParams } from "next/navigation";
-import { Button } from "./ui/button";
+import { useQuery } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import { useSession } from 'next-auth/react';
+import { useRouter, useSearchParams } from "next/navigation";
+import { FC } from "react";
+import ProjectEditForm from "./ProjectEditForm";
+import ProjectForm from "./ProjectForm";
+import { Button } from "./ui/button";
+import { Skeleton } from "./ui/skeleton";
+import { useToast } from "./ui/use-toast";
 
 const fetchProjects = async (): Promise<Project[]> => {
-  const response = await fetch("/api/projects");
+  const response = await fetch(process.env.NEXT_PUBLIC_BASE_PATH + "/api/projects");
   if (!response.ok) {
     throw new Error("Falha ao buscar áreas");
   }
@@ -35,14 +35,14 @@ const ProjectList: FC<ProjectListProps> = ({ className }) => {
   const { data: projects, isLoading, error, refetch } = useQuery<Project[], Error>({
     queryKey: ["projects"],
     queryFn: fetchProjects,
-    onError: (err) => {
-      toast({
-        title: "Erro ao Carregar áreas",
-        description: err.message || "Não foi possível carregar a lista de áreas.",
-        variant: "destructive",
+   // onError: (err) => {
+    //  toast({
+     //   title: "Erro ao Carregar áreas",
+     //   description: err.message || "Não foi possível carregar a lista de áreas.",
+    //    variant: "destructive",
       });
-    },
-  });
+ //   },
+ // });
 
   const handleSelectProject = (projectId: string) => {
     const params = new URLSearchParams(Array.from(searchParams.entries()));

@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { Check, CircleX, X } from "lucide-react";
 import {
   FC,
+  KeyboardEvent,
   KeyboardEventHandler,
   useCallback,
   useEffect,
@@ -20,7 +21,7 @@ type Option = {
 };
 
 type CustomizedMultSelectProps = {
-  options?: Option[];
+  options?: Option[]; 
   value?: string[];
   onChange?: (value: string[]) => void;
   placeholder?: string;

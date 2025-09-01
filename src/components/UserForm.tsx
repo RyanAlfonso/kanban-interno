@@ -27,7 +27,7 @@ export function UserForm({ onSubmit, initialData }: UserFormProps) {
 
   useEffect(() => {
     const fetchAreas = async () => {
-      const res = await fetch("/api/projects");
+      const res = await fetch(process.env.NEXT_PUBLIC_BASE_PATH + "/api/projects");
       const data = await res.json();
       setAreas(data);
     };

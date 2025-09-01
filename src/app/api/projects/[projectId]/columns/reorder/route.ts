@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
 import { getAuthSession } from '@/lib/nextAuthOptions';
-import { getLogger } from '@/logger';
-import { reorderProjectColumns } from '@/lib/services/projectColumn.service';
 import prisma from '@/lib/prismadb';
+import { reorderProjectColumns } from '@/lib/services/projectColumn.service';
+import { getLogger } from '@/logger';
+import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(
   req: NextRequest,
@@ -37,10 +37,11 @@ export async function POST(
         return new NextResponse(`Project with ID ${projectId} not found.`, { status: 404 });
     }
 
+
     const updatedColumns = await reorderProjectColumns(projectId, orderedColumnIds);
     return NextResponse.json(updatedColumns, { status: 200 });
   } catch (error) {
-    logger.error(`Error reordering columns for project ${params.projectId}:`, error);
+    logger.error(error, `Error reordering columns for project ${params.projectId}:`);
     if (error instanceof Error) {
         if (error.message.includes('Invalid column IDs') || error.message.includes('Failed to reorder')) {
              return new NextResponse(error.message, { status: 400 });

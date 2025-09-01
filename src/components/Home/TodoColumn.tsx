@@ -9,10 +9,11 @@ import { PlusCircle, Trash2 } from "lucide-react";
 import { FC } from "react";
 import { useDispatch } from "react-redux";
 import { Badge } from "../ui/badge";
-import { useSession } from 'next-auth/react';
+import { useSession } from "next-auth/react";
 import { Button } from "../ui/button";
 import HomeTaskCreator from "./HomeTaskCreator";
 import TodoCard from "./TodoCard";
+import { usePathname, useSearchParams } from "next/navigation";
 
 type TodoColumnProp = {
   title: string;
@@ -22,11 +23,19 @@ type TodoColumnProp = {
   onDeleteColumn?: (columnId: string) => void;
 };
 
-const TodoColumn: FC<TodoColumnProp> = ({ title, todos, columnId, projectId, onDeleteColumn }) => {
+const TodoColumn: FC<TodoColumnProp> = ({
+  title,
+  todos,
+  columnId,
+  projectId,
+  onDeleteColumn,
+}) => {
   const dispatch = useDispatch();
   const { data: session } = useSession();
-
   const { setNodeRef } = useDroppable({ id: columnId });
+
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   const genericColumnColor = "bg-slate-100 dark:bg-slate-800";
   const genericColumnHeaderColor = "text-slate-600 dark:text-slate-300";
@@ -34,20 +43,28 @@ const TodoColumn: FC<TodoColumnProp> = ({ title, todos, columnId, projectId, onD
   const canCreateTask = canCreateTaskInColumn(title);
 
   const handleOpenDialog = () => {
-    dispatch(openTodoEditor({ columnId: columnId, projectId: projectId }, "/", "create"));
+    const returnUrl = `${pathname}?${searchParams.toString()}`;
+
+    dispatch(
+      openTodoEditor(
+        { columnId: columnId, projectId: projectId },
+        returnUrl,
+        "create"
+      )
+    );
   };
 
   return (
     <div
       className={cn(
         "flex flex-col rounded-lg shadow-sm min-w-[280px] max-w-[280px] h-fit max-h-[calc(100vh-180px)]",
-        genericColumnColor,
+        genericColumnColor
       )}
     >
       <div
         className={cn(
           "p-3 font-medium rounded-t-lg flex items-center justify-between sticky top-0 text-card-foreground",
-          genericColumnHeaderColor,
+          genericColumnHeaderColor
         )}
       >
         <div className="flex items-center">
@@ -57,8 +74,8 @@ const TodoColumn: FC<TodoColumnProp> = ({ title, todos, columnId, projectId, onD
           </Badge>
         </div>
         <div className="flex items-center space-x-1">
-          {session?.user?.role === 'ADMIN' && onDeleteColumn && (
-             <Button
+          {session?.user?.role === "ADMIN" && onDeleteColumn && (
+            <Button
               variant="ghost"
               size="icon"
               className="h-7 w-7 text-muted-foreground hover:text-destructive"
@@ -72,7 +89,7 @@ const TodoColumn: FC<TodoColumnProp> = ({ title, todos, columnId, projectId, onD
               variant="ghost"
               size="icon"
               className="h-7 w-7"
-              onClick={() => handleOpenDialog()}
+              onClick={handleOpenDialog}
             >
               <PlusCircle className="h-4 w-4" />
             </Button>
@@ -86,7 +103,9 @@ const TodoColumn: FC<TodoColumnProp> = ({ title, todos, columnId, projectId, onD
             return <TodoCard todo={todo} key={todo.id.toString()} />;
           })}
       </div>
-      {canCreateTask && <HomeTaskCreator columnId={columnId} projectId={projectId} />}
+      {canCreateTask && (
+        <HomeTaskCreator columnId={columnId} projectId={projectId} />
+      )}
     </div>
   );
 };

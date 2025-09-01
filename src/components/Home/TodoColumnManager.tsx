@@ -1,49 +1,54 @@
-// Path: kanban-interno/src/components/board/TodoColumnManager.tsx
-
 "use client";
 
-import React, { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { ProjectColumn as PrismaProjectColumn, Project } from "@prisma/client";
 import {
   useMutation,
+  useQueries,
   useQuery,
   useQueryClient,
-  useQueries,
 } from "@tanstack/react-query";
-import { useSession } from "next-auth/react";
 import { AxiosError } from "axios";
-import { Project, ProjectColumn as PrismaProjectColumn } from "@prisma/client";
-import { PlusCircle } from "lucide-react";
+import { Download, PlusCircle } from "lucide-react"; // Importa o ícone de Download
+import { useSession } from "next-auth/react";
+import { useRouter, useSearchParams } from "next/navigation";
+import React, { useState } from "react";
 
-import { Skeleton } from "../ui/skeleton";
-import { useToast } from "../ui/use-toast";
+import DndContextProvider, { OnDragEndEvent } from "../DnDContextProvider";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Separator } from "../ui/separator";
-import SkeletonColumn from "./SkeletonColumn";
-import TodoColumn from "./TodoColumn";
+import { Skeleton } from "../ui/skeleton";
+import { useToast } from "../ui/use-toast";
 import ViewToggle from "../ViewToggle";
-import DndContextProvider, { OnDragEndEvent } from "../DnDContextProvider";
+import TodoColumn from "./TodoColumn";
 
+import { exportToExcel } from "@/lib/export"; // Importa a função de exportação
 import { TodoEditRequest } from "@/lib/validators/todo";
-import { TodoWithColumn, TodoWithRelations } from "@/types/todo"; // Importando ambos os tipos para flexibilidade
+import { TodoWithRelations } from "@/types/todo"; // Importa o tipo corrigido
 
-import todoFetchRequest from "@/requests/todoFetchRequest";
-import todoEditRequest from "@/requests/todoEditRequest";
-import projectColumnsFetchRequest from "@/requests/projectColumnsFetchRequest";
 import projectColumnCreateRequest from "@/requests/projectColumnCreateRequest";
 import projectColumnDeleteRequest from "@/requests/projectColumnDeleteRequest";
+import projectColumnsFetchRequest from "@/requests/projectColumnsFetchRequest";
+import todoEditRequest from "@/requests/todoEditRequest";
+import todoFetchRequest from "@/requests/todoFetchRequest";
 
 interface GroupedProject {
   id: string;
   name: string;
-  tasks: TodoWithColumn[];
+  tasks: TodoWithRelations[];
 }
 
-// O contexto da mutação usa o tipo mais completo para consistência
 type MutationContext = {
   previousTodos?: TodoWithRelations[];
   queryKey: any[];
+};
+
+const fetchPermittedProjects = async (): Promise<Project[]> => {
+  const response = await fetch(process.env.NEXT_PUBLIC_BASE_PATH +"/api/projects");
+  if (!response.ok) {
+    throw new Error("Falha ao buscar projetos permitidos");
+  }
+  return response.json();
 };
 
 const TodoColumnManager = () => {
@@ -51,97 +56,97 @@ const TodoColumnManager = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
+  const { data: session } = useSession();
+
+  const [isExporting, setIsExporting] = useState(false);
   const searchTerm = searchParams.get("q")?.toLowerCase() || "";
   const currentProjectId = searchParams.get("projectId") || "all";
-  const viewMode = searchParams.get("view") || null;
-  const { data: session } = useSession();
 
   const [showAddColumnForm, setShowAddColumnForm] = useState(false);
   const [newColumnName, setNewColumnName] = useState("");
+  const projectId = searchParams.get("projectId") || null;
+  const view = searchParams.get("view") || "all";
+
+  const { data: permittedProjects, isLoading: isLoadingPermittedProjects } =
+    useQuery<Project[], Error>({
+      queryKey: ["projects"],
+      queryFn: fetchPermittedProjects,
+      enabled: !!session,
+      staleTime: 1000 * 60 * 5,
+    });
 
   const {
-    data: todos,
+    data: todos = [],
     isLoading: isLoadingTodos,
     error: errorTodos,
   } = useQuery<TodoWithRelations[], Error>({
-    queryKey: [
-      "todos",
-      { projectId: currentProjectId, viewMode },
-      searchParams.toString(),
-    ],
-    queryFn: () =>
-      todoFetchRequest(
-        currentProjectId === "all" ? null : currentProjectId,
-        viewMode,
-        searchParams
-      ) as Promise<TodoWithRelations[]>,
-    onError: (err) => {
-      toast({
-        title: "Erro",
-        description: "Falha ao buscar tarefas.",
-        variant: "destructive",
-      });
-    },
+    queryKey: ["todos", searchParams.toString()],
+    queryFn: () => todoFetchRequest(projectId, view, searchParams),
   });
 
+  const safeTodos = React.useMemo(() => {
+    if (isLoadingPermittedProjects || !permittedProjects) {
+      return [];
+    }
+    const permittedProjectIds = new Set(permittedProjects.map((p) => p.id));
+    return todos.filter(
+      (todo) => todo.projectId && permittedProjectIds.has(todo.projectId)
+    );
+  }, [todos, permittedProjects, isLoadingPermittedProjects]);
   const {
     data: projectColumns,
     isLoading: isLoadingProjectColumns,
     error: errorProjectColumns,
   } = useQuery<PrismaProjectColumn[], Error>({
     queryKey: ["projectColumns", { projectId: currentProjectId }],
-    queryFn: () => {
-      if (currentProjectId === "all") {
-        return Promise.resolve(undefined);
-      }
-      return projectColumnsFetchRequest(currentProjectId);
-    },
+    queryFn: () => projectColumnsFetchRequest(currentProjectId),
     enabled: currentProjectId !== "all",
-    onError: (err) => {
-      toast({
-        title: "Erro",
-        description: `Falha ao buscar colunas do projeto.`,
-        variant: "destructive",
-      });
-    },
   });
 
   const uniqueProjectIdsFromTodos =
-    currentProjectId === "all" && todos
+    currentProjectId === "all" && safeTodos
       ? Array.from(
           new Set(
-            todos
+            safeTodos
               .map((todo) => todo.projectId)
               .filter((id): id is string => !!id)
           )
         )
       : [];
 
-  const queriesConfig =
-    currentProjectId === "all" && todos && uniqueProjectIdsFromTodos.length > 0
-      ? uniqueProjectIdsFromTodos.map((projId) => ({
-          queryKey: ["projectColumns", { projectId: projId }],
-          queryFn: () => projectColumnsFetchRequest(projId),
-        }))
-      : [];
-
   const allProjectsColumnsQueries = useQueries({
-    queries: queriesConfig,
+    queries:
+      currentProjectId === "all" &&
+      safeTodos &&
+      uniqueProjectIdsFromTodos.length > 0
+        ? uniqueProjectIdsFromTodos.map((projId) => ({
+            queryKey: ["projectColumns", { projectId: projId }],
+            queryFn: () => projectColumnsFetchRequest(projId),
+          }))
+        : [],
   });
 
   const allProjectsColumnsMap = React.useMemo(() => {
-    const map: Record<string, PrismaProjectColumn[]> = {};
+    const map: { [key: string]: PrismaProjectColumn[] } = {};
     if (currentProjectId === "all") {
       allProjectsColumnsQueries.forEach((queryResult, index) => {
-        if (queryResult.data && uniqueProjectIdsFromTodos[index]) {
-          map[uniqueProjectIdsFromTodos[index]] = queryResult.data.sort(
+        const projectId = uniqueProjectIdsFromTodos[index];
+        if (queryResult.data && projectId) {
+          map[projectId as string] = queryResult.data.sort(
             (a, b) => a.order - b.order
           );
         }
       });
+    } else if (projectColumns) {
+      map[currentProjectId] = projectColumns;
     }
     return map;
-  }, [currentProjectId, allProjectsColumnsQueries, uniqueProjectIdsFromTodos]);
+  }, [
+    currentProjectId,
+    allProjectsColumnsQueries,
+    uniqueProjectIdsFromTodos,
+    projectColumns,
+  ]);
 
   const isLoadingAllProjectsColumns =
     currentProjectId === "all"
@@ -151,9 +156,9 @@ const TodoColumnManager = () => {
     currentProjectId === "all"
       ? (allProjectsColumnsQueries.find((q) => q.error)?.error as Error | null)
       : null;
-
   const isLoading =
     isLoadingTodos ||
+    isLoadingPermittedProjects ||
     (currentProjectId !== "all" && isLoadingProjectColumns) ||
     isLoadingAllProjectsColumns;
   const error =
@@ -203,11 +208,10 @@ const TodoColumnManager = () => {
           context.previousProjectColumns
         );
       }
+      const errorMessage = (err.response?.data as string) || err.message;
       toast({
         title: "Erro",
-        description: `Falha ao criar coluna: ${
-          err.response?.data || err.message
-        }`,
+        description: `Falha ao criar coluna: ${errorMessage}`,
         variant: "destructive",
       });
     },
@@ -263,11 +267,10 @@ const TodoColumnManager = () => {
           context.previousProjectColumns
         );
       }
+      const errorMessage = (err.response?.data as string) || err.message;
       toast({
         title: "Erro",
-        description: `Falha ao excluir coluna: ${
-          err.response?.data || err.message
-        }`,
+        description: `Falha ao excluir coluna: ${errorMessage}`,
         variant: "destructive",
       });
     },
@@ -276,13 +279,8 @@ const TodoColumnManager = () => {
         queryKey: ["projectColumns", { projectId: currentProjectId }],
       });
       queryClient.invalidateQueries({
-        queryKey: ["todos", { projectId: currentProjectId, viewMode }],
+        queryKey: ["todos", searchParams.toString()],
       });
-      if (currentProjectId === "all") {
-        queryClient.invalidateQueries({
-          queryKey: ["todos", { projectId: "all", viewMode }],
-        });
-      }
     },
   });
 
@@ -302,66 +300,43 @@ const TodoColumnManager = () => {
     TodoEditRequest,
     MutationContext
   >({
-    // ================== CORREÇÃO FINAL APLICADA AQUI ==================
-    // A função `todoEditRequest` já faz a chamada da API e retorna o resultado
-    // no formato correto. Não há necessidade de envolvê-la em outra função.
-    // Isso resolve o problema do "erro fantasma".
     mutationFn: todoEditRequest,
-    // ==================================================================
-
     onMutate: async (payload: TodoEditRequest) => {
-      const queryKey = ["todos", { projectId: currentProjectId, viewMode }];
+      const queryKey = ["todos", searchParams.toString()];
       await queryClient.cancelQueries({ queryKey });
       const previousTodos =
         queryClient.getQueryData<TodoWithRelations[]>(queryKey);
-      if (!previousTodos) {
-        return { previousTodos: undefined, queryKey };
-      }
+      if (!previousTodos) return { previousTodos: undefined, queryKey };
       const todoToUpdate = previousTodos.find((todo) => todo.id === payload.id);
-      if (!todoToUpdate) {
-        return { previousTodos, queryKey };
-      }
-
+      if (!todoToUpdate) return { previousTodos, queryKey };
       const originalTodoState = JSON.parse(JSON.stringify(todoToUpdate));
       const newProjectId = payload.projectId || originalTodoState.projectId;
       const newColumnId = payload.columnId!;
       const newOrder = payload.order!;
-
       let tempTodos = JSON.parse(
         JSON.stringify(previousTodos)
       ) as TodoWithRelations[];
       const itemIndex = tempTodos.findIndex((todo) => todo.id === payload.id);
-      if (itemIndex > -1) {
-        tempTodos.splice(itemIndex, 1);
-      }
-
+      if (itemIndex > -1) tempTodos.splice(itemIndex, 1);
       if (
         originalTodoState.columnId !== newColumnId ||
         originalTodoState.projectId !== newProjectId
       ) {
-        tempTodos = tempTodos.map((todo) => {
-          if (
-            todo.projectId === originalTodoState.projectId &&
-            todo.columnId === originalTodoState.columnId &&
-            todo.order > originalTodoState.order
-          ) {
-            return { ...todo, order: todo.order - 1 };
-          }
-          return todo;
-        });
+        tempTodos = tempTodos.map((todo) =>
+          todo.projectId === originalTodoState.projectId &&
+          todo.columnId === originalTodoState.columnId &&
+          todo.order > originalTodoState.order
+            ? { ...todo, order: todo.order - 1 }
+            : todo
+        );
       }
-
-      tempTodos = tempTodos.map((todo) => {
-        if (
-          todo.projectId === newProjectId &&
-          todo.columnId === newColumnId &&
-          todo.order >= newOrder
-        ) {
-          return { ...todo, order: todo.order + 1 };
-        }
-        return todo;
-      });
-
+      tempTodos = tempTodos.map((todo) =>
+        todo.projectId === newProjectId &&
+        todo.columnId === newColumnId &&
+        todo.order >= newOrder
+          ? { ...todo, order: todo.order + 1 }
+          : todo
+      );
       const updatedTodoItem: TodoWithRelations = {
         ...originalTodoState,
         projectId: newProjectId,
@@ -373,15 +348,11 @@ const TodoColumnManager = () => {
         ...(payload.label && { label: payload.label }),
       };
       tempTodos.push(updatedTodoItem);
-
-      tempTodos.sort((a, b) => {
-        if (a.projectId && b.projectId && a.projectId !== b.projectId)
-          return a.projectId.localeCompare(b.projectId);
-        if (a.columnId && b.columnId && a.columnId !== b.columnId)
-          return a.columnId.localeCompare(b.columnId);
-        return a.order - b.order;
-      });
-
+      tempTodos.sort((a, b) =>
+        a.columnId && b.columnId && a.columnId !== b.columnId
+          ? a.columnId.localeCompare(b.columnId)
+          : a.order - b.order
+      );
       queryClient.setQueryData<TodoWithRelations[]>(queryKey, tempTodos);
       return { previousTodos, queryKey };
     },
@@ -389,54 +360,34 @@ const TodoColumnManager = () => {
       if (context?.previousTodos) {
         queryClient.setQueryData(context.queryKey, context.previousTodos);
       }
-
-      if (error.response?.status === 401) {
-        toast({
-          title: "Sessão Expirada",
-          description: "Por favor, faça login novamente.",
-          variant: "destructive",
-        });
-        router.push("/login");
-        return;
-      }
-
-      const errorMessage = error.response?.data as string;
+      const errorMessage =
+        (error.response?.data as string) ||
+        "Você não tem permissão para realizar esta ação.";
       toast({
         title: "Ação não permitida",
-        description:
-          errorMessage || "Você não tem permissão para realizar esta ação.",
+        description: errorMessage,
         variant: "destructive",
       });
     },
     onSuccess: () => {
-      // Invalida a query para garantir que os dados sejam ressincronizados com o servidor.
       queryClient.invalidateQueries({
-        queryKey: ["todos", { projectId: currentProjectId, viewMode }],
+        queryKey: ["todos", searchParams.toString()],
       });
-      if (currentProjectId === "all") {
-        // Se estiver na visão "all", pode ser necessário invalidar outras queries também
-        // dependendo da complexidade da lógica de cache.
-        // A invalidação acima já deve ser suficiente na maioria dos casos.
-      }
     },
   });
 
   const handleDragEnd = (dragEndEvent: OnDragEndEvent) => {
     const { over, item, order } = dragEndEvent;
-    if (!over || !item || order === undefined || order === null) {
-      return;
-    }
-    const draggedTodo = (todos ?? []).find((t) => t.id === item);
-    if (!draggedTodo) {
-      return;
-    }
-    const originalProjectId = draggedTodo.projectId;
-    const targetColumnId = over.toString();
+    if (!over || !item || order === undefined) return;
+    const draggedTodo = safeTodos.find((t) => t.id === item);
+    if (!draggedTodo) return;
     let targetProjectId = currentProjectId;
     if (currentProjectId === "all") {
       for (const projId in allProjectsColumnsMap) {
         if (
-          allProjectsColumnsMap[projId].some((col) => col.id === targetColumnId)
+          allProjectsColumnsMap[projId].some(
+            (col) => col.id === over.toString()
+          )
         ) {
           targetProjectId = projId;
           break;
@@ -445,44 +396,17 @@ const TodoColumnManager = () => {
     }
     const payload: TodoEditRequest = {
       id: item as string,
-      columnId: targetColumnId,
+      columnId: over.toString(),
       order,
       projectId:
-        targetProjectId &&
-        targetProjectId !== "all" &&
-        targetProjectId !== originalProjectId
+        targetProjectId !== "all" && targetProjectId !== draggedTodo.projectId
           ? targetProjectId
           : undefined,
     };
     handleUpdateState(payload);
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex flex-col gap-4">
-        <div className="flex justify-between items-center px-6 pt-6">
-          <Skeleton className="h-10 w-64" />
-          <Skeleton className="h-10 w-32" />
-        </div>
-        <div className="flex gap-2 overflow-x-auto p-6">
-          <SkeletonColumn />
-          <SkeletonColumn />
-          <SkeletonColumn />
-          <SkeletonColumn />
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="p-6 text-red-500">
-        Erro ao carregar tarefas: {error.message}
-      </div>
-    );
-  }
-
-  const filteredTodos = (Array.isArray(todos) ? todos : []).filter((todo) => {
+  const filteredTodos = safeTodos.filter((todo) => {
     if (!searchTerm) return true;
     const inTitle = todo.title?.toLowerCase().includes(searchTerm);
     const inDescription =
@@ -491,17 +415,11 @@ const TodoColumnManager = () => {
   });
 
   let pageTitle = "Todas as áreas";
-  if (currentProjectId && currentProjectId !== "all") {
-    const project = (
-      queryClient.getQueryData<Project[]>(["projects"]) || []
-    ).find((p) => p.id === currentProjectId);
-    if (project?.name) {
-      pageTitle = project.name;
-    } else if (todos && todos.length > 0 && todos[0].project?.name) {
-      pageTitle = todos[0].project.name;
-    } else {
-      pageTitle = "Projeto";
-    }
+  if (currentProjectId !== "all") {
+    const project = (permittedProjects || []).find(
+      (p) => p.id === currentProjectId
+    );
+    pageTitle = project?.name || "Projeto";
   }
 
   const groupedProjects: GroupedProject[] = [];
@@ -516,11 +434,83 @@ const TodoColumnManager = () => {
             tasks: [],
           });
         }
-        projectsMap.get(todo.project.id)!.tasks.push(todo as TodoWithColumn);
+        projectsMap.get(todo.project.id)!.tasks.push(todo);
       }
     });
     groupedProjects.push(...Array.from(projectsMap.values()));
     groupedProjects.sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  const handleExport = () => {
+    if (!filteredTodos || filteredTodos.length === 0) {
+      toast({
+        title: "Nenhuma tarefa para exportar",
+        description: "Não há tarefas que correspondam aos filtros atuais.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsExporting(true);
+    try {
+      const dataToExport = filteredTodos.map((todo) => ({
+        "Título da Tarefa": todo.title,
+        Projeto: todo.project?.name || "N/A",
+        "Coluna (Status)": todo.columnId
+          ? allProjectsColumnsMap[todo.projectId as string]?.find(
+              (c) => c.id === todo.columnId
+            )?.name || "Não categorizada"
+          : "N/A",
+        Responsáveis:
+          todo.assignedTo?.map((user) => user.name).join(", ") || "Ninguém",
+        Descrição: todo.description || "",
+        Prazo: todo.deadline
+          ? new Date(todo.deadline).toLocaleDateString()
+          : "N/A",
+        "Criado em": new Date(todo.createdAt).toLocaleString(),
+        "Atualizado em": new Date(todo.updatedAt).toLocaleString(),
+        "ID da Tarefa": todo.id,
+      }));
+
+      const fileName = `tarefas_${
+        currentProjectId === "all" ? "todos-projetos" : currentProjectId
+      }_${new Date().toISOString().split("T")[0]}`;
+      exportToExcel(dataToExport, fileName, "Tarefas");
+    } catch (err) {
+      toast({
+        title: "Erro ao exportar",
+        description: "Ocorreu um problema ao gerar o arquivo Excel.",
+        variant: "destructive",
+      });
+      console.error("Export Error:", err);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+  if (isLoading) {
+    return (
+      <div className="flex flex-col gap-4">
+        <div className="flex justify-between items-center px-6 pt-6">
+          <Skeleton className="h-10 w-64" />
+          <Skeleton className="h-10 w-32" />
+        </div>
+        <div className="flex gap-2 overflow-x-auto p-6">
+          {/*<SkeletonColumn />
+          <SkeletonColumn />
+          <SkeletonColumn />
+          <SkeletonColumn />
+          */}
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6 text-red-500">
+        Erro ao carregar dados: {error.message}
+      </div>
+    );
   }
 
   return (
@@ -528,13 +518,28 @@ const TodoColumnManager = () => {
       <div className="flex justify-between items-center px-6 pt-6">
         <h1 className="text-2xl font-bold tracking-tight">{pageTitle}</h1>
         <div className="flex items-center gap-2">
+          <Button
+            onClick={handleExport}
+            variant="outline"
+            size="sm"
+            disabled={isExporting}
+          >
+            {isExporting ? (
+              "Exportando..."
+            ) : (
+              <>
+                <Download className="mr-2 h-4 w-4" />
+                Exportar para Excel
+              </>
+            )}
+          </Button>
           <ViewToggle />
         </div>
       </div>
       <DndContextProvider onDragEnd={handleDragEnd}>
         {currentProjectId !== "all" ? (
           <div className="flex gap-2 overflow-x-auto px-6">
-            {(Array.isArray(projectColumns) ? [...projectColumns] : [])
+            {(projectColumns || [])
               .sort((a, b) => a.order - b.order)
               .map((column) => {
                 const columnTodos = filteredTodos
@@ -544,63 +549,61 @@ const TodoColumnManager = () => {
                   <TodoColumn
                     key={column.id}
                     title={column.name}
-                    todos={columnTodos as TodoWithColumn[]}
+                    todos={columnTodos}
                     columnId={column.id}
                     projectId={currentProjectId}
                     onDeleteColumn={handleDeleteColumn}
                   />
                 );
               })}
-            {session?.user?.role === "ADMIN" &&
-              currentProjectId !== "all" &&
-              !isLoadingProjectColumns && (
-                <div className="min-w-[280px] w-[280px] flex-shrink-0 p-1">
-                  {showAddColumnForm ? (
-                    <form
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        handleCreateColumn(newColumnName);
-                      }}
-                      className="p-2 bg-slate-200 dark:bg-slate-700 rounded-md space-y-2"
-                    >
-                      <Input
-                        type="text"
-                        value={newColumnName}
-                        onChange={(e) => setNewColumnName(e.target.value)}
-                        placeholder="Nome da Coluna"
-                        className="bg-white dark:bg-slate-800"
-                        autoFocus
-                      />
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setShowAddColumnForm(false)}
-                        >
-                          Cancelar
-                        </Button>
-                        <Button
-                          type="submit"
-                          size="sm"
-                          disabled={!newColumnName.trim()}
-                        >
-                          Adicionar
-                        </Button>
-                      </div>
-                    </form>
-                  ) : (
-                    <Button
-                      variant="outline"
-                      className="w-full border-dashed hover:bg-slate-200 dark:hover:bg-slate-700"
-                      onClick={() => setShowAddColumnForm(true)}
-                    >
-                      <PlusCircle className="h-4 w-4 mr-2" />
-                      Adicionar Nova Coluna
-                    </Button>
-                  )}
-                </div>
-              )}
+            {session?.user?.role === "ADMIN" && (
+              <div className="min-w-[280px] w-[280px] flex-shrink-0 p-1">
+                {showAddColumnForm ? (
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      handleCreateColumn(newColumnName);
+                    }}
+                    className="p-2 bg-slate-200 dark:bg-slate-700 rounded-md space-y-2"
+                  >
+                    <Input
+                      type="text"
+                      value={newColumnName}
+                      onChange={(e) => setNewColumnName(e.target.value)}
+                      placeholder="Nome da Coluna"
+                      className="bg-white dark:bg-slate-800"
+                      autoFocus
+                    />
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowAddColumnForm(false)}
+                      >
+                        Cancelar
+                      </Button>
+                      <Button
+                        type="submit"
+                        size="sm"
+                        disabled={!newColumnName.trim()}
+                      >
+                        Adicionar
+                      </Button>
+                    </div>
+                  </form>
+                ) : (
+                  <Button
+                    variant="outline"
+                    className="w-full border-dashed hover:bg-slate-200 dark:hover:bg-slate-700"
+                    onClick={() => setShowAddColumnForm(true)}
+                  >
+                    <PlusCircle className="h-4 w-4 mr-2" /> Adicionar Nova
+                    Coluna
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
         ) : (
           <div className="flex flex-col gap-6">

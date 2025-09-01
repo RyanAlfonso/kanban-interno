@@ -6,15 +6,15 @@ import { cn } from "@/lib/utils";
 import { COLUMN_COLORS } from "@/lib/const";
 
 type SkeletonColumnProps = {
-  state: Todo["state"];
+  state: string;
 };
 
 const SkeletonColumn: FC<SkeletonColumnProps> = ({ state }) => {
-  const getColumnColor = (columnId: Todo["state"]) => {
+  const getColumnColor = (columnId: string) => {
     return COLUMN_COLORS[columnId]?.bg || "bg-gray-50 dark:bg-gray-900";
   };
 
-  const getColumnHeaderColor = (columnId: Todo["state"]) => {
+  const getColumnHeaderColor = (columnId: string) => {
     return (
       COLUMN_COLORS[columnId]?.header || "text-gray-500 dark:text-gray-400"
     );

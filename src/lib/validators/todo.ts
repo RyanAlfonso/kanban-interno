@@ -1,10 +1,11 @@
 
 import { z } from "zod";
-const TagObjectValidator = z.object({
+import { PREDEFINED_TAGS } from "@/lib/tags";
+
+const ChecklistItemValidator = z.object({
   id: z.string(),
-  name: z.string(),
-  color: z.string().optional(),
-  projectId: z.string().optional(),
+  text: z.string().min(1, { message: "O texto do item não pode ser vazio." }),
+  completed: z.boolean(),
 });
 
 export const TodoCreateValidator = z.object({
@@ -18,9 +19,14 @@ export const TodoCreateValidator = z.object({
     .optional()
     .nullable(),
   columnId: z.string().min(1, { message: "O ID da coluna é obrigatório." }),
-  deadline: z.coerce.date({
-    errorMap: () => ({ message: "Por favor, selecione uma data válida." }),
-  }),
+
+  deadline: z.coerce
+    .date({
+      errorMap: () => ({ message: "Por favor, selecione uma data válida." }),
+    })
+    .nullable()
+    .optional(),
+
   label: z
     .array(
       z
@@ -28,9 +34,7 @@ export const TodoCreateValidator = z.object({
         .max(100, { message: "A etiqueta não pode exceder 100 caracteres." })
     )
     .optional(),
-
-  tags: z.array(TagObjectValidator).optional(),
-
+  tags: z.array(z.enum(PREDEFINED_TAGS)).optional(),
   projectId: z.string().optional().nullable(),
   order: z
     .number()
@@ -47,6 +51,8 @@ export const TodoCreateValidator = z.object({
     })
     .optional()
     .nullable(),
+
+  checklist: z.array(ChecklistItemValidator).optional().nullable(),
 });
 
 export const TodoEditValidator = z.object({
@@ -65,7 +71,9 @@ export const TodoEditValidator = z.object({
     .string()
     .min(1, { message: "O ID da coluna é obrigatório." })
     .optional(),
+
   deadline: z.coerce.date().nullable().optional(),
+
   label: z
     .array(
       z
@@ -73,9 +81,7 @@ export const TodoEditValidator = z.object({
         .max(100, { message: "A etiqueta não pode exceder 100 caracteres." })
     )
     .optional(),
-
-  tags: z.array(TagObjectValidator).optional(),
-
+  tags: z.array(z.enum(PREDEFINED_TAGS)).optional(),
   order: z
     .number()
     .int()
@@ -93,6 +99,8 @@ export const TodoEditValidator = z.object({
     })
     .optional()
     .nullable(),
+
+  checklist: z.array(ChecklistItemValidator).optional().nullable(),
 });
 
 export const TodoDeleteValidator = z.object({

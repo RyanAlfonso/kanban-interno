@@ -1,6 +1,7 @@
+
 import { getAuthSession } from "@/lib/nextAuthOptions";
-import { getLogger } from "@/logger";
 import prisma from "@/lib/prismadb";
+import { getLogger } from "@/logger";
 import { NextRequest } from "next/server";
 
 export async function GET(req: NextRequest) {
@@ -30,13 +31,15 @@ export async function GET(req: NextRequest) {
 
     return new Response(JSON.stringify(comments), { status: 200 });
   } catch (error) {
-    logger.error("Error fetching comments:", error);
+    logger.error(`Error fetching comments: ${String(error)}`);
     return new Response("Internal Server Error", { status: 500 });
   }
 }
 
 export async function POST(req: NextRequest) {
   const logger = getLogger("info");
+
+  logger.info("✅ ROTA POST /api/comments ACIONADA!");
 
   try {
     const session = await getAuthSession();
@@ -73,14 +76,14 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    logger.info("✅ Comentário criado com sucesso no banco de dados.", {
+    logger.info({
       commentId: newComment.id,
       todoId: newComment.todoId,
-    });
+    }, "✅ Comentário criado com sucesso no banco de dados.");
 
     return new Response(JSON.stringify(newComment), { status: 201 });
   } catch (error) {
-    logger.error("Erro ao criar comentário:", error);
+    logger.error(error, "❌ Erro ao criar comentário:");
     return new Response("Internal Server Error", { status: 500 });
   }
 }
@@ -119,7 +122,7 @@ export async function DELETE(req: NextRequest) {
 
     return new Response("Comment deleted successfully", { status: 200 });
   } catch (error) {
-    logger.error("Error deleting comment:", error);
+    logger.error(error, "Error deleting comment:");
     return new Response("Internal Server Error", { status: 500 });
   }
 }

@@ -1,7 +1,11 @@
 "use client";
 
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { Menu, Search, Settings } from "lucide-react";
-import { ThemeSwitcher } from "./ThemeSwitcher";
+
 import { Button, buttonVariants } from "./ui/button";
 import { Input } from "./ui/input";
 import {
@@ -10,100 +14,92 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "./ui/tooltip";
-import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import { useState, useEffect } from "react";
-import { useSession } from "next-auth/react";
+import { ThemeSwitcher } from "./ThemeSwitcher";
 import UserAccountNav from "./UserAccountNav";
 import AdvancedFilters from "./AdvancedFilters";
 
+import { useDebounce } from "@/hooks/useDebounce";
+
 const AppHeader = () => {
-  console.log("Rendering AppHeader...");
-  const { data: session } = useSession(); 
-  const [search, setSearch] = useState("");
+  const { data: session } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const pathname = usePathname();
+
+  const [search, setSearch] = useState(searchParams.get("q") || "");
+
+  const debouncedSearchTerm = useDebounce(search, 300);
 
   useEffect(() => {
-    console.log("AppHeader useEffect for searchParams running...");
-    setSearch(searchParams.get("q") || "");
-  }, [searchParams]);
-
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    console.log("Handling search change:", e.target.value);
-    setSearch(e.target.value);
     const params = new URLSearchParams(Array.from(searchParams.entries()));
-    if (e.target.value) {
-      params.set("q", e.target.value);
+
+    if (debouncedSearchTerm) {
+      params.set("q", debouncedSearchTerm);
     } else {
       params.delete("q");
     }
-    router.replace(`/?${params.toString()}`);
+
+    router.replace(`${pathname}?${params.toString()}`);
+    
+  }, [debouncedSearchTerm, pathname, router]);
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearch(e.target.value);
   };
 
-
-  try {
-    return (
-      <header className="bg-white dark:bg-gray-900 border-b dark:border-gray-800 py-3 px-4 flex items-center justify-between">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 w-10 h-10 flex items-center justify-center px-2 mr-2 md:hidden invisible z-0"
-          disabled={true}
-        >
+  return (
+    <header className="bg-white dark:bg-gray-900 border-b dark:border-gray-800 py-3 px-4 flex items-center justify-between gap-4 sticky top-0 z-40">
+      <div className="md:hidden invisible">
+        <Button variant="ghost" size="icon" disabled>
           <Menu className="h-5 w-5" />
         </Button>
-        
-        <div className="flex items-center w-full max-w-2xl space-x-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500 dark:text-gray-400" />
-            <Input
-              type="search"
-              placeholder="Search tasks..."
-              className="pl-8 bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700"
-              value={search}
-              onChange={handleSearchChange}
-            />
-          </div>
-          
-          <AdvancedFilters />
+      </div>
+
+      <div className="flex-1 flex items-center justify-center gap-2">
+        <div className="relative w-full max-w-md">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500 dark:text-gray-400" />
+          <Input
+            type="search"
+            placeholder="Buscar por título ou descrição..."
+            className="pl-8 bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700"
+            value={search}
+            onChange={handleSearchChange}
+          />
         </div>
 
-        <div className="flex items-center space-x-2">
+        <AdvancedFilters />
+      </div>
 
-          <ThemeSwitcher />
+      <div className="flex items-center space-x-2">
+        <ThemeSwitcher />
 
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                >
-                  <Settings className="h-5 w-5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Settings</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+              >
+                <Settings className="h-5 w-5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Configurações</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
 
-          {session?.user ? (
-             <UserAccountNav user={session.user} />
-          ) : (
-            <Link className={buttonVariants()} href={"/login"}>
-              Sign In
-            </Link>
-          )}
-        </div>
-      </header>
-    );
-  } catch (error) {
-    console.error("Error rendering AppHeader:", error);
-    return <div>Ocorreu um erro no cabeçalho.</div>;
-  }
+        {session?.user ? (
+          <UserAccountNav user={session.user} />
+        ) : (
+          <Link className={buttonVariants()} href={"/login"}>
+            Entrar
+          </Link>
+        )}
+      </div>
+    </header>
+  );
 };
 
 export default AppHeader;
