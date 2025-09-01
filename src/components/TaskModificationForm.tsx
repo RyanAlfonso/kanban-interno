@@ -1,9 +1,8 @@
 "use client";
 
 import useBreakpoint from "@/hooks/useBreakpoint";
-import { PREDEFINED_TAGS } from "@/lib/tags";
 import { cn } from "@/lib/utils";
-import { Attachment, Comment, Project, Todo, User } from "@prisma/client";
+import { Attachment, Comment, Project, Todo, User, Tag } from "@prisma/client";
 import {
   Popover,
   PopoverContent,
@@ -33,7 +32,7 @@ import {
 import { FC, lazy, useState } from "react";
 import { Controller, UseFormReturn } from "react-hook-form";
 import "react-quill/dist/quill.snow.css";
-import Checklist, {ChecklistItemType} from "./CheckList";
+import Checklist, { ChecklistItemType } from "./CheckList";
 import CustomizedMultSelect from "./CustomizedMultSelect";
 import CustomizedSelect from "./CustomizedSelect";
 import { Button } from "./ui/button";
@@ -42,6 +41,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { useToast } from "./ui/use-toast";
+import { ManageTagsModal } from "./ManageTagsModal";
 
 type MovementHistoryItem = {
   id: string;
@@ -60,6 +60,7 @@ type CommentWithAuthor = Comment & {
 };
 
 type ExtendedTask = Partial<Todo> & {
+  tags?: Tag[];
   attachments?: AttachmentWithUploader[];
   comments?: CommentWithAuthor[];
   assignedToIds?: string[];
@@ -240,6 +241,7 @@ const MovementHistory: FC<{ history: MovementHistoryItem[] }> = ({
     </div>
   );
 };
+
 async function robustFetcher<T>(url: string): Promise<T> {
   const response = await fetch(url);
   if (!response.ok) {
@@ -273,11 +275,13 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
   const queryClient = useQueryClient();
   const [isUploading, setIsUploading] = useState(false);
   const [newComment, setNewComment] = useState("");
+
   const {
     handleSubmit,
     register,
     formState: { errors },
     control,
+    watch,
   } = formFunctionReturn;
 
   const { mutate: submitEditTodoTask, isPending: isEditLoading } =
@@ -340,7 +344,22 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
     }
   };
 
-  const tagOptions = [...PREDEFINED_TAGS];
+  const {
+    data: projectTags,
+    isLoading: tagsLoading,
+    error: tagsError,
+  } = useQuery<{ id: string; name: string; color: string }[], Error>({
+    queryKey: ["tags", watch("projectId")],
+    queryFn: () => {
+      const projectId = watch("projectId");
+      if (!projectId) return Promise.resolve([]);
+      return robustFetcher(`/api/tags?projectId=${projectId}`);
+    },
+    enabled: !!watch("projectId"),
+  });
+
+  const tagOptions =
+    projectTags?.map((tag) => ({ value: tag.id, title: tag.name })) || [];
 
   const {
     data: projects,
@@ -389,7 +408,6 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
 
   const ErrorMessage = ({ msg }: ErrorMessageProps) =>
     msg ? <span className="text-red-500 text-xs">{msg}</span> : null;
-
   const handleAttachmentChange = async (
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
@@ -441,6 +459,7 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
       event.target.value = "";
     }
   };
+
   const ExtraInfoField = () => (
     <>
       <div className="relative grid gap-1 pb-4">
@@ -557,7 +576,6 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0 bg-white dark:bg-gray-900 z-50 border rounded-md shadow-md">
                 <Calendar
-                  register={register("startDate")}
                   mode="single"
                   selected={field.value ? new Date(field.value) : undefined}
                   onSelect={(date) => field.onChange(date || null)}
@@ -569,28 +587,43 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
         />
         <ErrorMessage msg={errors.deadline?.message?.toString()} />
       </div>
+
       <div className="relative grid gap-1 pb-4">
-        <Label className="text-sm font-medium" htmlFor="tags">
-          Tags
-        </Label>
+        <div className="flex justify-between items-center mb-1">
+          <Label className="text-sm font-medium" htmlFor="tags">
+            Tags
+          </Label>
+          {watch("projectId") && (
+            <ManageTagsModal projectId={watch("projectId")} />
+          )}
+        </div>
         <Controller
           control={control}
           name="tags"
-          defaultValue={task.tags || []}
+          defaultValue={task.tags?.map((tag) => tag.id) || []}
           render={({ field }) => (
             <CustomizedMultSelect
               value={field.value || []}
               onChange={field.onChange}
               placeholder="Selecione tags"
-              options={tagOptions.map((tag) => ({ value: tag, title: tag }))}
+              options={tagOptions}
             />
           )}
         />
+        {tagsError && <ErrorMessage msg={tagsError.message} />}
+        {tagsLoading && (
+          <p className="text-xs text-gray-500">Carregando tags...</p>
+        )}
+        {!tagsLoading && watch("projectId") && projectTags?.length === 0 && (
+          <ErrorMessage msg="Nenhuma tag disponível para este projeto." />
+        )}
+        {!watch("projectId") && (
+          <ErrorMessage msg="Selecione uma área para carregar as tags." />
+        )}
         <ErrorMessage msg={errors.tags?.message?.toString()} />
       </div>
     </>
   );
-
   return (
     <form
       onSubmit={handleSubmit((data) => {

@@ -11,12 +11,7 @@ import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "../ui/skeleton";
 
 import { getClockColor } from "@/lib/color";
-import {
-  PREDEFINED_TAGS,
-  getTagColor,
-  PredefinedTag,
-  TagColor,
-} from "@/lib/tags";
+import { getTagColor, TagColor } from "@/lib/tags";
 import { cn } from "@/lib/utils";
 import { TodoWithRelations } from "@/types/todo";
 import todoFetchRequest from "@/requests/todoFetchRequest";
@@ -45,35 +40,52 @@ const DashboardComponent = () => {
     [todos]
   );
 
+  const { data: projectTags = [] } = useQuery<{ id: string; name: string; color: string }[]>({
+    queryKey: ["tags", projectId],
+    queryFn: async () => {
+      if (!projectId) return [];
+      const response = await fetch(`/api/tags?projectId=${projectId}`);
+      if (!response.ok) throw new Error("Failed to fetch tags");
+      return response.json();
+    },
+    enabled: !!projectId,
+  });
+
   const taskProgressByTag = useMemo(() => {
     const progress: Record<
-      PredefinedTag,
+      string,
       { total: number; completed: number; colors: TagColor }
-    > = PREDEFINED_TAGS.reduce((acc, tag) => {
-      acc[tag] = { total: 0, completed: 0, colors: getTagColor(tag) };
-      return acc;
-    }, {} as Record<PredefinedTag, { total: number; completed: number; colors: TagColor }>);
+    > = {};
+
+    // Inicializar com tags do projeto
+    projectTags.forEach((tag) => {
+      progress[tag.name] = { 
+        total: 0, 
+        completed: 0, 
+        colors: getTagColor(tag.color) 
+      };
+    });
 
     todos.forEach((todo) => {
       if (todo.tags && todo.tags.length > 0) {
         todo.tags.forEach((tagString) => {
-          const tag = tagString as PredefinedTag;
-          if (progress[tag]) {
-            progress[tag].total += 1;
+          if (progress[tagString]) {
+            progress[tagString].total += 1;
             if (todo.column?.name === COLUMNS.CONCLUIDA) {
-              progress[tag].completed += 1;
+              progress[tagString].completed += 1;
             }
           }
         });
       }
     });
+    
     return Object.entries(progress)
       .filter(([_, data]) => data.total > 0)
       .reduce((acc, [tag, data]) => {
-        acc[tag as PredefinedTag] = data;
+        acc[tag] = data;
         return acc;
-      }, {} as Record<PredefinedTag, { total: number; completed: number; colors: TagColor }>);
-  }, [todos]);
+      }, {} as Record<string, { total: number; completed: number; colors: TagColor }>);
+  }, [todos, projectTags]);
 
   if (isLoading) return <DashboardSkeleton />;
 
