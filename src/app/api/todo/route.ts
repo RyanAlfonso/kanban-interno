@@ -53,10 +53,6 @@ export async function GET(req: NextRequest) {
         { description: { contains: searchQuery, mode: "insensitive" } },
       ];
     }
-
-    // --- CORREÇÃO NO FILTRO DE TAGS ---
-    // Agora filtramos pela relação, verificando se 'alguma' das tags
-    // relacionadas tem seu ID na lista de tags fornecida.
     if (tags && tags.length > 0) {
       whereClause.tags = {
         some: {
@@ -71,8 +67,6 @@ export async function GET(req: NextRequest) {
       where: whereClause,
       orderBy: { order: "asc" },
       include: {
-        // --- CORREÇÃO NO INCLUDE ---
-        // Adicionado 'tags: true' para garantir que os objetos Tag sejam incluídos na resposta.
         tags: true,
         owner: { select: { id: true, name: true, image: true } },
         project: { select: { id: true, name: true } },
@@ -132,13 +126,12 @@ export async function POST(req: NextRequest) {
     if (!session?.user) return new Response("Unauthorized", { status: 401 });
 
     const body = await req.json();
-
+    const { tags, ...restOfBody } = TodoCreateValidator.parse(body);
     const {
       title,
       description,
       columnId,
       label,
-      tags, // 'tags' aqui será um array de IDs
       deadline,
       projectId,
       order,
@@ -146,17 +139,38 @@ export async function POST(req: NextRequest) {
       parentId,
       linkedCardIds,
       checklist,
-    } = TodoCreateValidator.parse(body);
+    } = restOfBody;
 
-    // ... (lógica de validação da coluna 'Em execução')
+    if (columnId) {
+      const targetColumn = await prisma.projectColumn.findUnique({
+        where: { id: columnId },
+        select: { name: true },
+      });
 
-    // --- CORREÇÃO NA CRIAÇÃO (POST) ---
+      if (targetColumn && targetColumn.name === "Em execução" && !deadline) {
+        return new Response(
+          "O prazo é obrigatório para criar um card na coluna 'Em execução'.",
+          { status: 400 }
+        );
+      }
+    }
+
+    if (columnId && projectId) {
+      const column = await prisma.projectColumn.findUnique({
+        where: { id: columnId },
+        select: { projectId: true },
+      });
+      if (!column || column.projectId !== projectId) {
+        return new Response("Column does not belong to the specified project", {
+          status: 400,
+        });
+      }
+    }
     const dataToCreate: any = {
       title,
       description,
       columnId,
       label,
-      // tags: tags, // REMOVIDO: A forma antiga não funciona mais
       projectId,
       order: order ?? 0,
       ownerId: session.user.id,
@@ -164,17 +178,15 @@ export async function POST(req: NextRequest) {
       parentId,
       linkedCardIds,
       checklist: checklist || [],
-      // Adiciona a conexão com as tags existentes
-      ...(tags &&
-        tags.length > 0 && {
-          tags: {
-            connect: tags.map((tagId: string) => ({ id: tagId })),
-          },
-        }),
     };
 
     if (deadline) {
       dataToCreate.deadline = deadline;
+    }
+    if (tags && tags.length > 0) {
+      dataToCreate.tags = {
+        connect: tags.map((tagId: string) => ({ id: tagId })),
+      };
     }
 
     const newTodo = await prisma.todo.create({
@@ -200,13 +212,12 @@ export async function PUT(req: NextRequest) {
 
     const body = await req.json();
 
+    const { id, tags, ...restOfBody } = TodoEditValidator.parse(body);
     const {
-      id,
       columnId,
       title,
       description,
       label,
-      tags, // 'tags' aqui será um array de IDs
       deadline,
       projectId,
       order,
@@ -214,7 +225,7 @@ export async function PUT(req: NextRequest) {
       parentId,
       linkedCardIds,
       checklist,
-    } = TodoEditValidator.parse(body);
+    } = restOfBody;
 
     const currentTodo = await prisma.todo.findUnique({
       where: { id },
@@ -225,12 +236,10 @@ export async function PUT(req: NextRequest) {
       return new Response("Tarefa não encontrada.", { status: 404 });
     }
 
-    // --- CORREÇÃO NA ATUALIZAÇÃO (PUT) ---
     const dataForPrismaUpdate: any = {
       title,
       description,
       label,
-      // tags: tags, // REMOVIDO: A forma antiga não funciona mais
       deadline,
       order,
       assignedToIds,
@@ -239,12 +248,8 @@ export async function PUT(req: NextRequest) {
       projectId: projectId === "" ? null : projectId,
       parentId: parentId === "" ? null : parentId,
     };
-
-    // Adiciona a lógica para conectar/desconectar tags
     if (tags) {
       dataForPrismaUpdate.tags = {
-        // 'set' é a forma mais segura de sincronizar. Ele desconecta as tags que não estão na lista
-        // e conecta as que estão, tudo em uma única operação.
         set: tags.map((tagId: string) => ({ id: tagId })),
       };
     }
@@ -253,15 +258,50 @@ export async function PUT(req: NextRequest) {
       columnId && currentTodo.columnId && currentTodo.columnId !== columnId;
 
     if (isMovingCard) {
-      // ... (sua lógica de permissão de movimento de card permanece a mesma)
+      const fromColumn = await prisma.projectColumn.findUnique({
+        where: { id: currentTodo.columnId! },
+        select: { name: true },
+      });
+      const toColumn = await prisma.projectColumn.findUnique({
+        where: { id: columnId },
+        select: { name: true },
+      });
+
+      if (!fromColumn || !toColumn) {
+        return new Response("Coluna de origem ou destino não encontrada.", {
+          status: 404,
+        });
+      }
+
+      const cardDataForCheck = {
+        deadline: deadline !== undefined ? deadline : currentTodo.deadline,
+      };
+
+      const permissionCheck = canMoveCard(
+        fromColumn.name,
+        toColumn.name,
+        session.user.type,
+        cardDataForCheck
+      );
+
+      if (!permissionCheck.allowed) {
+        return new Response(permissionCheck.error, { status: 403 });
+      }
+
+      dataForPrismaUpdate.columnId = columnId;
+      dataForPrismaUpdate.movementHistory = {
+        create: {
+          movedById: session.user.id,
+          fromColumnId: currentTodo.columnId!,
+          toColumnId: columnId,
+        },
+      };
     }
 
     const updatedTodo = await prisma.todo.update({
       where: { id: id },
       data: dataForPrismaUpdate,
       include: {
-        // --- CORREÇÃO NO INCLUDE ---
-        // Adicionado 'tags: true' para garantir que o objeto retornado tenha as tags atualizadas.
         tags: true,
         project: true,
         column: true,

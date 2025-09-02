@@ -8,16 +8,15 @@ import { Todo } from "@prisma/client";
 import { useMutation, useQueryClient, QueryKey } from "@tanstack/react-query";
 import { AxiosError } from "axios";
 import { useSearchParams } from "next/navigation";
-import { FC } from "react";
+import { FC, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import "react-quill/dist/quill.snow.css";
 import TaskModificationForm from "./TaskModificationForm";
 import { useToast } from "./ui/use-toast";
 
-// Passo 1: Corrigir a assinatura da prop
 type TaskCreateFormProps = {
   handleOnSuccess: () => void;
-  handleOnClose: (isDirty: boolean) => void;
+  handleOnClose: () => void;
   task: TaskCreatorDefaultValues;
 };
 
@@ -40,14 +39,32 @@ const TaskCreateFormController: FC<TaskCreateFormProps> = ({
       columnId: task.columnId || undefined,
       label: [],
       tags: [],
-      projectId: task.projectId || (searchParams.get("projectId") !== "all" ? searchParams.get("projectId") : null) || undefined,
+      projectId:
+        task.projectId ||
+        (searchParams.get("projectId") !== "all"
+          ? searchParams.get("projectId")
+          : null) ||
+        undefined,
       order: undefined,
       assignedToIds: [],
     },
   });
 
-  // Passo 2: Extrair o estado 'isDirty' do formulário
-  const { formState: { isDirty } } = form;
+  const {
+    formState: { isDirty },
+  } = form;
+
+  const stableHandleOnClose = useCallback(() => {
+    if (isDirty) {
+      if (confirm("Você tem alterações não salvas. Deseja realmente fechar?")) {
+        handleOnClose();
+      }
+    } else {
+      handleOnClose();
+    }
+  }, [isDirty, handleOnClose]);
+
+  const stableOnFormDirtyChange = useCallback(() => {}, []);
 
   const createMutation = useMutation<Todo, AxiosError, TodoCreateRequest>({
     mutationFn: async (data: TodoCreateRequest) => {
@@ -71,14 +88,13 @@ const TaskCreateFormController: FC<TaskCreateFormProps> = ({
   try {
     return (
       <TaskModificationForm
-        // Passo 3: Passar uma nova função que chama a original com o estado 'isDirty'
-        handleOnClose={() => handleOnClose(isDirty)}
+        handleOnClose={stableHandleOnClose}
         task={task}
         title="Criar Tarefa"
         editMutationFunctionReturn={createMutation}
-        formFunctionReturn={form} onFormDirtyChange={function (isDirty: boolean): void {
-          throw new Error("Function not implemented.");
-        } }      />
+        formFunctionReturn={form}
+        onFormDirtyChange={stableOnFormDirtyChange}
+      />
     );
   } catch (error) {
     console.error("Error rendering TaskCreateFormController:", error);
