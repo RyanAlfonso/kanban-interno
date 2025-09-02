@@ -29,7 +29,7 @@ import {
   UserCircle,
   X,
 } from "lucide-react";
-import { FC, lazy, useState } from "react";
+import { FC, lazy, useState, useEffect } from "react"; // 1. Importar useEffect
 import { Controller, UseFormReturn } from "react-hook-form";
 import "react-quill/dist/quill.snow.css";
 import Checklist, { ChecklistItemType } from "./CheckList";
@@ -71,6 +71,7 @@ type ExtendedTask = Partial<Todo> & {
 
 type TaskEditFormProps = {
   handleOnClose: () => void;
+  onFormDirtyChange: (isDirty: boolean) => void; // 2. Adicionar a nova prop
   task: ExtendedTask;
   title: string;
   enableDelete?: boolean;
@@ -263,6 +264,7 @@ async function robustFetcher<T>(url: string): Promise<T> {
 
 const TaskModificationForm: FC<TaskEditFormProps> = ({
   handleOnClose,
+  onFormDirtyChange, // Receber a nova prop
   task,
   title,
   enableDelete,
@@ -279,10 +281,15 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
   const {
     handleSubmit,
     register,
-    formState: { errors },
+    formState: { errors, isDirty }, // 3. Extrair isDirty
     control,
     watch,
   } = formFunctionReturn;
+
+  // 4. Efeito para comunicar a mudança de 'isDirty'
+  useEffect(() => {
+    onFormDirtyChange(isDirty);
+  }, [isDirty, onFormDirtyChange]);
 
   const { mutate: submitEditTodoTask, isPending: isEditLoading } =
     editMutationFunctionReturn;
