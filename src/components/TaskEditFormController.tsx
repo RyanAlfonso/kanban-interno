@@ -1,3 +1,5 @@
+// TaskEditFormController.tsx - ALTERAÇÃO REALIZADA
+
 "use client";
 
 import {
@@ -12,7 +14,8 @@ import { Todo } from "@prisma/client";
 import { QueryKey, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AxiosError } from "axios";
 import { useSearchParams } from "next/navigation";
-import { FC, useState } from "react"; // 1. Importar useState
+// 1. Importar useEffect e useState
+import { FC, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import "react-quill/dist/quill.snow.css";
 import TaskModificationForm from "./TaskModificationForm";
@@ -20,7 +23,7 @@ import { useToast } from "./ui/use-toast";
 
 type TaskEditFormProps = {
   handleOnSuccess: () => void;
-  handleOnClose: (isDirty: boolean) => void; // 2. Modificar a assinatura da prop
+  handleOnClose: (isDirty: boolean) => void;
   task: Todo;
 };
 
@@ -29,7 +32,7 @@ const TaskEditFormController: FC<TaskEditFormProps> = ({
   handleOnClose,
   task,
 }) => {
-  const [isFormDirty, setIsFormDirty] = useState(false); // 3. Adicionar estado para 'isDirty'
+  const [isFormDirty, setIsFormDirty] = useState(false);
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const { axiosToast } = useToast();
@@ -39,18 +42,28 @@ const TaskEditFormController: FC<TaskEditFormProps> = ({
 
   const form = useForm<TodoEditRequest>({
     resolver: zodResolver(TodoEditValidator),
-    defaultValues: {
+    // Os defaultValues são removidos daqui para serem controlados pelo useEffect
+  });
+
+  // 2. Adicionar o useEffect para resetar o formulário quando a tarefa mudar
+  // Esta é a funcionalidade adaptada do código antigo.
+  useEffect(() => {
+    form.reset({
       id: task.id,
       title: task.title || "",
       description: task.description || null,
       columnId: task.columnId || undefined,
+      // @ts-ignore - Adaptado para o seu modelo de dados
       label: task.label || [],
       deadline: task.deadline || null,
       projectId: task.projectId || null,
       order: task.order,
       isDeleted: task.isDeleted || false,
-    },
-  });
+      // Adicione aqui quaisquer outros campos que você tenha no formulário
+      // Ex: assignedToIds, parentId, etc.
+    });
+  }, [task, form.reset]);
+
 
   const editMutation = useMutation<
     Todo,
@@ -107,8 +120,8 @@ const TaskEditFormController: FC<TaskEditFormProps> = ({
 
   return (
     <TaskModificationForm
-      onFormDirtyChange={setIsFormDirty} // 4. Passar a função para atualizar o estado
-      handleOnClose={() => handleOnClose(isFormDirty)} // 5. Chamar handleOnClose com o estado 'isDirty'
+      onFormDirtyChange={setIsFormDirty}
+      handleOnClose={() => handleOnClose(isFormDirty)}
       task={task}
       title="Edit Task"
       enableDelete
