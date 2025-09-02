@@ -59,7 +59,6 @@ type CommentWithAuthor = Comment & {
   author: Pick<User, "id" | "name" | "image">;
 };
 
-// Adicione 'export' aqui para que ExtendedTask possa ser importado por outros módulos
 export type ExtendedTask = Partial<Todo> & {
   attachments?: AttachmentWithUploader[];
   comments?: CommentWithAuthor[];
