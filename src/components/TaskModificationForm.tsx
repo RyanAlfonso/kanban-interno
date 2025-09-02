@@ -33,7 +33,7 @@ import {
 import { FC, lazy, useState } from "react";
 import { Controller, UseFormReturn } from "react-hook-form";
 import "react-quill/dist/quill.snow.css";
-import Checklist, {ChecklistItemType} from "./CheckList";
+import Checklist, { ChecklistItemType } from "./CheckList";
 import CustomizedMultSelect from "./CustomizedMultSelect";
 import CustomizedSelect from "./CustomizedSelect";
 import { Button } from "./ui/button";
@@ -59,7 +59,8 @@ type CommentWithAuthor = Comment & {
   author: Pick<User, "id" | "name" | "image">;
 };
 
-type ExtendedTask = Partial<Todo> & {
+// Adicione 'export' aqui para que ExtendedTask possa ser importado por outros módulos
+export type ExtendedTask = Partial<Todo> & {
   attachments?: AttachmentWithUploader[];
   comments?: CommentWithAuthor[];
   assignedToIds?: string[];

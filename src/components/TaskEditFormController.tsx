@@ -15,7 +15,8 @@ import { useSearchParams } from "next/navigation";
 import { FC } from "react";
 import { useForm } from "react-hook-form";
 import "react-quill/dist/quill.snow.css";
-import TaskModificationForm from "./TaskModificationForm";
+import TaskModificationForm, { ExtendedTask } from "./TaskModificationForm";
+import { ChecklistItemType } from "./CheckList";
 import { useToast } from "./ui/use-toast";
 
 type TaskEditFormProps = {
@@ -23,6 +24,7 @@ type TaskEditFormProps = {
   handleOnClose: () => void;
   task: Todo;
 };
+
 const TaskEditFormController: FC<TaskEditFormProps> = ({
   handleOnSuccess,
   handleOnClose,
@@ -33,7 +35,6 @@ const TaskEditFormController: FC<TaskEditFormProps> = ({
   const { axiosToast } = useToast();
 
   const mainTodosQueryKey: QueryKey = ["todos", searchParams.toString()];
-
   const sharedTodoQueryKey: QueryKey = ["shared-todo", task.id];
 
   const form = useForm<TodoEditRequest>({
@@ -50,6 +51,7 @@ const TaskEditFormController: FC<TaskEditFormProps> = ({
       isDeleted: task.isDeleted || false,
     },
   });
+
   const editMutation = useMutation<
     Todo,
     AxiosError,
@@ -74,6 +76,7 @@ const TaskEditFormController: FC<TaskEditFormProps> = ({
       queryClient.invalidateQueries({ queryKey: sharedTodoQueryKey });
     },
   });
+
   const deleteMutation = useMutation<
     Todo[],
     AxiosError,
@@ -102,10 +105,17 @@ const TaskEditFormController: FC<TaskEditFormProps> = ({
     },
   });
 
+  const extendedTask: ExtendedTask = {
+    ...task,
+    checklist: Array.isArray(task.checklist)
+      ? (task.checklist as ChecklistItemType[])
+      : [],
+  };
+
   return (
     <TaskModificationForm
       handleOnClose={handleOnClose}
-      task={task}
+      task={extendedTask}
       title="Edit Task"
       enableDelete
       deleteMutationFunctionReturn={deleteMutation}
