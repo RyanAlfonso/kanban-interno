@@ -1,4 +1,3 @@
-import useClickOutSide from "@/hooks/useClickOutSide";
 import useEsc from "@/hooks/useEsc";
 import clsx from "clsx";
 import { FC, useRef } from "react";
@@ -16,7 +15,7 @@ const CustomizedDialog: FC<CustomizedDialogProps> = ({
 }) => {
   const dialogRef = useRef<HTMLDivElement>(null);
 
-  useClickOutSide(dialogRef, onClose);
+
   useEsc(onClose);
 
   if (!open) return null;
@@ -26,7 +25,7 @@ const CustomizedDialog: FC<CustomizedDialogProps> = ({
       <div className="absolute w-screen h-screen z-10 bg-zinc-500/30 backdrop-blur-[1px] inset-0" />
       <div
         className={clsx(
-          "absolute sm:inset-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 rounded-xl shadow-lg z-20 sm:h-fit md:w-[768px] sm:w-[90%] w-screen h-screen inset-0",
+          "absolute sm:inset-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 rounded-xl shadow-lg z-20 sm:h-fit md:w-[768px] sm:w-[90%] w-screen h-screen inset-0"
         )}
         ref={dialogRef}
       >
