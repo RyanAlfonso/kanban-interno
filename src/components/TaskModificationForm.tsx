@@ -43,6 +43,7 @@ import { Label } from "./ui/label";
 import { useToast } from "./ui/use-toast";
 import { ManageTagsModal } from "./ManageTagsModal";
 
+// Tipos (sem alterações)
 type MovementHistoryItem = {
   id: string;
   movedAt: Date;
@@ -69,23 +70,19 @@ type ExtendedTask = Partial<Todo> & {
   checklist?: ChecklistItemType[];
 };
 
-type TaskEditFormProps = {
+type TaskModificationFormProps = {
   handleOnClose: () => void;
   task: ExtendedTask;
-  title: string;
+  title: "Criar Tarefa" | "Editar Tarefa";
   enableDelete?: boolean;
   deleteMutationFunctionReturn?: UseMutationResult<
-    Todo[],
+    any,
     AxiosError,
     { id: string },
     any
   >;
-  editMutationFunctionReturn: UseMutationResult<
-    Todo | Todo[],
-    AxiosError,
-    any,
-    any
-  >;
+  createMutation?: UseMutationResult<any, AxiosError, any, any>;
+  editMutation?: UseMutationResult<any, AxiosError, any, any>;
   formFunctionReturn: UseFormReturn<any>;
 };
 
@@ -101,6 +98,45 @@ type CommentItemProps = {
 
 type ErrorMessageProps = {
   msg?: string;
+};
+
+type ConfirmationDialogProps = {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onConfirm: () => void;
+  title: string;
+  description: string;
+};
+
+const ConfirmationDialog: FC<ConfirmationDialogProps> = ({
+  open,
+  onOpenChange,
+  onConfirm,
+  title,
+  description,
+}) => {
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-sm">
+        <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">
+          {title}
+        </h3>
+        <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
+          {description}
+        </p>
+        <div className="mt-6 flex justify-end gap-3">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancelar
+          </Button>
+          <Button variant="destructive" onClick={onConfirm}>
+            Sair sem salvar
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 const CustomizedReactQuill = lazy(() => import("./CustomizedReactQuill"));
@@ -261,13 +297,14 @@ async function robustFetcher<T>(url: string): Promise<T> {
   return response.json();
 }
 
-const TaskModificationForm: FC<TaskEditFormProps> = ({
+const TaskModificationForm: FC<TaskModificationFormProps> = ({
   handleOnClose,
   task,
   title,
   enableDelete,
   deleteMutationFunctionReturn,
-  editMutationFunctionReturn,
+  createMutation,
+  editMutation,
   formFunctionReturn,
 }) => {
   const { md } = useBreakpoint();
@@ -275,17 +312,56 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
   const queryClient = useQueryClient();
   const [isUploading, setIsUploading] = useState(false);
   const [newComment, setNewComment] = useState("");
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 
   const {
     handleSubmit,
     register,
-    formState: { errors },
+    formState: { errors, isDirty },
     control,
     watch,
   } = formFunctionReturn;
 
-  const { mutate: submitEditTodoTask, isPending: isEditLoading } =
-    editMutationFunctionReturn;
+  // --- LÓGICA DE FECHAMENTO CORRIGIDA ---
+
+  // 1. Ação ao tentar fechar (clicar no X)
+  const handleAttemptClose = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Impede que o modal principal feche sozinho
+
+    // Se o formulário foi alterado, mostra o diálogo de confirmação.
+    // Se não, apenas fecha o modal.
+    if (isDirty) {
+      setShowConfirmDialog(true);
+    } else {
+      handleOnClose();
+    }
+  };
+
+  // 2. Ação ao confirmar a saída (clicar em "Sair sem salvar")
+  const handleConfirmAndClose = () => {
+    // Esconde o diálogo de confirmação
+    setShowConfirmDialog(false);
+    // Chama a função original para fechar o modal principal, descartando as alterações.
+    handleOnClose();
+  };
+
+  // --- FIM DA LÓGICA DE FECHAMENTO ---
+
+  const isCreating = title === "Criar Tarefa";
+  const activeMutation = isCreating ? createMutation : editMutation;
+
+  const { mutate: submitTask, isPending: isSubmitLoading } = activeMutation ?? {
+    mutate: () => {
+      console.error("Nenhuma função de mutação (create/edit) foi fornecida.");
+      toast({
+        title: "Erro de Configuração",
+        description: "A ação de salvar não está configurada.",
+        variant: "destructive",
+      });
+    },
+    isPending: false,
+  };
+
   const { mutate: deleteFunc, isPending: isDeleteLoading } =
     deleteMutationFunctionReturn ?? { mutate: () => {}, isPending: false };
 
@@ -469,7 +545,6 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
         <Controller
           control={control}
           name="projectId"
-          defaultValue={task.projectId?.toString() || ""}
           render={({ field }) => (
             <CustomizedSelect
               options={projectOptions}
@@ -492,7 +567,6 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
         <Controller
           control={control}
           name="assignedToIds"
-          defaultValue={task.assignedToIds || []}
           render={({ field }) => (
             <CustomizedMultSelect
               value={field.value || []}
@@ -515,7 +589,6 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
         <Controller
           control={control}
           name="parentId"
-          defaultValue={task.parentId || ""}
           render={({ field }) => (
             <CustomizedSelect
               options={[{ value: "", title: "Nenhum" }, ...todoOptions]}
@@ -535,7 +608,6 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
         <Controller
           control={control}
           name="linkedCardIds"
-          defaultValue={task.linkedCardIds || []}
           render={({ field }) => (
             <CustomizedMultSelect
               value={field.value || []}
@@ -555,7 +627,6 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
         <Controller
           control={control}
           name="deadline"
-          defaultValue={task.deadline}
           render={({ field }) => (
             <Popover>
               <PopoverTrigger asChild>
@@ -600,7 +671,6 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
         <Controller
           control={control}
           name="tags"
-          defaultValue={task.tags?.map((tag) => tag.id) || []}
           render={({ field }) => (
             <CustomizedMultSelect
               value={field.value || []}
@@ -625,210 +695,225 @@ const TaskModificationForm: FC<TaskEditFormProps> = ({
     </>
   );
   return (
-    <form
-      onSubmit={handleSubmit((data) => {
-        const payload =
-          title === "Edit Task" && task.id ? { ...data, id: task.id } : data;
-        submitEditTodoTask(payload);
-      })}
-    >
-      <Card className="sm:max-h-[80vh] overflow-y-auto border-none shadow-none">
-        <CardHeader className="p-4">
-          <CardTitle className="flex justify-between items-center">
-            <div className="text-lg font-semibold">{title}</div>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="p-0 h-6 w-6"
-              onClick={handleOnClose}
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-4">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex flex-col gap-4 flex-1">
-              <div className="relative grid gap-1">
-                <Label className="text-sm font-medium" htmlFor="title">
-                  Título
-                </Label>
-                <Input
-                  id="title"
-                  className="w-full h-9 px-3 py-2 text-sm"
-                  {...register("title")}
-                />
-                <ErrorMessage msg={errors.title?.message?.toString()} />
-              </div>
-              <div className="relative grid gap-1">
-                <Label
-                  className="text-sm font-medium"
-                  htmlFor="referenceDocument"
-                >
-                  Documento de Referência
-                </Label>
-                <Input
-                  id="referenceDocument"
-                  className="w-full h-9 px-3 py-2 text-sm"
-                  placeholder="URL ou nome do documento (opcional)"
-                  {...register("referenceDocument")}
-                />
-                <ErrorMessage
-                  msg={errors.referenceDocument?.message?.toString()}
-                />
-              </div>
-              {!md && <ExtraInfoField />}
-              <div className="relative grid gap-1">
-                <Label className="text-sm font-medium" htmlFor="description">
-                  Descrição
-                </Label>
-                <Controller
-                  control={control}
-                  name="description"
-                  defaultValue={task.description || ""}
-                  render={({ field }) => (
-                    <CustomizedReactQuill
-                      className="h-80"
-                      theme="snow"
-                      value={field.value || ""}
-                      onChange={field.onChange}
-                      placeholder="Descrição"
-                    />
-                  )}
-                />
-                <ErrorMessage msg={errors.description?.message?.toString()} />
-              </div>
-              <div className="relative grid gap-1">
-                <Controller
-                  control={control}
-                  name="checklist"
-                  defaultValue={task.checklist || []}
-                  render={({ field }) => (
-                    <Checklist
-                      items={field.value || []}
-                      onChange={field.onChange}
-                    />
-                  )}
-                />
-                <ErrorMessage msg={errors.checklist?.message?.toString()} />
-              </div>
-
-              {task.id && task.attachments && task.attachments.length > 0 && (
-                <div className="relative grid gap-2 pt-4">
-                  <Label className="text-sm font-medium" htmlFor="attachments">
-                    Anexos ({task.attachments.length})
+    <>
+      <form
+        onSubmit={handleSubmit((data) => {
+          const payload = isCreating ? data : { ...data, id: task.id };
+          submitTask(payload);
+        })}
+      >
+        <Card className="sm:max-h-[80vh] overflow-y-auto border-none shadow-none">
+          <CardHeader className="p-4">
+            <CardTitle className="flex justify-between items-center">
+              <div className="text-lg font-semibold">{title}</div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="p-0 h-6 w-6"
+                onClick={(e) => handleAttemptClose(e)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4">
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex flex-col gap-4 flex-1">
+                <div className="relative grid gap-1">
+                  <Label className="text-sm font-medium" htmlFor="title">
+                    Título
                   </Label>
-                  <div className="flex flex-col gap-1 rounded-lg border bg-slate-50 dark:bg-slate-800 p-2 max-h-48 overflow-y-auto">
-                    {task.attachments.map((att) => (
-                      <AttachmentItem
-                        key={att.id}
-                        attachment={att}
-                        onDelete={deleteAttachment}
-                        isDeleting={isDeletingAttachment}
-                      />
-                    ))}
-                  </div>
+                  <Input
+                    id="title"
+                    className="w-full h-9 px-3 py-2 text-sm"
+                    {...register("title")}
+                  />
+                  <ErrorMessage msg={errors.title?.message?.toString()} />
                 </div>
-              )}
-              {task.id && (
-                <div className="relative grid gap-2 pt-4">
+                <div className="relative grid gap-1">
                   <Label
-                    className="text-sm font-medium flex items-center gap-2"
-                    htmlFor="comments"
+                    className="text-sm font-medium"
+                    htmlFor="referenceDocument"
                   >
-                    <MessageSquare className="h-4 w-4" />
-                    Comentários
+                    Documento de Referência
                   </Label>
-                  <div className="flex flex-col gap-1 rounded-lg border bg-slate-50 dark:bg-slate-800 p-2 max-h-60 overflow-y-auto">
-                    {task.comments && task.comments.length > 0 ? (
-                      task.comments.map((comment) => (
-                        <CommentItem key={comment.id} comment={comment} />
-                      ))
-                    ) : (
-                      <p className="text-sm text-center text-gray-500 p-4">
-                        Nenhum comentário ainda.
-                      </p>
+                  <Input
+                    id="referenceDocument"
+                    className="w-full h-9 px-3 py-2 text-sm"
+                    placeholder="URL ou nome do documento (opcional)"
+                    {...register("referenceDocument")}
+                  />
+                  <ErrorMessage
+                    msg={errors.referenceDocument?.message?.toString()}
+                  />
+                </div>
+                {!md && <ExtraInfoField />}
+                <div className="relative grid gap-1">
+                  <Label className="text-sm font-medium" htmlFor="description">
+                    Descrição
+                  </Label>
+                  <Controller
+                    control={control}
+                    name="description"
+                    render={({ field }) => (
+                      <CustomizedReactQuill
+                        className="h-80"
+                        theme="snow"
+                        value={field.value || ""}
+                        onChange={field.onChange}
+                        placeholder="Descrição"
+                      />
                     )}
+                  />
+                  <ErrorMessage msg={errors.description?.message?.toString()} />
+                </div>
+                <div className="relative grid gap-1">
+                  <Controller
+                    control={control}
+                    name="checklist"
+                    render={({ field }) => (
+                      <Checklist
+                        items={field.value || []}
+                        onChange={field.onChange}
+                      />
+                    )}
+                  />
+                  <ErrorMessage msg={errors.checklist?.message?.toString()} />
+                </div>
+
+                {task.id && task.attachments && task.attachments.length > 0 && (
+                  <div className="relative grid gap-2 pt-4">
+                    <Label
+                      className="text-sm font-medium"
+                      htmlFor="attachments"
+                    >
+                      Anexos ({task.attachments.length})
+                    </Label>
+                    <div className="flex flex-col gap-1 rounded-lg border bg-slate-50 dark:bg-slate-800 p-2 max-h-48 overflow-y-auto">
+                      {task.attachments.map((att) => (
+                        <AttachmentItem
+                          key={att.id}
+                          attachment={att}
+                          onDelete={deleteAttachment}
+                          isDeleting={isDeletingAttachment}
+                        />
+                      ))}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 pt-2">
-                    <Input
-                      id="new-comment"
-                      placeholder="Adicione um comentário..."
-                      value={newComment}
-                      onChange={(e) => setNewComment(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && !e.shiftKey) {
-                          e.preventDefault();
-                          handlePostComment();
-                        }
-                      }}
-                      disabled={isPostingComment}
-                    />
+                )}
+                {task.id && (
+                  <div className="relative grid gap-2 pt-4">
+                    <Label
+                      className="text-sm font-medium flex items-center gap-2"
+                      htmlFor="comments"
+                    >
+                      <MessageSquare className="h-4 w-4" />
+                      Comentários
+                    </Label>
+                    <div className="flex flex-col gap-1 rounded-lg border bg-slate-50 dark:bg-slate-800 p-2 max-h-60 overflow-y-auto">
+                      {task.comments && task.comments.length > 0 ? (
+                        task.comments.map((comment) => (
+                          <CommentItem key={comment.id} comment={comment} />
+                        ))
+                      ) : (
+                        <p className="text-sm text-center text-gray-500 p-4">
+                          Nenhum comentário ainda.
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 pt-2">
+                      <Input
+                        id="new-comment"
+                        placeholder="Adicione um comentário..."
+                        value={newComment}
+                        onChange={(e) => setNewComment(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && !e.shiftKey) {
+                            e.preventDefault();
+                            handlePostComment();
+                          }
+                        }}
+                        disabled={isPostingComment}
+                      />
+                      <Button
+                        type="button"
+                        size="icon"
+                        onClick={handlePostComment}
+                        isLoading={isPostingComment}
+                        disabled={!newComment.trim()}
+                      >
+                        <Send className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+                {task.id && task.movementHistory && (
+                  <MovementHistory history={task.movementHistory} />
+                )}
+                <div className="relative flex gap-2 pt-4">
+                  <Button
+                    type="submit"
+                    isLoading={isSubmitLoading}
+                    disabled={!activeMutation}
+                  >
+                    {isCreating ? "Criar Tarefa" : "Salvar Alterações"}
+                  </Button>
+
+                  {enableDelete && deleteFunc && (
                     <Button
                       type="button"
-                      size="icon"
-                      onClick={handlePostComment}
-                      isLoading={isPostingComment}
-                      disabled={!newComment.trim()}
+                      variant="outline"
+                      onClick={() => task.id && deleteFunc({ id: task.id })}
+                      isLoading={isDeleteLoading}
+                      disabled={!task.id || isDeleteLoading}
                     >
-                      <Send className="h-4 w-4" />
+                      Arquivar Tarefa
                     </Button>
-                  </div>
-                </div>
-              )}
-              {task.id && task.movementHistory && (
-                <MovementHistory history={task.movementHistory} />
-              )}
-              <div className="relative flex gap-2 pt-4">
-                <Button type="submit" isLoading={isEditLoading}>
-                  {title === "Create Task"
-                    ? "Criar Tarefa"
-                    : "Salvar Alterações"}
-                </Button>
-                {enableDelete && deleteFunc && (
+                  )}
+                  <input
+                    id="attachment-upload"
+                    type="file"
+                    multiple
+                    className="hidden"
+                    onChange={handleAttachmentChange}
+                    disabled={isUploading}
+                  />
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => task.id && deleteFunc({ id: task.id })}
-                    isLoading={isDeleteLoading}
-                    disabled={!task.id || isDeleteLoading}
+                    onClick={() =>
+                      document.getElementById("attachment-upload")?.click()
+                    }
+                    className="ml-auto"
+                    isLoading={isUploading}
+                    disabled={isUploading || !task.id}
                   >
-                    Arquivar Tarefa
+                    <PaperclipIcon className="mr-2 h-4 w-4" />
+                    Anexar
                   </Button>
-                )}
-                <input
-                  id="attachment-upload"
-                  type="file"
-                  multiple
-                  className="hidden"
-                  onChange={handleAttachmentChange}
-                  disabled={isUploading}
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() =>
-                    document.getElementById("attachment-upload")?.click()
-                  }
-                  className="ml-auto"
-                  isLoading={isUploading}
-                  disabled={isUploading || !task.id}
-                >
-                  <PaperclipIcon className="mr-2 h-4 w-4" />
-                  Anexar
-                </Button>
+                </div>
               </div>
-            </div>
 
-            {md && (
-              <div className="w-full md:w-64 flex flex-col border dark:border-gray-700 rounded-lg p-4 h-min space-y-4">
-                <ExtraInfoField />
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-    </form>
+              {md && (
+                <div className="w-full md:w-64 flex flex-col border dark:border-gray-700 rounded-lg p-4 h-min space-y-4">
+                  <ExtraInfoField />
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </form>
+
+      <ConfirmationDialog
+        open={showConfirmDialog}
+        onConfirm={handleConfirmAndClose}
+        title="Deseja realmente sair?"
+        description="As alterações não salvas serão perdidas."
+        onOpenChange={function (open: boolean): void {
+          throw new Error("Function not implemented.");
+        }}
+      />
+    </>
   );
 };
 

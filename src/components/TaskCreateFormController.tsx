@@ -38,7 +38,12 @@ const TaskCreateFormController: FC<TaskCreateFormProps> = ({
       columnId: task.columnId || undefined,
       label: [],
       tags: [],
-      projectId: task.projectId || (searchParams.get("projectId") !== "all" ? searchParams.get("projectId") : null) || undefined,
+      projectId:
+        task.projectId ||
+        (searchParams.get("projectId") !== "all"
+          ? searchParams.get("projectId")
+          : null) ||
+        undefined,
       order: undefined,
       assignedToIds: [],
     },
@@ -69,7 +74,7 @@ const TaskCreateFormController: FC<TaskCreateFormProps> = ({
         handleOnClose={handleOnClose}
         task={task}
         title="Criar Tarefa"
-        editMutationFunctionReturn={createMutation}
+        createMutation={createMutation} // <-- Use a prop correta
         formFunctionReturn={form}
       />
     );
