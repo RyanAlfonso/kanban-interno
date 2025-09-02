@@ -12,33 +12,54 @@ import { Todo } from "@prisma/client";
 import { QueryKey, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AxiosError } from "axios";
 import { useSearchParams } from "next/navigation";
-import { FC } from "react";
+import { FC, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import "react-quill/dist/quill.snow.css";
 import TaskModificationForm from "./TaskModificationForm";
 import { useToast } from "./ui/use-toast";
 
+// --- MODIFICAÇÃO 1: Importar os tipos necessários ---
+import { TodoWithRelations } from "@/types/todo";
+// Supondo que o tipo ChecklistItemType esteja definido em algum lugar, ex:
+// export type ChecklistItemType = { id: string; text: string; completed: boolean };
+import { ChecklistItemType } from "./CheckList";
+
 type TaskEditFormProps = {
   handleOnSuccess: () => void;
-  handleOnClose: () => void;
-  task: Todo;
+  handleOnClose: (isDirty: boolean) => void;
+  task: TodoWithRelations; // A prop já está correta, recebendo o tipo com relações
 };
+
 const TaskEditFormController: FC<TaskEditFormProps> = ({
   handleOnSuccess,
   handleOnClose,
   task,
 }) => {
+  const [isFormDirty, setIsFormDirty] = useState(false);
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const { axiosToast } = useToast();
 
   const mainTodosQueryKey: QueryKey = ["todos", searchParams.toString()];
-
   const sharedTodoQueryKey: QueryKey = ["shared-todo", task.id];
 
   const form = useForm<TodoEditRequest>({
     resolver: zodResolver(TodoEditValidator),
-    defaultValues: {
+    // Os defaultValues são controlados pelo useEffect abaixo
+  });
+
+  // --- MODIFICAÇÃO 2: Processar a tarefa para garantir a tipagem correta ---
+  // Isso transforma o 'checklist' de JsonValue para o tipo esperado pelo formulário.
+  const processedTask = {
+    ...task,
+    checklist: Array.isArray(task.checklist)
+      ? (task.checklist as ChecklistItemType[])
+      : [], // Se não for um array, usa um array vazio como padrão.
+  };
+
+  // --- MODIFICAÇÃO 3: Atualizar o useEffect para resetar o formulário com todos os dados ---
+  useEffect(() => {
+    form.reset({
       id: task.id,
       title: task.title || "",
       description: task.description || null,
@@ -48,8 +69,14 @@ const TaskEditFormController: FC<TaskEditFormProps> = ({
       projectId: task.projectId || null,
       order: task.order,
       isDeleted: task.isDeleted || false,
-    },
-  });
+      // Popular campos de relação para o formulário
+      tags: task.tags?.map((tag) => tag.id) || [],
+      assignedToIds: task.assignedTo?.map((user) => user.id) || [],
+      // Usar o checklist já processado e validado
+      checklist: processedTask.checklist,
+    });
+  }, [task, form, processedTask.checklist]); // Adicionado form e processedTask.checklist às dependências
+
   const editMutation = useMutation<
     Todo,
     AxiosError,
@@ -74,6 +101,7 @@ const TaskEditFormController: FC<TaskEditFormProps> = ({
       queryClient.invalidateQueries({ queryKey: sharedTodoQueryKey });
     },
   });
+
   const deleteMutation = useMutation<
     Todo[],
     AxiosError,
@@ -104,9 +132,10 @@ const TaskEditFormController: FC<TaskEditFormProps> = ({
 
   return (
     <TaskModificationForm
-      handleOnClose={handleOnClose}
-      task={task}
-      title="Edit Task"
+      onFormDirtyChange={setIsFormDirty}
+      handleOnClose={() => handleOnClose(isFormDirty)}
+      task={processedTask}
+      title="Editar Tarefa"
       enableDelete
       deleteMutationFunctionReturn={deleteMutation}
       editMutationFunctionReturn={editMutation}

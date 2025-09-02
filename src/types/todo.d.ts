@@ -1,5 +1,6 @@
 import { Prisma, User } from "@prisma/client";
 
+// Tipos utilitários para manipulação de campos nulos (sem alterações aqui)
 type PickNullable<T> = {
   [P in keyof T as null extends T[P] ? P : never]: T[P];
 };
@@ -14,6 +15,7 @@ type OptionalNullable<T> = {
   [K in keyof PickNotNullable<T>]: T[K];
 };
 
+// Validador do Prisma para definir a estrutura do 'Todo' com suas relações
 const todoFromPrisma = Prisma.validator<Prisma.TodoDefaultArgs>()({
   include: {
     project: true,
@@ -41,9 +43,15 @@ const todoFromPrisma = Prisma.validator<Prisma.TodoDefaultArgs>()({
         },
       },
     },
+    // --- CORREÇÃO APLICADA AQUI ---
+    // Alterado de um objeto 'select' para 'true'.
+    // Isso busca o objeto 'Tag' completo, alinhando o tipo com o que
+    // o 'ExtendedTask' do seu formulário de edição espera.
+    tags: true,
   },
 });
 
+// Relações que são adicionadas manualmente ou vêm de outra fonte
 type ManualTodoRelations = {
   assignedTo: {
     id: string;
@@ -57,8 +65,10 @@ type ManualTodoRelations = {
   }[];
 };
 
-export type TodoWithRelations = Prisma.TodoGetPayload<typeof todoFromPrisma> & ManualTodoRelations;
-
+// O tipo 'TodoWithRelations' agora incluirá o tipo 'Tag' completo do Prisma
+// para a propriedade 'tags', resolvendo o erro de incompatibilidade.
+export type TodoWithRelations = Prisma.TodoGetPayload<typeof todoFromPrisma> &
+  ManualTodoRelations;
 
 /**
  * @deprecated Use `TodoWithRelations` para uma tipagem mais precisa e completa.
@@ -67,5 +77,5 @@ export type TodoWithColumn = Prisma.TodoGetPayload<{
   include: {
     column: true;
     project: true;
-  }
+  };
 }>;
