@@ -14,11 +14,13 @@ import "react-quill/dist/quill.snow.css";
 import TaskModificationForm from "./TaskModificationForm";
 import { useToast } from "./ui/use-toast";
 
+// Passo 1: Corrigir a assinatura da prop
 type TaskCreateFormProps = {
   handleOnSuccess: () => void;
-  handleOnClose: () => void;
+  handleOnClose: (isDirty: boolean) => void;
   task: TaskCreatorDefaultValues;
 };
+
 const TaskCreateFormController: FC<TaskCreateFormProps> = ({
   handleOnSuccess,
   handleOnClose,
@@ -43,6 +45,10 @@ const TaskCreateFormController: FC<TaskCreateFormProps> = ({
       assignedToIds: [],
     },
   });
+
+  // Passo 2: Extrair o estado 'isDirty' do formulário
+  const { formState: { isDirty } } = form;
+
   const createMutation = useMutation<Todo, AxiosError, TodoCreateRequest>({
     mutationFn: async (data: TodoCreateRequest) => {
       const payload = {
@@ -53,9 +59,7 @@ const TaskCreateFormController: FC<TaskCreateFormProps> = ({
     },
     onSuccess: (newTodo) => {
       queryClient.invalidateQueries({ queryKey: mainTodosQueryKey });
-
       queryClient.invalidateQueries({ queryKey: ["todos"] });
-
       handleOnSuccess();
     },
     onError: (error) => {
@@ -63,15 +67,18 @@ const TaskCreateFormController: FC<TaskCreateFormProps> = ({
       axiosToast(error);
     },
   });
+
   try {
     return (
       <TaskModificationForm
-        handleOnClose={handleOnClose}
+        // Passo 3: Passar uma nova função que chama a original com o estado 'isDirty'
+        handleOnClose={() => handleOnClose(isDirty)}
         task={task}
         title="Criar Tarefa"
         editMutationFunctionReturn={createMutation}
-        formFunctionReturn={form}
-      />
+        formFunctionReturn={form} onFormDirtyChange={function (isDirty: boolean): void {
+          throw new Error("Function not implemented.");
+        } }      />
     );
   } catch (error) {
     console.error("Error rendering TaskCreateFormController:", error);

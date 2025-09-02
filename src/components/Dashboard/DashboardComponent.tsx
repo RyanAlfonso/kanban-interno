@@ -40,7 +40,9 @@ const DashboardComponent = () => {
     [todos]
   );
 
-  const { data: projectTags = [] } = useQuery<{ id: string; name: string; color: string }[]>({
+  const { data: projectTags = [] } = useQuery<
+    { id: string; name: string; color: string }[]
+  >({
     queryKey: ["tags", projectId],
     queryFn: async () => {
       if (!projectId) return [];
@@ -59,26 +61,29 @@ const DashboardComponent = () => {
 
     // Inicializar com tags do projeto
     projectTags.forEach((tag) => {
-      progress[tag.name] = { 
-        total: 0, 
-        completed: 0, 
-        colors: getTagColor(tag.color) 
+      progress[tag.name] = {
+        total: 0,
+        completed: 0,
+        colors: getTagColor(tag.color),
       };
     });
 
     todos.forEach((todo) => {
       if (todo.tags && todo.tags.length > 0) {
-        todo.tags.forEach((tagString) => {
-          if (progress[tagString]) {
-            progress[tagString].total += 1;
+        // Itera sobre os objetos de tag
+        todo.tags.forEach((tag) => {
+          // Renomeei para 'tag' para clareza
+          // Use 'tag.name' como a chave para o objeto 'progress'
+          if (progress[tag.name]) {
+            progress[tag.name].total += 1;
             if (todo.column?.name === COLUMNS.CONCLUIDA) {
-              progress[tagString].completed += 1;
+              progress[tag.name].completed += 1;
             }
           }
         });
       }
     });
-    
+
     return Object.entries(progress)
       .filter(([_, data]) => data.total > 0)
       .reduce((acc, [tag, data]) => {
